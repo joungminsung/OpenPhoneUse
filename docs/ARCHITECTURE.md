@@ -190,7 +190,7 @@ opens a place (`notify/Taps`), through a signed intent (`LaunchToken`):
   declaration can only raise it. A weak keyword is the declaration's call: it can clear it or replace it with
   another category. With no keyword, the declaration's category counts, except CHANGE, which does not ask on its own.
 - `agent/PointRisk` checks coordinate taps and swipes against the live element.
-- The confirm gate (`ConfirmGate`, `agent/ConfirmPolicyGate`) shows a card for every risky action.
+- The confirm gate (`agent/ConfirmPolicyGate`) shows a card for every risky action.
   - Money and security actions are always confirmed.
   - A delete is confirmed unless the model declares `delete_scope=requested_one` (exactly the single, recoverable
     item the user's own message names) and the request and screen carry no bulk or permanent wording

@@ -14,6 +14,8 @@
 
 **OpenPhoneUse 是一款开源 Android 应用，让 AI 智能体像人一样操作你的手机：它读取屏幕，然后点击、输入、滚动并在应用之间切换，全部在手机上完成，无需电脑、root、ADB 或 Shizuku。**
 
+<a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD_APK-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="下载 APK" height="44"></a>
+
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
@@ -42,7 +44,7 @@
 
 **基准测试 94.5 / 100。** 这是 9 个类别、31 个任务的得分，单个任务耗时中位数为 42 秒（GPT-6.1 Terra，快速模式，Android 模拟器，2026-11-03）。[查看评分方式](#基准测试)。
 
-**[下载 APK](https://github.com/joungminsung/openphoneuse/releases/latest)**，或查看[安装步骤](#安装)。
+**[下载 APK](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)**，或查看[安装步骤](#安装)。
 
 ## 演示
 
@@ -87,7 +89,14 @@
 
 ## 安装
 
-1. 从 [Releases](https://github.com/joungminsung/openphoneuse/releases/latest) **下载 APK** 并安装（Android 询问时，允许从该来源安装）。Play 商店上没有这款应用。
+<table>
+<tr>
+<td align="center" width="170"><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="docs/media/download-qr.png" alt="用于下载 APK 的二维码" width="140"></a></td>
+<td><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD_APK-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="下载 APK" height="44"></a><br><br><b>在手机上：</b>点按按钮。<br><b>在电脑上：</b>用手机相机扫描二维码。<br><br><sub>始终下载最新版本，约 70 MB。<a href="https://github.com/joungminsung/openphoneuse/releases">所有版本和校验和</a>。</sub></td>
+</tr>
+</table>
+
+1. **安装 APK：** 打开下载的文件，Android 询问时，允许从该来源安装。Play 商店上没有这款应用。如果提示未安装应用，请先卸载之前的测试版本。
 2. **开启操控权限：** **设置 → 无障碍 → OpenPhoneUse** → 开启。在 Android 13 及更高版本上，直接安装 APK 的应用通常会因“受限制的设置”而无法打开此开关（显示为灰色）。遇到这种情况，请前往 **设置 → 应用 → OpenPhoneUse → 右上角 ⋮ → 允许受限制的设置**，然后再次开启。
 3. **登录：** 在应用的设置中选择 **Continue with ChatGPT** 以使用你的套餐，或粘贴 OpenAI、Claude、Grok 或 Gemini 的 API 密钥。
 4. **试着提个请求**，比如"打开勿扰模式"或"比较 Amazon、Best Buy 和 Walmart 上 AirPods Pro 3 的当前价格"。
@@ -113,7 +122,7 @@
 |---|---|
 | 付款和安全设置更改一律先询问 | 执行操作的模型会在同一次工具调用中，为每次点击和输入标注风险与效果；`RiskGuard` 关键词作为补充，只会让确认卡片更容易出现，不会减少。强关键词（支付、转账、删除账号、恢复出厂设置）一律询问。此项无法关闭。 |
 | 删除先询问，但你亲自要求的那一项直接执行 | 像“删掉 6:15 的闹钟”这样，正是你要求的那一项且可以恢复时，不弹卡片直接删除。全部或多项删除、永久删除（清空回收站、卸载、重置）以及你没要求的删除一律先询问。 |
-| 发送需确认，除非你亲自指定了收件人和内容 | `ConfirmGate`。你自己的消息里已写明收件人和内容的直接发送可以通过；例行任务只能对已保存的收件人和内容跳过确认。 |
+| 发送需确认，除非你亲自指定了收件人和内容 | `ConfirmPolicyGate`。你自己的消息里已写明收件人和内容的直接发送可以通过；例行任务只能对已保存的收件人和内容跳过确认。 |
 | 模型从不输入密码 | 它会调用 `hand_to_user`，等你自己输入。 |
 | 网页、通知和其他应用里的文字是数据，不是指令 | 读过这类文字的运行会被标记为"受污染"（tainted）：发送一律确认，新记忆只作为推测保存，`forget` 会先询问。 |
 | 机密信息加密保存 | 令牌和 API 密钥用 Android Keystore 密钥加密（`SecretBox`），从不写入日志。通知中的验证码会被遮盖。 |

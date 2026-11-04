@@ -14,6 +14,8 @@
 
 **OpenPhoneUse は、AI エージェントが人と同じようにスマートフォンを操作できるようにするオープンソースの Android アプリです。画面を読み取り、タップ・入力・スクロールし、アプリ間を移動します。PC、root、ADB、Shizuku は不要で、すべてスマートフォンの中だけで動きます。**
 
+<a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/APK_%E3%82%92%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="APK をダウンロード" height="44"></a>
+
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
@@ -42,7 +44,7 @@
 
 **ベンチマーク 94.5 / 100。** 9 分野・31 課題のスコアで、課題あたりの所要時間の中央値は 42 秒です（GPT-6.1 Terra、高速モード、Android エミュレーター、2026-11-03）。[採点方法を見る](#ベンチマーク)。
 
-**[APK をダウンロード](https://github.com/joungminsung/openphoneuse/releases/latest)** するか、[インストール手順](#インストール)をご覧ください。
+**[APK をダウンロード](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)** するか、[インストール手順](#インストール)をご覧ください。
 
 ## デモ
 
@@ -87,7 +89,14 @@
 
 ## インストール
 
-1. [Releases](https://github.com/joungminsung/openphoneuse/releases/latest) から **APK をダウンロード**してインストールします（Android に聞かれたら、そのソースからのインストールを許可）。Play ストアにはありません。
+<table>
+<tr>
+<td align="center" width="170"><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="docs/media/download-qr.png" alt="APK をダウンロードする QR コード" width="140"></a></td>
+<td><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/APK_%E3%82%92%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="APK をダウンロード" height="44"></a><br><br><b>スマートフォンでは：</b>ボタンをタップします。<br><b>パソコンでは：</b>スマートフォンのカメラでコードを読み取ります。<br><br><sub>常に最新版を取得します。約 70 MB です。<a href="https://github.com/joungminsung/openphoneuse/releases">すべてのバージョンとチェックサム</a>。</sub></td>
+</tr>
+</table>
+
+1. **APK をインストール：** ダウンロードしたファイルを開き、Android に聞かれたらそのソースからのインストールを許可します。Play ストアにはありません。インストールできないと表示されたら、以前のテストビルドを先に削除してください。
 2. **操作を許可：** **設定 → ユーザー補助 → OpenPhoneUse** → オン。Android 13 以降では、APK から直接インストールしたアプリはこのスイッチが「制限付き設定」によってグレー表示になっていることがよくあります。その場合は **設定 → アプリ → OpenPhoneUse → 右上の ⋮ → 制限付き設定を許可** を選んでから、もう一度オンにしてください。
 3. **サインイン：** アプリの設定で **Continue with ChatGPT** を選んでプランを使うか、OpenAI、Claude、Grok、Gemini の API キーを貼り付けます。
 4. **頼んでみる：** たとえば「おやすみモードをオンにして」「Amazon、Best Buy、Walmart で AirPods Pro 3 の今の価格を比較して」。
@@ -113,7 +122,7 @@
 |---|---|
 | 支払いとセキュリティ変更は必ず確認 | 実行するモデルが、同じツール呼び出しの中で、タップや入力ごとにリスクと効果のラベルを付けます。`RiskGuard` のキーワードは補助で、確認カードを増やすことはあっても減らすことはありません。強いキーワード（支払い、送金、アカウント削除、初期化）は常に確認します。オフにはできません。 |
 | 削除は確認、ただし自分で頼んだ 1 件はそのまま | 「6 時 15 分のアラームを消して」のように、頼んだその 1 件で元に戻せるものならカードなしで消します。全部や複数の削除、完全削除（ゴミ箱を空にする、アンインストール、初期化）、頼んでいない削除は必ず確認します。 |
-| 送信は、宛先と本文を自分で指定したときだけそのまま | `ConfirmGate`。自分のメッセージに宛先と内容がそろっていれば送信でき、ルーティンは保存済みの宛先と本文に限ってカードを省略できます。 |
+| 送信は、宛先と本文を自分で指定したときだけそのまま | `ConfirmPolicyGate`。自分のメッセージに宛先と内容がそろっていれば送信でき、ルーティンは保存済みの宛先と本文に限ってカードを省略できます。 |
 | モデルはパスワードを入力しない | `hand_to_user` を呼び、ユーザーが自分で入力するのを待ちます。 |
 | Web ページ、通知、ほかのアプリの文章は命令ではなくデータ | そうした文章を読んだ実行は「汚染（tainted）」扱いになり、送信は必ず確認、新しいメモリーは推測としてのみ保存、`forget` は先に確認します。 |
 | 秘密情報は封印 | トークンと API キーは Android Keystore の鍵で暗号化（`SecretBox`）し、ログには残しません。通知内の認証コードは伏せます。 |

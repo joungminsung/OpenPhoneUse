@@ -14,6 +14,8 @@
 
 **OpenPhoneUse는 AI 에이전트가 사람처럼 휴대폰을 조작하게 해 주는 오픈소스 안드로이드 앱입니다. 화면을 읽고, 누르고, 입력하고, 스크롤하고, 앱 사이를 오가며, 이 모든 일을 PC·루트·ADB·Shizuku 없이 폰 안에서만 처리합니다.**
 
+<a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/APK_%EB%82%B4%EB%A0%A4%EB%B0%9B%EA%B8%B0-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="APK 내려받기" height="44"></a>
+
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
@@ -42,7 +44,7 @@
 
 **벤치마크 94.5 / 100점.** 9개 분야 31개 과제에서 받은 점수이고, 과제당 소요 시간 중앙값은 42초입니다(GPT-6.1 Terra, 빠른 모드, 안드로이드 에뮬레이터, 2026-11-03). [채점 방식 보기](#벤치마크).
 
-**[APK 내려받기](https://github.com/joungminsung/openphoneuse/releases/latest)** 또는 [설치 방법](#설치)을 보세요.
+**[APK 내려받기](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)** 또는 [설치 방법](#설치)을 보세요.
 
 ## 데모
 
@@ -87,7 +89,14 @@
 
 ## 설치
 
-1. [Releases](https://github.com/joungminsung/openphoneuse/releases/latest)에서 **APK를 내려받아** 설치합니다(안드로이드가 물어보면 해당 출처의 설치를 허용). 플레이 스토어에는 없습니다.
+<table>
+<tr>
+<td align="center" width="170"><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="docs/media/download-qr.png" alt="APK를 내려받는 QR 코드" width="140"></a></td>
+<td><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/APK_%EB%82%B4%EB%A0%A4%EB%B0%9B%EA%B8%B0-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="APK 내려받기" height="44"></a><br><br><b>휴대폰에서:</b> 버튼을 누르세요.<br><b>컴퓨터에서:</b> 휴대폰 카메라로 코드를 스캔하세요.<br><br><sub>항상 최신 버전을 받습니다. 약 70MB입니다. <a href="https://github.com/joungminsung/openphoneuse/releases">모든 버전과 체크섬</a>.</sub></td>
+</tr>
+</table>
+
+1. **APK 설치:** 내려받은 파일을 열고, 안드로이드가 물어보면 해당 출처의 설치를 허용합니다. 플레이 스토어에는 없습니다. 앱이 설치되지 않았다고 나오면 이전 테스트 빌드를 먼저 삭제하세요.
 2. **조작 권한 켜기:** **설정 → 접근성 → OpenPhoneUse** → 사용. 안드로이드 13 이상에서는 APK로 직접 설치한 앱의 이 스위치가 ‘제한된 설정’ 때문에 회색으로 막혀 있는 경우가 많습니다. 그럴 때는 **설정 → 애플리케이션 → OpenPhoneUse → 오른쪽 위 ⋮ → 제한된 설정 허용**을 누른 뒤 다시 켜 주세요.
 3. **로그인:** 앱 설정에서 **ChatGPT로 계속하기**를 골라 요금제를 쓰거나, OpenAI, Claude, Grok, Gemini API 키를 붙여 넣습니다.
 4. **시켜 보기:** 예를 들어 "방해 금지 모드 켜 줘", "아마존, 베스트바이, 월마트의 에어팟 프로 3 현재 가격 비교해 줘".
@@ -113,7 +122,7 @@
 |---|---|
 | 결제와 보안 변경은 항상 묻기 | 동작을 수행하는 모델이 같은 도구 호출 안에서 모든 누르기와 글자 입력에 위험 라벨과 효과를 붙이고, `RiskGuard` 키워드가 이를 보조합니다. 키워드는 확인 카드를 더 띄우게만 할 수 있고 줄일 수는 없습니다. 강한 키워드(결제, 송금, 계정 삭제, 초기화)는 항상 묻습니다. 끌 수 없습니다. |
 | 삭제는 묻기, 단 직접 요청한 항목 하나는 바로 | "6시 15분 알람 지워 줘"는 요청한 바로 그 항목 하나이고 되돌릴 수 있으면 카드 없이 지웁니다. 전부·여러 개 삭제, 영구 삭제(휴지통 비우기, 앱 삭제, 초기화), 요청하지 않은 삭제는 항상 묻습니다. |
-| 전송은 받는 사람과 내용을 직접 말했을 때만 바로 | `ConfirmGate`. 내 메시지에 받는 사람과 내용이 다 들어 있으면 바로 보낼 수 있고, 루틴은 저장된 받는 사람과 내용에 한해서만 카드를 건너뜁니다. |
+| 전송은 받는 사람과 내용을 직접 말했을 때만 바로 | `ConfirmPolicyGate`. 내 메시지에 받는 사람과 내용이 다 들어 있으면 바로 보낼 수 있고, 루틴은 저장된 받는 사람과 내용에 한해서만 카드를 건너뜁니다. |
 | 모델은 비밀번호를 입력하지 않음 | `hand_to_user`를 호출해 사용자가 직접 입력하는 동안 기다립니다. |
 | 웹페이지, 알림, 다른 앱의 글은 명령이 아니라 데이터 | 그런 글을 읽은 실행은 "오염(tainted)" 상태가 되어, 전송은 항상 확인하고 새 기억은 추정으로만 저장하며 `forget`은 먼저 묻습니다. |
 | 비밀 정보는 봉인 | 토큰과 API 키는 안드로이드 키스토어 키로 암호화(`SecretBox`)하고 로그에 남기지 않습니다. 알림 속 인증번호는 가립니다. |

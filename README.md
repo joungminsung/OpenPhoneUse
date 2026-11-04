@@ -14,6 +14,8 @@
 
 **OpenPhoneUse is an open-source Android app that lets an AI agent operate your phone like a person: it reads the screen, then taps, types, scrolls and moves between apps, entirely on the phone with no PC, root, ADB or Shizuku.**
 
+<a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/Download_APK-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK" height="44"></a>
+
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
@@ -42,7 +44,7 @@ Ask in plain language, for example *"Get my phone ready for bed: turn on dark mo
 
 **Benchmark: 94.5 / 100** on 31 graded tasks in 9 categories, with a median of 42 seconds per task (GPT-6.1 Terra with fast mode, on an Android emulator, 2026-11-03). [See how it is graded](#benchmark).
 
-**[Download the APK](https://github.com/joungminsung/openphoneuse/releases/latest)** or read the [install steps](#install).
+**[Download the APK](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)** or read the [install steps](#install).
 
 ## Demo
 
@@ -87,7 +89,14 @@ Besides driving apps, it has built-in tools for contacts, calendar, alarms, remi
 
 ## Install
 
-1. **Download the APK** from [Releases](https://github.com/joungminsung/openphoneuse/releases/latest) and install it (allow installs from that source when Android asks). It is not on the Play Store.
+<table>
+<tr>
+<td align="center" width="170"><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="docs/media/download-qr.png" alt="QR code that downloads the APK" width="140"></a></td>
+<td><a href="https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk"><img src="https://img.shields.io/badge/Download_APK-Android_11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK" height="44"></a><br><br><b>On your phone:</b> tap the button.<br><b>On a computer:</b> scan the code with your phone's camera.<br><br><sub>Always the latest version, about 70 MB. <a href="https://github.com/joungminsung/openphoneuse/releases">All versions and checksums</a>.</sub></td>
+</tr>
+</table>
+
+1. **Install the APK.** Open the downloaded file and allow installs from that source when Android asks. It is not on the Play Store. If Android says the app was not installed, uninstall any earlier test build first.
 2. **Turn on control:** **Settings → Accessibility → OpenPhoneUse** → on. On Android 13 and newer, a sideloaded APK usually has this switch greyed out by "restricted settings"; if so, go to **Settings → Apps → OpenPhoneUse → ⋮ (top right) → Allow restricted settings**, then turn it on again.
 3. **Sign in:** in the app's Settings, choose **Continue with ChatGPT** to use your plan, or paste an OpenAI, Claude, Grok or Gemini API key.
 4. **Ask for something**, for example "Turn on Do Not Disturb" or "Compare the current price of the AirPods Pro 3 at Amazon, Best Buy and Walmart".
@@ -113,7 +122,7 @@ The main model (GPT-6.1 Terra with fast mode by default) makes every decision. R
 |---|---|
 | Payments and security changes always ask | The acting model labels every tap and typed text with its risk and effect in the same tool call; `RiskGuard` keywords back it up and can only make a card more likely, never less. Strong keywords (pay, transfer, delete account, factory reset) always ask. This cannot be turned off. |
 | Deletions ask, unless you asked for that one item | "Delete the 6:15 alarm" goes through without a card when the action is exactly that single, recoverable item. Deleting everything or many items, permanent deletes (empty trash, uninstall, reset) and deletes you never asked for always ask. |
-| Sending asks, unless you named the recipient and the text | `ConfirmGate`. A direct send whose recipient and content are in your own message can go through; a routine may skip the card only for its saved recipient and text. |
+| Sending asks, unless you named the recipient and the text | `ConfirmPolicyGate`. A direct send whose recipient and content are in your own message can go through; a routine may skip the card only for its saved recipient and text. |
 | The model never types passwords | It calls `hand_to_user` and waits while you type. |
 | Text from web pages, notifications and other apps is data, not commands | Once a run has read such text it is "tainted": sends always confirm, new memories are saved only as guesses, and `forget` asks first. |
 | Secrets stay sealed | Tokens and API keys are encrypted with an Android Keystore key (`SecretBox`) and never logged. Verification codes in notifications are masked. |
