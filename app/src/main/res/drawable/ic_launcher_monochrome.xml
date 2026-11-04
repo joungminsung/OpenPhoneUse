@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer (Android 13+): the phone outline and the agent's touch as one flat colour, which the
+     system tints. Same geometry as docs/media/brand/icon.svg, whose 1024 tile is the 72dp visible window. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.08"
+        android:fillColor="#00000000"
+        android:pathData="M48.37,31.5h11.26a7.73,7.73 0,0 1,7.73 7.73v29.54a7.73,7.73 0,0 1,-7.73 7.73h-11.26a7.73,7.73 0,0 1,-7.73 -7.73v-29.54a7.73,7.73 0,0 1,7.73 -7.73z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M59.55,66.16m-4.08,0a4.08,4.08 0,1 1,8.16 0a4.08,4.08 0,1 1,-8.16 0" />
+</vector>

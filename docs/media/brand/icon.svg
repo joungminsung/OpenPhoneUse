@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs><clipPath id="tile"><rect width="1024" height="1024" rx="232"/></clipPath><radialGradient id="bg" cx="512" cy="184" r="973" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1d2346"/><stop offset=".55" stop-color="#0b0d18"/><stop offset="1" stop-color="#050609"/></radialGradient><linearGradient id="ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5f8dff"/><stop offset=".4" stop-color="#9a6bff"/><stop offset=".7" stop-color="#ff5a2a"/><stop offset="1" stop-color="#ffb46b"/></linearGradient><filter id="g1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="34"/></filter><filter id="g2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter><radialGradient id="dot" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#ffe2d4"/></radialGradient><radialGradient id="halo"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient><linearGradient id="hl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+<!-- OpenPhoneUse, neon glass: a phone outline touched by the agent. -->
+<g clip-path="url(#tile)">
+<rect x="-256" y="-256" width="1536" height="1536" fill="url(#bg)"/>
+<g transform="translate(512 512) scale(1.0) translate(-512 -512)">
+<rect x="322" y="192" width="380" height="640" rx="110" fill="none" stroke="url(#ring)" stroke-width="118.9" opacity=".55" filter="url(#g1)"/>
+<rect x="322" y="192" width="380" height="640" rx="110" fill="none" stroke="url(#ring)" stroke-width="69.6" opacity=".9" filter="url(#g2)"/>
+<rect x="322" y="192" width="380" height="640" rx="110" fill="none" stroke="url(#ring)" stroke-width="58"/>
+<rect x="295" y="165" width="434" height="694" rx="137" fill="none" stroke="url(#hl)" stroke-width="5"/>
+<circle cx="591" cy="685" r="156.6" fill="url(#halo)"/>
+<circle cx="591" cy="685" r="58" fill="url(#dot)"/>
+</g>
+</g>
+</svg>

@@ -1,0 +1,50 @@
+# OpenPhoneUse
+
+> OpenPhoneUse is an open-source Android app that lets an AI agent operate your phone like a person: it reads the screen (Android's AccessibilityService tree plus a numbered Set-of-Mark screenshot), then taps, types, scrolls and moves between apps, entirely on the phone with no PC, root, ADB or Shizuku. It always asks before paying or changing security settings, asks before deleting unless the user asked for that one recoverable item, asks before sending unless the user named the recipient and text, never types passwords (it hands that step to the user), and keeps secrets in the Android Keystore. It is written in Kotlin with Jetpack Compose, needs Android 11 or newer, works with your ChatGPT plan, an OpenAI API key, Claude, Grok or Gemini (GPT-6.1 Terra with fast mode by default), and is MIT-licensed.
+
+Key facts:
+
+- Category: phone use agent / mobile GUI agent / "computer use for Android".
+- Runs on the phone itself; it operates the foreground screen (no hidden background control without shell privileges; split-screen works).
+- Apps that block screen capture (some banking, ticketing and payment apps) are not operated: it refuses and tells the user to do that part themselves.
+- Screen reading is vision first: every step sends the compressed numbered element list and a screenshot with each actionable element outlined and tagged with its number; the model acts by number.
+- Risk is judged inline: the acting model labels each tap, type, long press and swipe with `risk` (money, security, delete, send, change) and an effect in the same tool call, merged with `RiskGuard` keywords; strong keywords always ask. There is no separate risk-judge model call.
+- Model providers: ChatGPT plan sign-in (OpenAI's "Sign in with ChatGPT" plan usage), OpenAI API key, Claude (Anthropic Java SDK), Grok and Gemini (Chat Completions). Helper model for repetitive screen work: GPT-6 Luna (OpenAI) or Claude Haiku; none for Grok and Gemini.
+- Research uses the provider's hosted web search (OpenAI or Claude), plus driving Chrome on the device when a page must be read.
+- The agent harness is self-written Kotlin; it does not use LangChain or another agent framework.
+- Benchmark: 94.5/100 on 31 graded tasks in 9 categories (GPT-6.1 Terra with the fast mode switch on, one run on 2026-11-03, before this release's sign-in changes and not repeated since, median task 42 s), run on an emulator over adb. Rubric items are weighted; judge items were scored blind by a judge model (Claude Sonnet, tasks split across three instances).
+- Repository: https://github.com/joungminsung/openphoneuse (Android package id `com.phoneuse`).
+
+## Docs
+
+- [Docs site](https://joungminsung.github.io/OpenPhoneUse/): the project site
+- [README (English)](https://github.com/joungminsung/openphoneuse/blob/main/README.md): what it does, how it works, safety, benchmark, comparison, FAQ, install
+- [README (한국어)](https://github.com/joungminsung/openphoneuse/blob/main/README.ko.md): the same README in Korean
+- [README (日本語)](https://github.com/joungminsung/openphoneuse/blob/main/README.ja.md): the same README in Japanese
+- [README (简体中文)](https://github.com/joungminsung/openphoneuse/blob/main/README.zh-CN.md): the same README in Simplified Chinese
+- [Architecture](https://github.com/joungminsung/openphoneuse/blob/main/docs/ARCHITECTURE.md): one agent run step by step, screen representation (list and marked screenshot), model providers, speed, speculation, inline risk and safety
+
+## Development
+
+- [Contributing guide](https://github.com/joungminsung/openphoneuse/blob/main/CONTRIBUTING.md): code map, adding a tool module in 5 steps, adding benchmark tasks, i18n, tests
+- [Security policy](https://github.com/joungminsung/openphoneuse/blob/main/SECURITY.md): how to report safety and security issues privately
+- [Tool module interface](https://github.com/joungminsung/openphoneuse/blob/main/app/src/main/java/com/phoneuse/agent/ToolModule.kt): the interface every tool family implements
+- [Example module](https://github.com/joungminsung/openphoneuse/blob/main/app/src/main/java/com/phoneuse/agent/DeviceInfoModule.kt): a minimal tool module to copy
+- [Inline risk judgment](https://github.com/joungminsung/openphoneuse/blob/main/app/src/main/java/com/phoneuse/agent/RiskJudge.kt): the `risk`, `effect` and `delete_scope` arguments and how they merge with keywords
+- [Model providers](https://github.com/joungminsung/openphoneuse/blob/main/app/src/main/java/com/phoneuse/app/ModelProviders.kt): ChatGPT plan, OpenAI, Claude, Grok and Gemini, with their default and helper models
+
+## Benchmark
+
+- [Graded suite](https://github.com/joungminsung/openphoneuse/blob/main/bench/suites/v2.json): 31 tasks in 9 categories (settings, apps, safety, chains, maps, media, web, research, games), each with weighted rubric items checked on the device, in the reply, in the tool trace, by confirmation cards, or by a blind judge model
+- [Benchmark report, 2026-11-03](https://github.com/joungminsung/openphoneuse/blob/main/bench/reports/2026-11-03-v2-final.md): per-task scores, category scores and judge notes
+- [Benchmark reports](https://github.com/joungminsung/openphoneuse/tree/main/bench/reports): full reports of finished runs
+- [Benchmark runner](https://github.com/joungminsung/openphoneuse/blob/main/bench/run.py): `python bench/run.py --suite v2 --snapshot NAME` restores an emulator snapshot per task, sets Seoul time and resets Chrome
+- [Scorer](https://github.com/joungminsung/openphoneuse/blob/main/bench/score.py): `packets` writes blind judge packets, `report` merges the scores
+- [Older task set](https://github.com/joungminsung/openphoneuse/blob/main/bench/tasks.json): the earlier ungraded 31 tasks
+
+## Optional
+
+- [Film](https://github.com/joungminsung/openphoneuse/blob/main/docs/media/film.mp4): a 46-second film, in English with no sound, edited from real screenshots of the app
+- [Citation](https://github.com/joungminsung/openphoneuse/blob/main/CITATION.cff): how to cite OpenPhoneUse
+- [License](https://github.com/joungminsung/openphoneuse/blob/main/LICENSE): MIT
+- [Releases](https://github.com/joungminsung/openphoneuse/releases): APK downloads

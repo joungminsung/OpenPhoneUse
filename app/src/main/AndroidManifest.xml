@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- In-app voice input (SpeechRecognizer without the system dialog). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Asked for only when get_location is first used. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- remind_at: exact alarms. USE_EXACT_ALARM is granted at install on 13+ (personal build, not on Play);
+         SCHEDULE_EXACT_ALARM covers 12 and 12L. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <!-- Asked for only when find_contact / the calendar tools are first used. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- set_alarm (AlarmClock.ACTION_SET_ALARM). -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Asked for only when the photo tools are first used. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- Asked for only when sms_search / send_sms are first used. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- Routines: alarms and geofences are set again after a reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Place routines (geofences); asked for separately after location, only when a place routine is made. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Device routines: "when my car's Bluetooth connects", "when I join home Wi-Fi". -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- Speech recognizers for in-app voice input (VoiceRecognizer names Google's explicitly). -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <!-- Map apps that take a route from a card (MapsIntents). -->
+        <package android:name="com.nhn.android.nmap" />
+        <package android:name="net.daum.android.map" />
+        <package android:name="com.google.android.apps.maps" />
+    </queries>
+
+    <application
+        android:name=".PhoneUseApp"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:allowBackup="false">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|keyboard|keyboardHidden|navigation|uiMode|fontScale"
+            android:exported="true"
+            android:theme="@style/Theme.PhoneUse"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".service.PhoneUseAccessibilityService"
+            android:exported="false"
+            android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_config" />
+        </service>
+        <service
+            android:name=".assist.PhoneUseVoiceService"
+            android:exported="true"
+            android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/voice_interaction_service" />
+        </service>
+
+        <service
+            android:name=".assist.PhoneUseSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+
+        <service
+            android:name=".assist.StubRecognitionService"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".assist.AssistVoiceActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <receiver
+            android:name=".routine.ReminderReceiver"
+            android:exported="false" />
+        <!-- Settings "오늘 요약 받기": the daily summary alarm. -->
+        <receiver
+            android:name=".app.DailySummaryReceiver"
+            android:exported="false" />
+
+        <!-- Notification history for the digest; runs only once the user grants notification access. -->
+        <service
+            android:name=".phone.PhoneUseNotificationListener"
+            android:exported="true"
+            android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <!-- Routines: the scheduler's one alarm, geofence crossings, and re-arming after boot or a clock change. -->
+        <receiver
+            android:name=".routine.RoutineAlarmReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".routine.GeofenceReceiver"
+            android:exported="false" />
+        <!-- Only the system sends these; a non-exported receiver still gets them, other apps cannot. -->
+        <receiver
+            android:name=".routine.RoutineBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <!-- Notification buttons: Stop, Approve / Deny, Follow up, Copy (notify/Notifier). -->
+        <receiver
+            android:name=".notify.NotifyActionReceiver"
+            android:exported="false" />
+        <!-- "알아서 챙기기": the 15-minute check and a nudge swiped away or put off. -->
+        <receiver
+            android:name=".proactive.ProactiveReceiver"
+            android:exported="false" />
+        <!-- "잠금 해제 후 실행": runs the routine once the user unlocked and tapped the notification. -->
+        <activity
+            android:name=".routine.RoutineRunActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Home-screen widgets (com.phoneuse.widget). The system delivers widget updates, so the receivers are
+             exported; every tap that starts something carries a LaunchToken that is checked before acting. -->
+        <receiver
+            android:name=".widget.AskBarWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_ask_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_ask_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.LiveTaskWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_live_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_live_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.TodayBriefWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_brief_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_brief_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.QuickActionsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_actions_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_actions_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.RoutinesWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_routines_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_routines_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.MemoryWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_memory_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_memory_info" />
+        </receiver>
+        <!-- The widgets' compact ask / follow-up / remember sheet, over the home screen with the keyboard up. -->
+        <activity
+            android:name=".widget.QuickAskActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />
+        <!-- The quick-actions tile editor; the launcher starts it when a grid is placed or reconfigured. It only
+             edits the tiles' text. -->
+        <activity
+            android:name=".widget.QuickActionsConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/widget_actions_label"
+            android:taskAffinity=""
+            android:theme="@style/Theme.PhoneUse"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Camera attachments: the camera app writes the shot through this provider. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.attachments"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/attachment_paths" />
+        </provider>
+    </application>
+
+</manifest>

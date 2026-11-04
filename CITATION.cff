@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use OpenPhoneUse in research or a product, please cite it as below."
+title: "OpenPhoneUse: an open-source phone-use AI agent that runs on the Android phone itself"
+abstract: >-
+  OpenPhoneUse is an open-source Android app in which a large language model operates the phone like a
+  person: it reads the screen through Android's AccessibilityService and taps, types, scrolls and moves
+  between apps, seeing each screen both as an element list and as a numbered screenshot. It runs
+  entirely on the phone, without a PC, ADB or root, works with ChatGPT plans, OpenAI, Claude, Grok and
+  Gemini models, always asks before paying or changing security settings, asks before deleting unless
+  the user asked for that one recoverable item and before sending unless the user named the recipient
+  and the text, and never types passwords, handing that step to the user.
+type: software
+version: "0.0.1"
+date-released: "2026-11-04"
+authors:
+  - alias: joungminsung
+repository-code: "https://github.com/joungminsung/openphoneuse"
+url: "https://github.com/joungminsung/openphoneuse"
+license: MIT
+keywords:
+  - phone use
+  - mobile agent
+  - android agent
+  - GUI agent
+  - computer use
+  - accessibility service
+  - LLM
+  - on-device
+  - android automation
+  - AI agent benchmark

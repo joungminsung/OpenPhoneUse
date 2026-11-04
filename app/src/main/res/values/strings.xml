@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenPhoneUse</string>
+    <string name="accessibility_service_description">OpenPhoneUse reads the screen and operates apps for you.</string>
+    <!-- Home-screen widgets: picker label, description and preview text. -->
+    <string name="widget_ask_label">Ask bar</string>
+    <string name="widget_ask_description">Type or say a task; chips suggest what to ask right now</string>
+    <string name="widget_ask_preview">Ask OpenPhoneUse</string>
+    <string name="widget_live_label">Live task</string>
+    <string name="widget_live_description">Follow the current task step by step and stop it from the home screen</string>
+    <string name="widget_live_preview">Working on it · Step 3</string>
+    <string name="widget_brief_label">Today brief</string>
+    <string name="widget_brief_description">An AI summary of the rest of your day, refreshed in the background</string>
+    <string name="widget_brief_preview">Next up: Team sync at 15:00, then 1 more. Alarm 07:00.</string>
+    <string name="widget_actions_label">Quick actions</string>
+    <string name="widget_actions_description">One-tap tiles for your saved prompts</string>
+    <string name="widget_actions_preview">Silent 1 hour · Navigate home</string>
+    <string name="widget_routines_label">Routines</string>
+    <string name="widget_routines_description">Your routines with their next run and a run button</string>
+    <string name="widget_routines_preview">Morning brief · Today 07:00</string>
+    <string name="widget_memory_label">Remember this</string>
+    <string name="widget_memory_description">Jot something down for OpenPhoneUse to remember</string>
+    <string name="widget_memory_preview">Remember this</string>
+</resources>

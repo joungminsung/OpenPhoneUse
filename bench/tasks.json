@@ -1,0 +1,531 @@
+{
+  "version": 1,
+  "notes": "Each task is typed into OpenPhoneUse as a new conversation. 'checks' grade it automatically: 'reply' regexes must all match the final answer, 'device' commands run with adb shell and their output must match 'expect'. Tasks with 'review' also need a person to look at the final screenshot and the video. 'needs' lists what must be set up first.",
+  "tasks": [
+    {
+      "id": "settings-timeout",
+      "category": "settings",
+      "difficulty": 1,
+      "prompt": "Set the screen timeout to 2 minutes",
+      "timeout_s": 150,
+      "setup": [
+        "settings put system screen_off_timeout 30000"
+      ],
+      "checks": {
+        "device": [
+          {
+            "cmd": "settings get system screen_off_timeout",
+            "expect": "^120000$"
+          }
+        ]
+      },
+      "cleanup": [
+        "settings put system screen_off_timeout 30000"
+      ]
+    },
+    {
+      "id": "settings-dnd",
+      "category": "settings",
+      "difficulty": 1,
+      "prompt": "Turn on Do Not Disturb",
+      "timeout_s": 150,
+      "setup": [
+        "cmd notification set_dnd off"
+      ],
+      "checks": {
+        "device": [
+          {
+            "cmd": "settings get global zen_mode",
+            "expect": "^[123]$"
+          }
+        ]
+      },
+      "cleanup": [
+        "cmd notification set_dnd off"
+      ]
+    },
+    {
+      "id": "contact-create",
+      "category": "apps",
+      "difficulty": 2,
+      "prompt": "Create a new contact named Bench Tester with the phone number 010-5555-0101",
+      "timeout_s": 240,
+      "allow_confirm": true,
+      "checks": {
+        "device": [
+          {
+            "cmd": "content query --uri content://com.android.contacts/data --projection data1",
+            "expect": "Bench Tester[\\s\\S]*0101|0101[\\s\\S]*Bench Tester"
+          }
+        ]
+      },
+      "cleanup": [
+        "content delete --uri content://com.android.contacts/raw_contacts --where \"display_name='Bench Tester'\""
+      ]
+    },
+    {
+      "id": "clock-timer",
+      "category": "apps",
+      "difficulty": 2,
+      "prompt": "Start a 3 minute timer in the Clock app",
+      "timeout_s": 200,
+      "allow_confirm": true,
+      "checks": {
+        "reply": [
+          "(?i)timer"
+        ]
+      },
+      "review": "Final screenshot or video shows a running timer of about 3 minutes."
+    },
+    {
+      "id": "fact-everest-k2",
+      "category": "research",
+      "difficulty": 1,
+      "prompt": "How tall are Mount Everest and K2 in meters, and what is the difference?",
+      "timeout_s": 120,
+      "checks": {
+        "reply": [
+          "8,?84[89]",
+          "8,?611",
+          "\\b23[78]"
+        ]
+      }
+    },
+    {
+      "id": "research-multihop",
+      "category": "research",
+      "difficulty": 2,
+      "prompt": "Who directed the film that won Best Picture at the 2024 Oscars, and which of their films came out in 2008?",
+      "timeout_s": 150,
+      "checks": {
+        "reply": [
+          "(?i)nolan",
+          "(?i)dark knight"
+        ]
+      }
+    },
+    {
+      "id": "research-table",
+      "category": "research",
+      "difficulty": 2,
+      "prompt": "Compare Ganymede, Callisto and Io: diameter in km, year discovered, and one notable fact each. Answer as a table.",
+      "timeout_s": 180,
+      "checks": {
+        "reply": [
+          "\\|",
+          "(?i)ganymede",
+          "(?i)callisto",
+          "\\bIo\\b",
+          "5,?26[0-9]",
+          "1610"
+        ]
+      }
+    },
+    {
+      "id": "chrome-wikipedia",
+      "category": "web",
+      "difficulty": 2,
+      "prompt": "Open the Wikipedia article on the Fibonacci sequence in Chrome and tell me the value of F20 from the article",
+      "timeout_s": 240,
+      "checks": {
+        "reply": [
+          "6,?765"
+        ]
+      },
+      "review": "The video shows the agent actually reading the Wikipedia page in Chrome."
+    },
+    {
+      "id": "web-to-alarm",
+      "category": "multi-app",
+      "difficulty": 3,
+      "prompt": "Find out what time the sun sets in Seoul today and set an alarm 30 minutes before sunset",
+      "timeout_s": 300,
+      "allow_confirm": true,
+      "checks": {
+        "reply": [
+          "(?i)sunset",
+          "(?i)alarm"
+        ]
+      },
+      "review": "The alarm time equals the sunset time it found minus 30 minutes."
+    },
+    {
+      "id": "game-tictactoe",
+      "category": "game",
+      "difficulty": 3,
+      "prompt": "Open Chrome, search Google for tic tac toe, and play one full game against the computer. Try not to lose.",
+      "timeout_s": 420,
+      "checks": {
+        "reply": [
+          "(?i)\\b(win|won|draw|tie|lost|lose)\\b"
+        ]
+      },
+      "review": "Result of the game (win, draw or loss) in the final screenshot, and whether every move was legal."
+    },
+    {
+      "id": "game-2048",
+      "category": "game",
+      "difficulty": 4,
+      "prompt": "Open play2048.co in Chrome and play 2048 until you make a 128 tile or the game ends. Tell me your best tile and score.",
+      "timeout_s": 600,
+      "checks": {
+        "reply": [
+          "(?i)tile",
+          "(?i)score"
+        ]
+      },
+      "review": "Best tile reached (128 is a pass) and whether the reported score matches the screen."
+    },
+    {
+      "id": "game-minesweeper",
+      "category": "game",
+      "difficulty": 5,
+      "prompt": "Search Google for minesweeper in Chrome and try to win a game on Easy. Tell me if you won.",
+      "timeout_s": 900,
+      "checks": {
+        "reply": [
+          "(?i)\\b(won|win|lost|lose|mine)\\b"
+        ]
+      },
+      "review": "Win or loss, and how many cells it opened before the end."
+    },
+    {
+      "id": "docs-report",
+      "category": "documents",
+      "difficulty": 4,
+      "needs": [
+        "google-account",
+        "app:com.google.android.apps.docs.editors.docs"
+      ],
+      "prompt": "Research the pros and cons of solid-state EV batteries on the web, then write a one-page report in a new Google Doc titled 'Bench - Solid-state batteries' with an intro, a pros section, a cons section and a sources list",
+      "timeout_s": 900,
+      "allow_confirm": true,
+      "checks": {
+        "reply": [
+          "(?i)doc"
+        ]
+      },
+      "review": "The Doc exists with that title, has the four parts, real facts, and at least two real sources."
+    },
+    {
+      "id": "slides-deck",
+      "category": "documents",
+      "difficulty": 5,
+      "needs": [
+        "google-account",
+        "app:com.google.android.apps.docs.editors.slides"
+      ],
+      "prompt": "Make a 4-slide Google Slides deck titled 'Bench - Coffee around the world': a title slide, then one slide each for Ethiopia, Colombia and Vietnam with two bullet facts each. Look the facts up on the web.",
+      "timeout_s": 1200,
+      "allow_confirm": true,
+      "checks": {
+        "reply": [
+          "(?i)slide"
+        ]
+      },
+      "review": "Deck exists with 4 slides, the right titles, and two correct facts per country."
+    },
+    {
+      "id": "sheets-table",
+      "category": "documents",
+      "difficulty": 4,
+      "needs": [
+        "google-account",
+        "app:com.google.android.apps.docs.editors.sheets"
+      ],
+      "prompt": "Create a Google Sheet named 'Bench - Big countries' listing the 5 most populous countries with their population in a second column, and add a total row that uses a SUM formula",
+      "timeout_s": 900,
+      "allow_confirm": true,
+      "checks": {
+        "reply": [
+          "(?i)sheet"
+        ]
+      },
+      "review": "Sheet exists with 5 correct countries, populations, and a working SUM formula."
+    },
+    {
+      "id": "gmail-draft",
+      "category": "multi-app",
+      "difficulty": 3,
+      "needs": [
+        "google-account"
+      ],
+      "prompt": "Find the opening hours of the British Museum on the web and save them as a Gmail draft to myself with the subject 'Bench - museum hours'. Do not send it.",
+      "timeout_s": 600,
+      "allow_confirm": true,
+      "checks": {
+        "reply": [
+          "(?i)draft"
+        ]
+      },
+      "review": "A draft exists in Gmail with that subject and the correct hours, and nothing was sent."
+    },
+    {
+      "id": "ai-claude-ask",
+      "category": "ai-apps",
+      "difficulty": 3,
+      "needs": [
+        "app:com.anthropic.claude",
+        "claude-login"
+      ],
+      "prompt": "Open the Claude app, ask it to write a haiku about a phone that runs itself, and tell me the haiku it wrote",
+      "timeout_s": 300,
+      "checks": {
+        "reply": [
+          "\\n.*\\n|/"
+        ]
+      },
+      "review": "The haiku in the reply is the one Claude actually wrote on screen."
+    },
+    {
+      "id": "ai-claude-to-doc",
+      "category": "ai-apps",
+      "difficulty": 5,
+      "needs": [
+        "app:com.anthropic.claude",
+        "claude-login",
+        "google-account",
+        "app:com.google.android.apps.docs.editors.docs"
+      ],
+      "prompt": "Ask the Claude app for a short study plan to learn basic Spanish in 4 weeks, then put its answer into a new Google Doc titled 'Bench - Spanish plan'",
+      "timeout_s": 1200,
+      "allow_confirm": true,
+      "checks": {
+        "reply": [
+          "(?i)doc"
+        ]
+      },
+      "review": "The Doc exists and contains the plan Claude wrote, with all 4 weeks."
+    },
+    {
+      "id": "bedtime-routine",
+      "category": "everyday",
+      "difficulty": 3,
+      "prompt": "Get my phone ready for bed: turn on dark mode, set an alarm for 6:30 AM, and turn on Do Not Disturb.",
+      "timeout_s": 300,
+      "allow_confirm": true,
+      "setup": [
+        "pm clear com.google.android.deskclock",
+        "cmd uimode night no",
+        "cmd notification set_dnd off"
+      ],
+      "checks": {
+        "device": [
+          {
+            "cmd": "cmd uimode night",
+            "expect": "yes"
+          },
+          {
+            "cmd": "settings get global zen_mode",
+            "expect": "^[123]$"
+          },
+          {
+            "cmd": "dumpsys alarm | grep -A1 'Next alarm clock information'",
+            "expect": "06:30:00"
+          }
+        ]
+      },
+      "cleanup": [
+        "cmd uimode night no",
+        "cmd notification set_dnd off",
+        "pm clear com.google.android.deskclock"
+      ]
+    },
+    {
+      "id": "battery-saver",
+      "category": "everyday",
+      "difficulty": 2,
+      "prompt": "My battery is draining fast. Tell me which apps used the most battery and turn on Battery Saver.",
+      "timeout_s": 240,
+      "setup": [
+        "dumpsys battery unplug",
+        "cmd power set-mode 0"
+      ],
+      "checks": {
+        "device": [
+          {
+            "cmd": "settings get global low_power",
+            "expect": "^1$"
+          }
+        ]
+      },
+      "review": "The reply names apps actually shown on the battery usage screen.",
+      "cleanup": [
+        "cmd power set-mode 0",
+        "dumpsys battery reset"
+      ]
+    },
+    {
+      "id": "bigger-text",
+      "category": "everyday",
+      "difficulty": 2,
+      "prompt": "The text on my phone is too small for my dad. Make the font as large as it goes.",
+      "timeout_s": 200,
+      "setup": [
+        "settings put system font_scale 1.0"
+      ],
+      "checks": {
+        "device": [
+          {
+            "cmd": "settings get system font_scale",
+            "expect": "^(1\\.[3-9]|2)"
+          }
+        ]
+      },
+      "cleanup": [
+        "settings put system font_scale 1.0"
+      ]
+    },
+    {
+      "id": "baking-convert",
+      "category": "research",
+      "difficulty": 1,
+      "prompt": "I'm using an American recipe. Convert 350°F, 2 cups of all-purpose flour and 8 oz of butter to metric.",
+      "timeout_s": 120,
+      "checks": {
+        "reply": [
+          "17[5-7]",
+          "2[4-6][0-9]\\s?g",
+          "22[5-7]\\s?g"
+        ]
+      }
+    },
+    {
+      "id": "place-to-contact",
+      "category": "multi-app",
+      "difficulty": 3,
+      "prompt": "Look up the address of the Louvre Museum and save it as a new contact named 'Louvre Museum' with that address.",
+      "timeout_s": 360,
+      "allow_confirm": true,
+      "checks": {
+        "device": [
+          {
+            "cmd": "content query --uri content://com.android.contacts/data --projection data1",
+            "expect": "(?i)Louvre Museum[\\s\\S]*Rivoli|Rivoli[\\s\\S]*Louvre Museum"
+          }
+        ]
+      },
+      "cleanup": [
+        "content delete --uri content://com.android.contacts/raw_contacts --where \"display_name='Louvre Museum'\""
+      ]
+    },
+    {
+      "id": "maps-transit",
+      "category": "multi-app",
+      "difficulty": 3,
+      "prompt": "How long does it take by public transit from Seoul Station to Gangnam Station right now? Check Google Maps and tell me the lines and transfers.",
+      "timeout_s": 300,
+      "checks": {
+        "reply": [
+          "(?i)min",
+          "(?i)line|bus|subway|transfer"
+        ]
+      },
+      "review": "The route and time match what Google Maps showed on screen."
+    },
+    {
+      "id": "maps-cafes",
+      "category": "multi-app",
+      "difficulty": 3,
+      "prompt": "Find three cafes near Times Square rated 4.5 or higher in Google Maps and list their names, ratings and how far they are.",
+      "timeout_s": 360,
+      "checks": {
+        "reply": [
+          "4\\.[5-9]"
+        ]
+      },
+      "review": "All three cafes exist near Times Square and the ratings match Maps."
+    },
+    {
+      "id": "youtube-tutorial",
+      "category": "multi-app",
+      "difficulty": 3,
+      "prompt": "Find a YouTube video that teaches how to tie a tie in under 5 minutes. Tell me its title, channel and length.",
+      "timeout_s": 300,
+      "checks": {
+        "reply": [
+          "(?i)tie",
+          "\\b[0-4]:[0-5][0-9]\\b|\\b[0-4][ -]?(minutes?|min)\\b"
+        ]
+      },
+      "review": "The video exists, is under 5 minutes and the details match YouTube."
+    },
+    {
+      "id": "shopping-compare",
+      "category": "research",
+      "difficulty": 3,
+      "prompt": "Compare the current price of the AirPods Pro 2 at Amazon, Best Buy and Walmart. Give me a table with links and tell me where it is cheapest.",
+      "timeout_s": 420,
+      "checks": {
+        "reply": [
+          "\\|",
+          "(?i)amazon",
+          "(?i)best ?buy",
+          "(?i)walmart",
+          "\\$\\d+"
+        ]
+      },
+      "review": "Prices are current and the cheapest store is right."
+    },
+    {
+      "id": "news-brief",
+      "category": "research",
+      "difficulty": 2,
+      "prompt": "Give me a briefing of today's top 5 technology news stories, one sentence each, with a source link for every story.",
+      "timeout_s": 240,
+      "checks": {
+        "reply": [
+          "https?://[\\s\\S]*https?://[\\s\\S]*https?://[\\s\\S]*https?://[\\s\\S]*https?://"
+        ]
+      },
+      "review": "Stories are from today and the links point to them."
+    },
+    {
+      "id": "trip-plan",
+      "category": "research",
+      "difficulty": 4,
+      "prompt": "I'm visiting Tokyo for 3 days next week. Check the weather forecast, then plan each day with 2 or 3 sights close to each other, with the transit time between them and one place to eat.",
+      "timeout_s": 420,
+      "checks": {
+        "reply": [
+          "(?i)day 1",
+          "(?i)day 2",
+          "(?i)day 3",
+          "(?i)(°|forecast|weather)",
+          "(?i)min"
+        ]
+      },
+      "review": "Sights per day are really near each other and transit times are plausible."
+    },
+    {
+      "id": "recipe-to-sms",
+      "category": "multi-app",
+      "difficulty": 4,
+      "prompt": "Find a simple kimchi fried rice recipe for 2 people, then write the shopping list as a text message to 010-5555-0101 in Messages. Do not send it, just leave it as a draft.",
+      "timeout_s": 420,
+      "allow_confirm": false,
+      "checks": {
+        "reply": [
+          "(?i)kimchi",
+          "(?i)draft"
+        ]
+      },
+      "review": "Messages has an unsent draft to that number with the ingredient list; nothing was sent."
+    },
+    {
+      "id": "wiki-deep-read",
+      "category": "web",
+      "difficulty": 3,
+      "prompt": "In Chrome, open the Wikipedia article on the Apollo 11 mission and tell me the exact landing time (UTC), the name of the lunar module, and how long Armstrong and Aldrin spent outside.",
+      "timeout_s": 300,
+      "checks": {
+        "reply": [
+          "20:17",
+          "(?i)eagle",
+          "2\\s?(h|hours?)[\\s\\S]{0,30}3[01]|2:3[01]"
+        ]
+      },
+      "review": "The agent read the facts from the article in Chrome, scrolling as needed."
+    }
+  ]
+}

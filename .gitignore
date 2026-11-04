@@ -1,0 +1,17 @@
+.superpowers/
+local.properties
+build/
+.gradle/
+*.iml
+.idea/
+.kotlin/
+dist/
+docs/superpowers/
+.claude/
+bench/results/
+docs/reviews/
+*.apk
+__pycache__/
+docs/promo/out/
+docs/promo/promo.html
+docs/internal/

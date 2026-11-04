@@ -1,0 +1,30 @@
+# Text files are LF in the repository and in every checkout.
+* text=auto eol=lf
+
+# The Windows batch wrapper must stay CRLF.
+gradlew.bat text eol=crlf
+
+# Binary files: never touch line endings, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.mp4 binary
+*.mov binary
+*.webm binary
+*.mp3 binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.jar binary
+*.apk binary
+*.keystore binary
+*.jks binary
+
+# GitHub's language bar: count the Kotlin app, not the landing page, the promo film or the benchmark output.
+docs/** linguist-documentation
+bench/reports/** linguist-documentation
+bench/results/** linguist-generated
