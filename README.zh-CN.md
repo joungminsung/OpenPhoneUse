@@ -19,7 +19,7 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1225%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#基准测试)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -127,7 +127,7 @@
 | 网页、通知和其他应用里的文字是数据，不是指令 | 读过这类文字的运行会被标记为"受污染"（tainted）：发送一律确认，新记忆只作为推测保存，`forget` 会先询问。 |
 | 机密信息加密保存 | 令牌和 API 密钥用 Android Keystore 密钥加密（`SecretBox`），从不写入日志。通知中的验证码会被遮盖。 |
 
-**哪些数据会离开手机：** 需要读屏的任务会把压缩后的屏幕文本和屏幕截图发送给你登录的模型提供商。除了你自己连接的服务外，没有其他数据离开设备。OpenPhoneUse 没有自己的服务器。
+**哪些数据会离开手机：** 任务需要的内容会发送给你选择的模型提供商：你的消息、压缩后的屏幕文本和屏幕截图，以及工具为任务读取的内容，例如文件名、联系人、日程、照片、短信、通知、位置或已保存的记忆。地点搜索会发送到 OpenStreetMap 的 Nominatim，地图会加载 OpenStreetMap 图块。你自己连接的服务会收到发送给它们的内容。OpenPhoneUse 没有自己的服务器。
 
 发现安全漏洞？请私下报告：[SECURITY.md](SECURITY.md)。
 
@@ -212,7 +212,7 @@ OpenPhoneUse 不需要 root、ADB、Shizuku 或电脑。它只使用 Android 公
 
 ### 支持哪些 AI 模型？
 OpenPhoneUse 支持 ChatGPT 套餐、OpenAI API，以及 Claude、Grok 和 Gemini 的模型。
-- **ChatGPT 套餐：** 用 ChatGPT 登录，消耗你套餐的额度（OpenAI 面向应用的官方 "Sign in with ChatGPT"）。应用会列出你的账号可用的模型，例如 GPT-6.1 Terra、GPT-6.1 Sol 和 GPT-6 Astra。
+- **ChatGPT 套餐：** 用 ChatGPT 登录，消耗你套餐的额度（OpenAI 面向应用的 "Sign in with ChatGPT"）。应用会列出你的账号可用的模型，例如 GPT-6.1 Terra、GPT-6.1 Sol 和 GPT-6 Astra。
 - **OpenAI API 密钥：** 同样的模型，按 token 计费。
 - **Claude、Grok 或 Gemini：** 粘贴对应提供商的 API 密钥。
 

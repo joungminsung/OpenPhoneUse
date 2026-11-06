@@ -92,9 +92,10 @@ internal class ReplyModule(private val lastLocation: () -> LatLng? = { null }) :
                         "success" to prop("boolean", "False when the task could not be done (default true)."),
                         "stay_in_app" to prop(
                             "boolean",
-                            "True when the result IS the other app on screen - music/video playing, a page or map " +
-                                "the user wants to look at, a call in progress. Otherwise leave it unset: the app " +
-                                "returns to the OpenPhoneUse chat when you finish.",
+                            "True when the result IS the other app on screen - music/video playing, a call in progress, " +
+                                "or a request that was only to open or show that app, page or map. Otherwise leave it " +
+                                "unset, also after a game, a form or a photo: the app returns to the OpenPhoneUse chat " +
+                                "when you finish.",
                         ),
                     ),
                 ),

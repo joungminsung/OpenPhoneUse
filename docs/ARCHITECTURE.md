@@ -167,15 +167,15 @@ shop therefore does not raise money confirmations, but buying buttons still do.
 
 `notify/Notifier` posts every notification: one set of channels (results, needs your OK, running task, routines,
 daily summary, nudges, reminders), the app's mark as the status-bar icon and its accent colour. Each one
-opens a place (`notify/Taps`), through a signed intent (`LaunchToken`):
+opens a place (`Taps` in `notify/NotifyRoutes`), through a signed intent (`LaunchToken`):
 
 - A result opens its conversation at the start of the answer. It shows the conversation's title and the answer
   without Markdown marks (`notify/NotifyText`), and offers Open, Follow up (an inline reply sent to the same
   conversation) and Copy.
 - A card waiting in the chat while the app is not in front becomes a "needs your OK" notification. Approve and
   Deny answer it through the chat card's own path. Money, security and delete cards get "Review" instead of Approve,
-  which opens the card in the app (`notify/NeedsOk`).
-- A run shows an ongoing notification with its latest progress line and Stop, throttled by `notify/UpdateThrottle`.
+  which opens the card in the app (`NeedsOk` in `notify/NotifyRoutes`).
+- A run shows an ongoing notification with its latest progress line and Stop, throttled by `UpdateThrottle` in `notify/NotifyRoutes`.
 - Inside the quiet hours, notifications that would make a sound go to a silent channel (`QuietChannel`).
 
 ## Safety

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.phoneuse.routine.RoutineStep
 import com.phoneuse.ui.theme.MonoStyle
 import com.phoneuse.ui.theme.PlexSans
+import com.phoneuse.ui.cards.OsmAttribution
 import com.phoneuse.ui.theme.pu
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -52,47 +54,50 @@ import kotlin.math.ln
 fun RadiusMap(lat: Double, lng: Double, radiusM: Int, modifier: Modifier = Modifier) {
     val dark = pu.dark
     val accent = pu.accent.toArgb()
-    AndroidView(
-        factory = { ctx ->
-            MapView(ctx).apply {
-                setTileSource(TileSourceFactory.MAPNIK)
-                zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-                setMultiTouchControls(false)
-                isTilesScaledToDpi = true
-                isHorizontalMapRepetitionEnabled = false
-                isVerticalMapRepetitionEnabled = false
-                setOnTouchListener { _, _ -> true }
-            }
-        },
-        update = { map ->
-            map.overlayManager.tilesOverlay.setColorFilter(if (dark) TilesOverlay.INVERT_COLORS else null)
-            for (o in map.overlays.toList()) if (o is Marker) o.onDetach(map)
-            map.overlays.clear()
-            if (lat in -90.0..90.0 && lng in -180.0..180.0) {
-                val center = GeoPoint(lat, lng)
-                map.overlays += Polygon(map).apply {
-                    points = Polygon.pointsAsCircle(center, radiusM.toDouble())
-                    fillPaint.color = (accent and 0x00FFFFFF) or 0x1F000000
-                    outlinePaint.color = accent
-                    outlinePaint.strokeWidth = 3f * map.resources.displayMetrics.density / 2
-                    setOnClickListener { _, _, _ -> true }
+    Box(modifier) {
+        AndroidView(
+            factory = { ctx ->
+                MapView(ctx).apply {
+                    setTileSource(TileSourceFactory.MAPNIK)
+                    zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
+                    setMultiTouchControls(false)
+                    isTilesScaledToDpi = true
+                    isHorizontalMapRepetitionEnabled = false
+                    isVerticalMapRepetitionEnabled = false
+                    setOnTouchListener { _, _ -> true }
                 }
-                map.overlays += Marker(map).apply {
-                    position = center
-                    icon = BitmapDrawable(map.resources, dot(map.resources.displayMetrics.density, accent))
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                    setInfoWindow(null)
-                    setOnMarkerClickListener { _, _ -> true }
+            },
+            update = { map ->
+                map.overlayManager.tilesOverlay.setColorFilter(if (dark) TilesOverlay.INVERT_COLORS else null)
+                for (o in map.overlays.toList()) if (o is Marker) o.onDetach(map)
+                map.overlays.clear()
+                if (lat in -90.0..90.0 && lng in -180.0..180.0) {
+                    val center = GeoPoint(lat, lng)
+                    map.overlays += Polygon(map).apply {
+                        points = Polygon.pointsAsCircle(center, radiusM.toDouble())
+                        fillPaint.color = (accent and 0x00FFFFFF) or 0x1F000000
+                        outlinePaint.color = accent
+                        outlinePaint.strokeWidth = 3f * map.resources.displayMetrics.density / 2
+                        setOnClickListener { _, _, _ -> true }
+                    }
+                    map.overlays += Marker(map).apply {
+                        position = center
+                        icon = BitmapDrawable(map.resources, dot(map.resources.displayMetrics.density, accent))
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        setInfoWindow(null)
+                        setOnMarkerClickListener { _, _ -> true }
+                    }
+                    // About 200m fills a 128dp-high card at zoom 16; each doubling of the radius is one level out.
+                    map.controller.setZoom((16.0 - ln(radiusM / 200.0) / ln(2.0)).coerceIn(11.0, 18.0))
+                    map.controller.setCenter(center)
                 }
-                // About 200m fills a 128dp-high card at zoom 16; each doubling of the radius is one level out.
-                map.controller.setZoom((16.0 - ln(radiusM / 200.0) / ln(2.0)).coerceIn(11.0, 18.0))
-                map.controller.setCenter(center)
-            }
-            map.invalidate()
-        },
-        onRelease = { it.onDetach() },
-        modifier = modifier,
-    )
+                map.invalidate()
+            },
+            onRelease = { it.onDetach() },
+            modifier = Modifier.fillMaxSize(),
+        )
+        OsmAttribution(Modifier.align(Alignment.BottomStart))
+    }
 }
 
 private fun dot(density: Float, color: Int): Bitmap {

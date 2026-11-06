@@ -318,7 +318,7 @@ class ToolExecutorTest {
             setOf(
                 "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri",
                 "list_apps", "screenshot", "wait", "batch", "ask_user", "hand_to_user", "finish",
-                "list_dir", "search_files", "file_info", "mkdir", "move_file", "copy_file", "rename_file",
+                "list_dir", "search_files", "file_info", "mkdir", "move_file", "move_files", "copy_file", "rename_file",
                 "trash_files", "get_screen", "show_card", "open_route", "delegate", "update_plan",
             ),
             names.toSet(),
@@ -816,6 +816,27 @@ class ToolExecutorTest {
         val (_, _, ex) = setup()
         val r = ex.execute(call("list_dir", """{"path":"/storage/emulated/0"}"""), null)
         assertEquals("ERROR: 모든 파일 접근 권한이 필요해요", r.output)
+    }
+
+    @Test fun moveFilesRunsWithoutAConfirmationAndNamesWhatItDid() = runTest {
+        repeat(3) { tmp.newFile("f$it.pdf") }
+        val (_, gate, ex) = withFiles()
+        val r = ex.execute(call("move_files", """{"from_dir":"","patterns":["*.pdf"],"to_dir":"문서"}"""), null)
+        assertEquals("moved 3 of 3 to 문서", r.output)
+        assertEquals(0, gate.confirms.size)
+    }
+
+    @Test fun moveFilesWithoutPatternsIsAnArgumentError() = runTest {
+        val (_, _, ex) = withFiles()
+        val r = ex.execute(call("move_files", """{"from_dir":"","to_dir":"x"}"""), null)
+        assertEquals("ERROR: invalid arguments: patterns required", r.output)
+    }
+
+    @Test fun listDirPassesOffsetThrough() = runTest {
+        repeat(3) { tmp.newFile("f$it.txt") }
+        val (_, _, ex) = withFiles()
+        val r = ex.execute(call("list_dir", """{"path":"","limit":1,"offset":2}"""), null)
+        assertTrue(r.output, r.output.startsWith("f f2.txt"))
     }
 
     @Test fun fileToolErrorsMapToErrorOutput() = runTest {

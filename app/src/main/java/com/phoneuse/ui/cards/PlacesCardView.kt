@@ -214,7 +214,7 @@ private fun NumberBadge(n: Int, highlighted: Boolean) {
 
 /** "© OpenStreetMap contributors", required by the OSM tile usage policy wherever its tiles are shown. */
 @Composable
-private fun OsmAttribution(modifier: Modifier = Modifier) {
+internal fun OsmAttribution(modifier: Modifier = Modifier) {
     Text(
         "© OpenStreetMap contributors",
         modifier

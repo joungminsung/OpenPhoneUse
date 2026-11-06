@@ -84,6 +84,13 @@ class AgentPromptTest {
         assertFalse("Be fast getting there" in i)
     }
 
+    @Test fun tidyingAFolderIsDoneNotHandedBack() {
+        val prompt = AgentPrompt.build(Personalization(), memoryOn = false, autoRemember = false)
+        assertTrue(prompt, "Tidying a folder" in prompt)
+        assertTrue(prompt, "never hand it back because of the file count" in prompt)
+        assertTrue(prompt, "move_files" in prompt)
+    }
+
     @Test fun assistantPersonaAndAnswerQuality() {
         val i = AgentPrompt.INSTRUCTIONS
         assertTrue(i.startsWith("You are OpenPhoneUse, the user's everyday AI assistant on their phone."))
@@ -102,6 +109,7 @@ class AgentPromptTest {
             "Never type passwords", "user_authorized=true only", "Never guess who receives", "stay_in_app=true only",
             "Call ask_user only when truly blocked", "Risky actions (sending, paying, deleting, security changes) are confirmed by the app automatically",
             "Never ask to confirm something the user already asked for", "Messages that start with \"사용자 추가 지시\"",
+            "Never for a task you carried out inside an app",
         )) {
             assertTrue(rule, rule in i)
         }

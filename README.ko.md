@@ -19,7 +19,7 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1225%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#벤치마크)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -127,7 +127,7 @@
 | 웹페이지, 알림, 다른 앱의 글은 명령이 아니라 데이터 | 그런 글을 읽은 실행은 "오염(tainted)" 상태가 되어, 전송은 항상 확인하고 새 기억은 추정으로만 저장하며 `forget`은 먼저 묻습니다. |
 | 비밀 정보는 봉인 | 토큰과 API 키는 안드로이드 키스토어 키로 암호화(`SecretBox`)하고 로그에 남기지 않습니다. 알림 속 인증번호는 가립니다. |
 
-**폰 밖으로 나가는 것:** 화면이 필요한 작업이면 압축한 화면 텍스트와 그 스크린샷이 로그인한 모델 제공자에게 전송됩니다. 그 밖에는 직접 연결한 서비스 말고는 아무것도 기기를 떠나지 않습니다. OpenPhoneUse 서버는 없습니다.
+**폰 밖으로 나가는 것:** 작업에 필요한 내용은 선택한 모델 제공자에게 전송됩니다. 사용자의 메시지, 압축한 화면 텍스트와 스크린샷, 그리고 도구가 작업을 위해 읽은 파일 이름, 연락처, 일정, 사진, 문자, 알림, 위치, 저장된 기억 같은 정보입니다. 장소 검색은 OpenStreetMap의 Nominatim으로 전송되고, 지도는 OpenStreetMap 타일을 불러옵니다. 직접 연결한 서비스는 그쪽으로 보내는 내용을 받습니다. OpenPhoneUse 서버는 없습니다.
 
 보안 문제를 발견했다면 비공개로 알려 주세요: [SECURITY.md](SECURITY.md).
 
@@ -212,7 +212,7 @@ OpenPhoneUse는 먼저 묻도록 만든 앱입니다. 결제와 보안 변경은
 
 ### 어떤 AI 모델을 쓰나요?
 OpenPhoneUse는 ChatGPT 요금제, OpenAI API 키, Claude, Grok, Gemini의 모델을 쓸 수 있습니다.
-- **ChatGPT 요금제:** ChatGPT로 로그인해서 쓰고 있는 요금제의 사용량을 씁니다(앱을 위한 OpenAI 공식 "Sign in with ChatGPT"). 계정에서 제공하는 모델이 앱에 나열되며, GPT-6.1 Terra, GPT-6.1 Sol, GPT-6 Astra 등이 있습니다.
+- **ChatGPT 요금제:** ChatGPT로 로그인해서 쓰고 있는 요금제의 사용량을 씁니다(앱을 위한 OpenAI "Sign in with ChatGPT"). 계정에서 제공하는 모델이 앱에 나열되며, GPT-6.1 Terra, GPT-6.1 Sol, GPT-6 Astra 등이 있습니다.
 - **OpenAI API 키:** 같은 모델을 토큰 단위로 과금해서 씁니다.
 - **Claude, Grok, Gemini:** 해당 제공자의 API 키를 붙여 넣습니다.
 

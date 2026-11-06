@@ -23,18 +23,17 @@ internal class FileModule(private val files: FileTools?, private val gate: UserG
         val tools = files ?: return fail("모든 파일 접근 권한이 필요해요")
         return try {
             when (name) {
-                "list_dir" -> ok(tools.listDir(args.requireStr("path"), args.int("limit") ?: DEFAULT_LIST_LIMIT))
+                "list_dir" -> ok(tools.listDir(args.requireStr("path"), args.int("limit") ?: DEFAULT_LIST_LIMIT, args.int("offset") ?: 0))
                 "search_files" ->
                     ok(tools.search(args.requireStr("query"), args.str("under") ?: "", args.int("limit") ?: DEFAULT_SEARCH_LIMIT))
                 "file_info" -> ok(tools.info(args.requireStr("path")))
                 "mkdir" -> ok(tools.mkdir(args.requireStr("path")))
                 "move_file" -> ok(tools.move(args.requireStr("from"), args.requireStr("to")))
+                "move_files" -> ok(tools.moveMatching(args.requireStr("from_dir"), strings(args, "patterns"), args.requireStr("to_dir")))
                 "copy_file" -> ok(tools.copy(args.requireStr("from"), args.requireStr("to")))
                 "rename_file" -> ok(tools.rename(args.requireStr("path"), args.requireStr("new_name")))
                 "trash_files" -> {
-                    val paths = (args["paths"] as? JsonArray)
-                        ?.map { (it as? JsonPrimitive)?.takeIf { p -> p !is JsonNull }?.content ?: throw IllegalArgumentException("paths must be strings") }
-                        ?: throw IllegalArgumentException("paths required")
+                    val paths = strings(args, "paths")
                     if (paths.isEmpty()) throw IllegalArgumentException("paths is empty")
                     if (!gate.confirm(RiskCategory.DELETE, trashSummary(paths))) {
                         ToolResult("DECLINED by user", null, null, null)
@@ -50,6 +49,11 @@ internal class FileModule(private val files: FileTools?, private val gate: UserG
             fail("invalid arguments: ${e.message}")
         }
     }
+
+    private fun strings(args: JsonObject, key: String): List<String> =
+        (args[key] as? JsonArray)
+            ?.map { (it as? JsonPrimitive)?.takeIf { p -> p !is JsonNull }?.content ?: throw IllegalArgumentException("$key must be strings") }
+            ?: throw IllegalArgumentException("$key required")
 
     private fun trashSummary(paths: List<String>): String {
         val shown = paths.take(MAX_SHOWN).joinToString(", ") { clip(it) }
@@ -79,10 +83,14 @@ internal class FileModule(private val files: FileTools?, private val gate: UserG
         val SPECS: List<ToolSpec> = listOf(
             ToolSpec(
                 "list_dir",
-                "List a directory's entries. Paths are absolute under /storage/emulated/0.",
+                "List a directory's entries. Paths are absolute under /storage/emulated/0. A longer folder ends with the next offset and a count of everything in it by file type.",
                 schema(
                     required = listOf("path"),
-                    props = mapOf("path" to prop("string", "Directory path."), "limit" to prop("integer", "Max entries (default 200).")),
+                    props = mapOf(
+                        "path" to prop("string", "Directory path."),
+                        "limit" to prop("integer", "Max entries (default 200)."),
+                        "offset" to prop("integer", "Entries to skip, to read the next page (default 0)."),
+                    ),
                 ),
             ),
             ToolSpec(
@@ -103,6 +111,22 @@ internal class FileModule(private val files: FileTools?, private val gate: UserG
                 "move_file",
                 "Move a file or directory.",
                 schema(required = listOf("from", "to"), props = mapOf("from" to filePath, "to" to filePath)),
+            ),
+            ToolSpec(
+                "move_files",
+                "Move many files in one call: every file directly in from_dir whose name matches a pattern goes to to_dir, which is created if missing. Folders and hidden files stay. A taken name gets \" (2)\"; nothing is overwritten. Use this instead of repeated move_file calls.",
+                schema(
+                    required = listOf("from_dir", "patterns", "to_dir"),
+                    props = mapOf(
+                        "from_dir" to prop("string", "Folder to take files from."),
+                        "patterns" to buildJsonObject {
+                            put("type", "array")
+                            put("description", "File name patterns, such as *.jpg, or a part of the name.")
+                            putJsonObject("items") { put("type", "string") }
+                        },
+                        "to_dir" to prop("string", "Folder to move them into."),
+                    ),
+                ),
             ),
             ToolSpec(
                 "copy_file",

@@ -10,7 +10,8 @@ object ReturnPolicy {
     /**
      * A run sent from the chat ([Source.APP]) or a card button ([Source.CARD]) that operated another app
      * ([usedDevice]: it drove the device and OpenPhoneUse is no longer on screen) returns to the chat however it
-     * ended, unless it finished with [stayInApp] (the result is the other app: music playing, a map to look at).
+     * ended, unless it finished with [stayInApp] (the result is the other app: music playing, a map it only opened;
+     * AgentLoop drops the model's flag when the run worked inside the app and nothing is playing).
      * Side-button runs ([Source.ASSIST]) were started from the user's app, so they stay there. Routine runs
      * ([Source.ROUTINE]) started by themselves: they never pull the user into the app; their result is a
      * notification and the routine's conversation.

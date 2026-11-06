@@ -134,7 +134,7 @@
           "name": "Which AI models does OpenPhoneUse support?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "ChatGPT plan: sign in with ChatGPT and use your plan's usage (OpenAI's official \"Sign in with ChatGPT\" for apps). The app lists the models your account offers, such as GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra. OpenAI API key: the same models, billed per token. Claude, Grok or Gemini: paste that provider's API key. By default GPT-6.1 Terra makes the decisions with fast mode on, and a lighter helper model does repetitive screen work. You can change the model, reasoning effort and fast mode in the app. Fast mode is available with an OpenAI API key and a ChatGPT plan. It may be refused for some models or accounts, and the app then leaves it out."
+            "text": "ChatGPT plan: sign in with ChatGPT and use your plan's usage (OpenAI's \"Sign in with ChatGPT\" for apps). The app lists the models your account offers, such as GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra. OpenAI API key: the same models, billed per token. Claude, Grok or Gemini: paste that provider's API key. By default GPT-6.1 Terra makes the decisions with fast mode on, and a lighter helper model does repetitive screen work. You can change the model, reasoning effort and fast mode in the app. Fast mode is available with an OpenAI API key and a ChatGPT plan. It may be refused for some models or accounts, and the app then leaves it out."
           }
         },
         {
@@ -654,7 +654,7 @@ figure { margin: 0; }
         </tbody>
       </table>
       <div class="callout">
-        <p><strong>What leaves the phone:</strong> when a task needs the screen, the compressed screen text and a screenshot of it are sent to the model provider you signed in to. Nothing else leaves the device, apart from services you connect yourself. There is no OpenPhoneUse server.</p>
+        <p><strong>What leaves the phone:</strong> what a task needs goes to the model provider you chose: your messages, the compressed screen text and screenshots, and whatever a tool reads for the task, such as file names, contacts, calendar events, photos, texts, notifications, your location or saved memories. Place searches go to OpenStreetMap's Nominatim, and maps load OpenStreetMap tiles. Services you connect yourself receive what is sent to them. There is no OpenPhoneUse server.</p>
         <p>Found a hole? Please report it privately: <a href="https://github.com/joungminsung/openphoneuse/blob/main/SECURITY.md">security policy</a>.</p>
       </div>
     </div>
@@ -745,7 +745,7 @@ python bench/score.py report RUN_DIR... --judge JUDGE_DIR --out report.md</code>
       <h3>Which AI models does OpenPhoneUse support?</h3>
       <div class="answer">
         <ul>
-          <li>ChatGPT plan: sign in with ChatGPT and use your plan's usage (OpenAI's official "Sign in with ChatGPT" for apps). The app lists the models your account offers, such as GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra.</li>
+          <li>ChatGPT plan: sign in with ChatGPT and use your plan's usage (OpenAI's "Sign in with ChatGPT" for apps). The app lists the models your account offers, such as GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra.</li>
           <li>OpenAI API key: the same models, billed per token.</li>
           <li>Claude, Grok or Gemini: paste that provider's API key.</li>
         </ul>

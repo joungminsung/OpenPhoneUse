@@ -81,13 +81,13 @@ class ToolSpecsPinTest {
         val BARE_NAMES = listOf(
             "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri", "list_apps",
             "screenshot", "wait", "batch", "delegate", "get_screen",
-            "list_dir", "search_files", "file_info", "mkdir", "move_file", "copy_file", "rename_file", "trash_files",
+            "list_dir", "search_files", "file_info", "mkdir", "move_file", "move_files", "copy_file", "rename_file", "trash_files",
             "ask_user", "hand_to_user", "open_route", "show_card", "finish", "update_plan",
         )
         val FULL_NAMES = listOf(
             "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri", "list_apps",
             "screenshot", "wait", "batch", "delegate", "get_screen",
-            "list_dir", "search_files", "file_info", "mkdir", "move_file", "copy_file", "rename_file", "trash_files",
+            "list_dir", "search_files", "file_info", "mkdir", "move_file", "move_files", "copy_file", "rename_file", "trash_files",
             "ask_user", "hand_to_user",
             "remember", "forget", "recall", "search_conversations",
             "get_location", "geocode", "open_route", "remind_at", "find_contact", "calendar_list", "calendar_add",
@@ -97,7 +97,7 @@ class ToolSpecsPinTest {
             "update_plan",
             "mcp__notion__search",
         )
-        const val BARE_HASH = "3658ed250939353057bae640e4ff7cc0428c00fd045cdead11bf5740b90c3fef"
-        const val FULL_HASH = "2392524c54e157692df3d0a7bb1dad5243195acddbd717497059bf90fd684abf"
+        const val BARE_HASH = "14ddf062771a5913479a589eb2a5457c9b895708b674fa45ead4c7734cf2af23"
+        const val FULL_HASH = "11a90537ebb9831fe2af93087518e3688161676d5068b1776858d35d8ba72133"
     }
 }

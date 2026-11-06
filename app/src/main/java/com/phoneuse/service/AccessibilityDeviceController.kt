@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -477,6 +478,11 @@ class AccessibilityDeviceController(
         // BACK and friends must reach the app, not a focused dock text field.
         overlay?.releaseInputFocus()
         return s.performGlobalAction(code)
+    }
+
+    override fun playingOrInCall(): Boolean {
+        val audio = PhoneUseAccessibilityService.instance?.getSystemService(AudioManager::class.java) ?: return false
+        return audio.isMusicActive || audio.mode == AudioManager.MODE_IN_CALL || audio.mode == AudioManager.MODE_IN_COMMUNICATION
     }
 
     override suspend fun launchApp(packageName: String, fresh: Boolean): Boolean {

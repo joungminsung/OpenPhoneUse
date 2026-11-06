@@ -198,6 +198,7 @@ internal object LiveDeviceController : DeviceController {
     override suspend fun openUri(uri: String): Boolean = ready().openUri(uri)
     override suspend fun installedApps(): List<AppInfo> = device().installedApps()
     override suspend fun waitForIdle(timeoutMs: Long) = ready().waitForIdle(timeoutMs)
+    override fun playingOrInCall(): Boolean = PhoneUseAccessibilityService.instance?.controller?.playingOrInCall() == true
     override suspend fun settleAfterAction(baseline: String?, kind: SettleKind): String =
         ready().settleAfterAction(baseline, kind)
     override suspend fun settleQuick(baseline: String?, kind: SettleKind): QuickSettle =

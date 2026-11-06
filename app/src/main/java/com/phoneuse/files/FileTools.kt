@@ -15,6 +15,9 @@ import java.time.format.DateTimeFormatter
 
 class FileToolException(message: String) : Exception(message)
 
+private const val MAX_FAILED_SHOWN = 10
+private const val MAX_TYPES_SHOWN = 30
+
 /**
  * Root-confined file operations. Every path is resolved to its canonical form and must stay inside
  * [root] (symlinks included). There is intentionally no permanent delete: [trash] moves into an
@@ -33,8 +36,9 @@ class FileTools(
     private val mtimeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
     private val stampFormat = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
-    fun listDir(path: String, limit: Int = 200): String {
+    fun listDir(path: String, limit: Int = 200, offset: Int = 0): String {
         if (limit < 1) throw FileToolException("limit must be at least 1")
+        if (offset < 0) throw FileToolException("offset must not be negative")
         val dir = resolve(path)
         if (!dir.exists()) throw FileToolException("not found: $path")
         if (!dir.isDirectory) throw FileToolException("not a directory: $path")
@@ -42,8 +46,14 @@ class FileTools(
             compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }, { it.name })
         )
         if (children.isEmpty()) return "(empty)"
-        val lines = children.take(limit).map { line(it) }.toMutableList()
-        if (children.size > limit) lines += "… ${children.size - limit} more"
+        val page = children.drop(offset).take(limit)
+        if (page.isEmpty()) return "(no more: ${children.size} entries)"
+        val lines = page.map { line(it) }.toMutableList()
+        val end = offset + page.size
+        if (end < children.size) {
+            lines += "… ${children.size - end} more of ${children.size}, next offset=$end"
+            lines += "all ${children.size} by type: ${typeCounts(children)}"
+        }
         return lines.joinToString("\n")
     }
 
@@ -107,6 +117,44 @@ class FileTools(
         guardDest(src, dest)
         moveFile(src, dest)
         return "moved ${display(src)} -> ${display(dest)}"
+    }
+
+    /**
+     * Moves the loose files directly in [fromDir] whose names match any of [patterns] into [toDir], made if missing.
+     * Folders, links and hidden files stay. A taken name gets a " (2)", so nothing is overwritten, and a file that
+     * fails does not stop the others.
+     */
+    fun moveMatching(fromDir: String, patterns: List<String>, toDir: String): String {
+        if (patterns.isEmpty() || patterns.any { it.isBlank() }) throw FileToolException("patterns must not be empty")
+        val from = resolve(fromDir)
+        if (!from.isDirectory) throw FileToolException("not a directory: $fromDir")
+        if (isInTrash(from)) throw FileToolException("cannot move out of the trash folder")
+        val to = resolve(toDir)
+        if (to == from) throw FileToolException("source and destination are the same folder")
+        if (isInTrash(to)) throw FileToolException("cannot write into the trash folder")
+        if (to.exists() && !to.isDirectory) throw FileToolException("not a folder: $toDir")
+        val matchers = patterns.map { nameMatcher(it.trim()) }
+        val matched = safeChildren(from)
+            .filter { f -> f.isFile && !isLink(f) && !f.name.startsWith(".") && matchers.any { it(f.name) } }
+            .sortedBy { it.name.lowercase() }
+        if (matched.isEmpty()) return "moved 0: nothing matched in ${displayDir(from)}"
+        if (!to.isDirectory && !to.mkdirs()) throw FileToolException("could not create: $toDir")
+        var renamed = 0
+        val failed = ArrayList<String>()
+        for (src in matched) {
+            val dest = uniqueIn(to, src.name)
+            try {
+                moveFile(src, dest)
+                if (dest.name != src.name) renamed++
+            } catch (e: FileToolException) {
+                failed += "${src.name}: ${e.message}"
+            }
+        }
+        val lines = mutableListOf("moved ${matched.size - failed.size} of ${matched.size} to ${displayDir(to)}")
+        if (renamed > 0) lines += "kept both under a new name: $renamed"
+        lines += failed.take(MAX_FAILED_SHOWN).map { "failed: $it" }
+        if (failed.size > MAX_FAILED_SHOWN) lines += "… ${failed.size - MAX_FAILED_SHOWN} more failed"
+        return lines.joinToString("\n")
     }
 
     fun copy(from: String, to: String): String {
@@ -330,6 +378,22 @@ class FileTools(
 
     private fun display(f: File): String =
         f.path.removePrefix(rootDir.path).trimStart(File.separatorChar).replace(File.separatorChar, '/')
+
+    private fun displayDir(f: File): String = display(f).ifEmpty { "/" }
+
+    /** "jpg 120, pdf 30, folders 2": what a long folder holds, so tidying it does not need every page. */
+    private fun typeCounts(entries: List<File>): String {
+        val counts = entries.groupingBy { f ->
+            val dot = f.name.lastIndexOf('.')
+            when {
+                f.isDirectory -> "folders"
+                dot > 0 && dot < f.name.length - 1 -> f.name.substring(dot + 1).lowercase()
+                else -> "no extension"
+            }
+        }.eachCount().entries.sortedWith(compareBy({ -it.value }, { it.key }))
+        val shown = counts.take(MAX_TYPES_SHOWN).joinToString(", ") { "${it.key} ${it.value}" }
+        return if (counts.size > MAX_TYPES_SHOWN) "$shown, … ${counts.size - MAX_TYPES_SHOWN} more types" else shown
+    }
 
     private fun line(f: File): String =
         if (f.isDirectory) "d ${f.name}/" else "f ${f.name} ${f.length()} ${formatTime(f.lastModified())}"

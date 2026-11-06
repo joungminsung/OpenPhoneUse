@@ -19,7 +19,7 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1225%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#ベンチマーク)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -127,7 +127,7 @@
 | Web ページ、通知、ほかのアプリの文章は命令ではなくデータ | そうした文章を読んだ実行は「汚染（tainted）」扱いになり、送信は必ず確認、新しいメモリーは推測としてのみ保存、`forget` は先に確認します。 |
 | 秘密情報は封印 | トークンと API キーは Android Keystore の鍵で暗号化（`SecretBox`）し、ログには残しません。通知内の認証コードは伏せます。 |
 
-**スマートフォンの外に出るもの：** 画面が必要なタスクでは、圧縮した画面テキストとそのスクリーンショットが、サインインしたモデル提供元に送られます。それ以外は、自分で接続したサービスを除き、何も端末の外に出ません。OpenPhoneUse のサーバーはありません。
+**スマートフォンの外に出るもの：** タスクに必要な内容は、選んだモデル提供元に送られます。ユーザーのメッセージ、圧縮した画面テキストとスクリーンショット、そしてツールがタスクのために読み取ったファイル名、連絡先、予定、写真、SMS、通知、位置情報、保存したメモリーなどです。場所の検索は OpenStreetMap の Nominatim に送られ、地図は OpenStreetMap のタイルを読み込みます。自分で接続したサービスは、そこへ送られた内容を受け取ります。OpenPhoneUse のサーバーはありません。
 
 脆弱性を見つけたら非公開で報告してください：[SECURITY.md](SECURITY.md)。
 
@@ -212,7 +212,7 @@ OpenPhoneUse は、まず確認するように作られています。支払い�
 
 ### OpenPhoneUse はどの AI モデルに対応していますか？
 OpenPhoneUse は次のモデル提供元に対応しています。
-- **ChatGPT プラン：** ChatGPT でサインインし、プランの利用枠を使います（アプリ向けの OpenAI 公式「Sign in with ChatGPT」）。アプリには、アカウントで使えるモデルが一覧表示されます。例：GPT-6.1 Terra、GPT-6.1 Sol、GPT-6 Astra。
+- **ChatGPT プラン：** ChatGPT でサインインし、プランの利用枠を使います（アプリ向けの OpenAI「Sign in with ChatGPT」）。アプリには、アカウントで使えるモデルが一覧表示されます。例：GPT-6.1 Terra、GPT-6.1 Sol、GPT-6 Astra。
 - **OpenAI API キー：** 同じモデルを、トークン単位の課金で使えます。
 - **Claude、Grok、Gemini：** 各提供元の API キーを貼り付けます。
 

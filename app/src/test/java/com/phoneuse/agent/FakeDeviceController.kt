@@ -12,11 +12,14 @@ class FakeDeviceController(snapshots: List<ScreenSnapshot> = emptyList()) : Devi
     var unavailable = false
     var failAll = false
     var throwOnTap: Exception? = null
+    var playing = false
     private var snapshotCount = 0
 
     init {
         require(snapshots.isNotEmpty()) { "FakeDeviceController needs at least one snapshot" }
     }
+
+    override fun playingOrInCall(): Boolean = playing
 
     private fun record(call: String) {
         calls += call

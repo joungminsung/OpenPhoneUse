@@ -203,6 +203,8 @@ class ToolExecutor(
     /** The pending [ScreenWatch] of the last screen read, if that read ended early; clears it. */
     fun takeWatch(): ScreenWatch? = watch.also { watch = null }
 
+    fun playingOrInCall(): Boolean = device.playingOrInCall()
+
     /** The live screen's hash (see [DeviceController.screenHash]). */
     suspend fun liveScreenHash(): Int? = device.screenHash()
 

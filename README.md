@@ -19,7 +19,7 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1225%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#benchmark)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -127,7 +127,7 @@ The main model (GPT-6.1 Terra with fast mode by default) makes every decision. R
 | Text from web pages, notifications and other apps is data, not commands | Once a run has read such text it is "tainted": sends always confirm, new memories are saved only as guesses, and `forget` asks first. |
 | Secrets stay sealed | Tokens and API keys are encrypted with an Android Keystore key (`SecretBox`) and never logged. Verification codes in notifications are masked. |
 
-**What leaves the phone:** when a task needs the screen, the compressed screen text and a screenshot of it are sent to the model provider you signed in to. Nothing else leaves the device, apart from services you connect yourself. There is no OpenPhoneUse server.
+**What leaves the phone:** what a task needs goes to the model provider you chose: your messages, the compressed screen text and screenshots, and whatever a tool reads for the task, such as file names, contacts, calendar events, photos, texts, notifications, your location or saved memories. Place searches go to OpenStreetMap's Nominatim, and maps load OpenStreetMap tiles. Services you connect yourself receive what is sent to them. There is no OpenPhoneUse server.
 
 Found a hole? Please report it privately: [SECURITY.md](SECURITY.md).
 
@@ -211,7 +211,7 @@ It is built to ask first. Payments and security changes always show a confirmati
 No. It uses only Android's public AccessibilityService API, which you turn on yourself in Settings. (The benchmark runner uses adb from a PC to set up and grade tasks, but the app does not.)
 
 ### Which AI models does it support?
-- **ChatGPT plan:** sign in with ChatGPT and use your plan's usage (OpenAI's official "Sign in with ChatGPT" for apps). The app lists the models your account offers, such as GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra.
+- **ChatGPT plan:** sign in with ChatGPT and use your plan's usage (OpenAI's "Sign in with ChatGPT" for apps). The app lists the models your account offers, such as GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra.
 - **OpenAI API key:** the same models, billed per token.
 - **Claude, Grok or Gemini:** paste that provider's API key.
 

@@ -804,6 +804,8 @@
       "prompt": "크롬에서 https://httpbin.org/forms/post 열고 피자 주문서 채워줘. 이름 Bench Kim, 전화 010-5555-0101, 이메일 bench@example.com, 사이즈 Large, 토핑은 bacon이랑 onion, 배달 시간 19:30, 요청사항 '벨 누르지 마세요'. 제출은 하지 마.",
       "evidence": [
         [
+          "monkey -p com.android.chrome -c android.intent.category.LAUNCHER 1",
+          "sleep 2",
           "shot"
         ],
         [

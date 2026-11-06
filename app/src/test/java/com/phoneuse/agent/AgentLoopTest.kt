@@ -192,6 +192,34 @@ class AgentLoopTest {
         assertTrue(dev.calls.none { it == "settleQuick()" })
     }
 
+    private fun finishStaying() = turn(call("finish", """{"summary":"완료","stay_in_app":true}"""))
+
+    @Test fun stayIsDroppedAfterWorkingInsideAnAppWithNothingPlaying() = runTest {
+        val model = FakeModelClient(listOf(tap(), finishStaying()))
+        val events = rig(model).loop.run(emptyList(), "t", observeFirst = true).toList()
+        assertEquals(AgentEvent.Finished("완료", stayInApp = false), events.last())
+    }
+
+    @Test fun stayIsKeptAfterWorkingInsideAnAppWhileSomethingPlays() = runTest {
+        val model = FakeModelClient(listOf(tap(), finishStaying()))
+        val dev = FakeDeviceController(listOf(snap)).apply { playing = true }
+        val events = rig(model, dev = dev).loop.run(emptyList(), "t", observeFirst = true).toList()
+        assertEquals(AgentEvent.Finished("완료", stayInApp = true), events.last())
+    }
+
+    @Test fun stayIsKeptWhenTheRunOnlyOpenedSomething() = runTest {
+        val open = turn(call("open_uri", """{"uri":"https://example.com"}"""))
+        val model = FakeModelClient(listOf(open, finishStaying()))
+        val events = rig(model).loop.run(emptyList(), "t", observeFirst = true).toList()
+        assertEquals(AgentEvent.Finished("완료", stayInApp = true), events.last())
+    }
+
+    @Test fun finishWithoutStayNeverStaysEvenWhileSomethingPlays() = runTest {
+        val dev = FakeDeviceController(listOf(snap)).apply { playing = true }
+        val events = rig(FakeModelClient(listOf(tap(), finish())), dev = dev).loop.run(emptyList(), "t", observeFirst = true).toList()
+        assertEquals(AgentEvent.Finished("완료", stayInApp = false), events.last())
+    }
+
     @Test fun finishCallIsReportedOnceAsFinished() = runTest {
         val model = FakeModelClient(listOf(finish()))
         val events = rig(model).loop.run(emptyList(), "t", observeFirst = true).toList()
@@ -388,6 +416,26 @@ class AgentLoopTest {
         assertTrue(events.toString(), events.none { it == AgentEvent.DeviceUse })
         assertEquals(AgentEvent.Finished("안녕하세요"), events.last())
         assertTrue(r.dev.calls.toString(), r.dev.calls.isEmpty())
+    }
+
+    @Test fun fileToolsShowPlainWordsAndShortPathsOnScreen() = runTest {
+        val model = FakeModelClient(
+            listOf(
+                turn(call("list_dir", """{"path":"/storage/emulated/0/Download"}""")),
+                turn(call("move_files", """{"from_dir":"/storage/emulated/0/Download","patterns":["*.jpg"],"to_dir":"/storage/emulated/0/Download/사진"}""")),
+                finish(),
+            ),
+        )
+        val acting = rig(model).loop.run(emptyList(), "t", observeFirst = false).toList().filterIsInstance<AgentEvent.Acting>().map { it.description }
+        assertEquals(listOf("폴더 보기: Download", "파일 여러 개 옮기기: Download/사진"), acting.filter { !it.startsWith("완료") })
+    }
+
+    @Test fun noFileToolShowsItsInternalName() = runTest {
+        val names = FileModule.SPECS.map { it.name }
+        val model = FakeModelClient(names.map { turn(call(it, "{}")) } + finish())
+        val acting = rig(model).loop.run(emptyList(), "t", observeFirst = false).toList().filterIsInstance<AgentEvent.Acting>().map { it.description }
+        assertEquals(acting.toString(), names.size, acting.count { !it.startsWith("완료") })
+        assertTrue(acting.toString(), acting.none { d -> names.any { d.startsWith(it) } })
     }
 
     @Test fun deviceUseReportedOnlyOnFirstDeviceTool() = runTest {

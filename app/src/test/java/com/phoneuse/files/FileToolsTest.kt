@@ -57,8 +57,105 @@ class FileToolsTest {
     @Test fun listTruncatesWithMoreCount() {
         repeat(5) { file("f$it.txt") }
         val lines = tools.listDir("", limit = 3).lines()
-        assertEquals(4, lines.size)
-        assertEquals("… 2 more", lines[3])
+        assertEquals(5, lines.size)
+        assertEquals("… 2 more of 5, next offset=3", lines[3])
+        assertEquals("all 5 by type: txt 5", lines[4])
+    }
+
+    @Test fun listPagesThroughEveryEntryWithOffset() {
+        repeat(5) { file("f$it.txt") }
+        val pages = listOf(0, 2, 4).map { tools.listDir("", limit = 2, offset = it).lines().filter { l -> l.startsWith("f ") } }
+        assertEquals(listOf("f0.txt", "f1.txt", "f2.txt", "f3.txt", "f4.txt"), pages.flatten().map { it.split(" ")[1] })
+    }
+
+    @Test fun listOffsetPastTheEndSaysSo() {
+        file("a.txt")
+        assertEquals("(no more: 1 entries)", tools.listDir("", offset = 1))
+        fails("offset") { tools.listDir("", offset = -1) }
+    }
+
+    @Test fun listSummaryCountsTypesMostCommonFirst() {
+        repeat(3) { file("a$it.JPG") }
+        file("b.pdf")
+        file("noext")
+        File(root, "dir").mkdirs()
+        val last = tools.listDir("", limit = 1).lines().last()
+        assertEquals("all 6 by type: jpg 3, folders 1, no extension 1, pdf 1", last)
+    }
+
+    @Test fun moveMatchingMovesLooseMatchesAndLeavesTheRest() {
+        file("Download/a.jpg")
+        file("Download/B.JPG")
+        file("Download/c.pdf")
+        file("Download/.pending-1-d.jpg")
+        file("Download/keep/e.jpg")
+        File(root, "Download/album.jpg").mkdirs()
+        val r = tools.moveMatching("Download", listOf("*.jpg"), "Download/사진")
+        assertEquals("moved 2 of 2 to Download/사진", r)
+        assertTrue(File(root, "Download/사진/a.jpg").isFile)
+        assertTrue(File(root, "Download/사진/B.JPG").isFile)
+        assertFalse(File(root, "Download/a.jpg").exists())
+        assertTrue(File(root, "Download/c.pdf").isFile)
+        assertTrue(File(root, "Download/.pending-1-d.jpg").isFile)
+        assertTrue(File(root, "Download/keep/e.jpg").isFile)
+        assertTrue(File(root, "Download/album.jpg").isDirectory)
+    }
+
+    @Test fun moveMatchingAcceptsStoragePathsAndSeveralPatterns() {
+        file("Download/a.jpg")
+        file("Download/b.png")
+        val r = tools.moveMatching("/storage/emulated/0/Download", listOf("*.jpg", "*.png"), "/storage/emulated/0/Pictures/x")
+        assertEquals("moved 2 of 2 to Pictures/x", r)
+    }
+
+    @Test fun moveMatchingHandlesHundredsInOneCall() {
+        repeat(500) { file("Download/f$it.pdf") }
+        assertEquals("moved 500 of 500 to Download/문서", tools.moveMatching("Download", listOf("*.pdf"), "Download/문서"))
+        assertEquals(500, File(root, "Download/문서").list()!!.size)
+    }
+
+    @Test fun moveMatchingNeverOverwritesATakenName() {
+        file("Download/a.jpg", "new")
+        file("Download/사진/a.jpg", "old")
+        val r = tools.moveMatching("Download", listOf("*.jpg"), "Download/사진")
+        assertEquals("moved 1 of 1 to Download/사진\nkept both under a new name: 1", r)
+        assertEquals("old", File(root, "Download/사진/a.jpg").readText())
+        assertEquals("new", File(root, "Download/사진/a (2).jpg").readText())
+    }
+
+    @Test fun moveMatchingKeepsGoingPastAFailure() {
+        // A taken 255-character name cannot grow a " (2)", so that one file fails on any file system.
+        val long = "x".repeat(251) + ".jpg"
+        file("Download/$long", "new")
+        file("Download/사진/$long", "old")
+        file("Download/z.jpg")
+        val lines = tools.moveMatching("Download", listOf("*.jpg"), "Download/사진").lines()
+        assertEquals("moved 1 of 2 to Download/사진", lines[0])
+        assertTrue(lines.toString(), lines.last().startsWith("failed: $long"))
+        assertTrue(File(root, "Download/사진/z.jpg").isFile)
+        assertEquals("new", File(root, "Download/$long").readText())
+        assertEquals("old", File(root, "Download/사진/$long").readText())
+    }
+
+    @Test fun moveMatchingSaysWhenNothingMatched() {
+        file("Download/a.txt")
+        assertEquals("moved 0: nothing matched in Download", tools.moveMatching("Download", listOf("*.jpg"), "Download/사진"))
+        assertFalse(File(root, "Download/사진").exists())
+    }
+
+    @Test fun moveMatchingRefusesBadFolders() {
+        file("Download/a.jpg")
+        file("note.txt")
+        tools.trash(listOf("note.txt"))
+        fails("patterns") { tools.moveMatching("Download", emptyList(), "x") }
+        fails("patterns") { tools.moveMatching("Download", listOf(" "), "x") }
+        fails("not a directory") { tools.moveMatching("nope", listOf("*"), "x") }
+        fails("same folder") { tools.moveMatching("Download", listOf("*"), "Download") }
+        fails("trash") { tools.moveMatching("Download", listOf("*"), ".PhoneUseTrash/x") }
+        fails("trash") { tools.moveMatching(".PhoneUseTrash", listOf("*"), "x") }
+        fails("outside") { tools.moveMatching("Download", listOf("*"), "/etc") }
+        fails("not a folder") { tools.moveMatching("Download", listOf("*"), "note2.txt".also { file(it) }) }
+        assertTrue(File(root, "Download/a.jpg").isFile)
     }
 
     @Test fun searchMatchesGlobAndSkipsTrash() {

@@ -209,6 +209,8 @@ class AgentLoop(
         // The latest screen the model has seen; null until it has seen one.
         var current: CompressedScreen? = null
         var deviceUsed = false
+        // The run worked inside an app, instead of only opening one (see stayHonoured).
+        var worked = false
         // Apps whose tips were already looked up, and the device actions taken in each app (for a new tip).
         val tipped = HashSet<String>()
         val actions = LinkedHashMap<String, MutableList<String>>()
@@ -373,6 +375,7 @@ class AgentLoop(
                     emit(AgentEvent.DeviceUse)
                     deviceUsed = true
                 }
+                if (call.name in WORK_TOOLS) worked = true
                 // finish is reported once, by the Finished event below; a card shows itself.
                 val description = describe(call, current)
                 val tipDescription = if (Lang.korean) description else describe(call, current, korean = true)
@@ -427,7 +430,10 @@ class AgentLoop(
                         continue
                     }
                     reportTimings()
-                    emit(AgentEvent.Finished(result.finishedSummary, result.stayInApp))
+                    // The model's stay_in_app is not taken on its word: a game it finished or a form it filled is
+                    // not something the user stays to watch, so after working in an app only live media or a call keeps it.
+                    val stayHonoured = result.stayInApp && (!worked || executor.playingOrInCall())
+                    emit(AgentEvent.Finished(result.finishedSummary, stayHonoured))
                     return
                 }
             }
@@ -691,7 +697,7 @@ class AgentLoop(
                 ?: TARGET_KEYS.firstNotNullOfOrNull { k -> (a[k] as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() } }
         }
         if (call.name == "update_plan") return PlanModule.current(args)?.let { "$verb: $it" } ?: verb
-        return if (target != null) "$verb: $target" else verb
+        return if (target != null) "$verb: ${target.removePrefix("/storage/emulated/0/")}" else verb
     }
 
     private companion object {
@@ -737,6 +743,9 @@ class AgentLoop(
         /** Actions that make up an app tip: the ones that change the screen. */
         val TIP_ACTIONS = setOf("tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri", "batch")
 
+        /** Actions that work inside an app, as opposed to only opening one. */
+        val WORK_TOOLS = TIP_ACTIONS - setOf("open_app", "open_uri") + "delegate"
+
         /** Fields whose input must never be kept, even as a label. */
         val SECRET_FIELD = Regex("(?i)(?<![a-z])(otp|pin|passcode|password|passwd|cvc|cvv|code)(?![a-z])|인증|비밀번호|보안|코드")
 
@@ -744,7 +753,7 @@ class AgentLoop(
         val NO_TIP_PACKAGES = setOf("com.phoneuse", "com.android.systemui")
         const val OMITTED_SCREENSHOT = "[이전 스크린샷 생략]"
         const val PHOTO_MARK = "[사진]"
-        val TARGET_KEYS = listOf("package", "name", "uri", "key", "text")
+        val TARGET_KEYS = listOf("package", "name", "uri", "key", "text", "path", "to_dir", "from")
         /** English and Korean verb for each tool; the Korean one is also what app tips store. */
         /** Tool calls and results in logcat (tag PU_TRACE), for debugging runs; debug builds only. */
         private val TRACE: java.util.logging.Logger = java.util.logging.Logger.getLogger("PU_TRACE")
@@ -762,6 +771,11 @@ class AgentLoop(
             "get_location" to ("Check my location" to "내 위치 확인"), "geocode" to ("Find place" to "장소 찾기"),
             "open_route" to ("Open directions" to "길찾기 열기"), "remind_at" to ("Schedule reminder" to "알림 예약"),
             "make_routine" to ("Create routine" to "루틴 만들기"),
+            "list_dir" to ("Look in folder" to "폴더 보기"), "search_files" to ("Find files" to "파일 찾기"),
+            "file_info" to ("File details" to "파일 정보"), "mkdir" to ("Make folder" to "폴더 만들기"),
+            "move_file" to ("Move file" to "파일 옮기기"), "move_files" to ("Move files" to "파일 여러 개 옮기기"),
+            "copy_file" to ("Copy file" to "파일 복사"), "rename_file" to ("Rename file" to "이름 바꾸기"),
+            "trash_files" to ("Move to trash" to "휴지통으로 옮기기"),
         )
     }
 }

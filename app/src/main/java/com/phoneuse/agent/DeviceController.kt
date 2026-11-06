@@ -56,6 +56,9 @@ interface DeviceController {
     suspend fun installedApps(): List<AppInfo>
     suspend fun waitForIdle(timeoutMs: Long = 3000)
 
+    /** Whether the phone is playing sound or in a call right now: a run's result can be that the user stays with it. */
+    fun playingOrInCall(): Boolean = false
+
     /**
      * After an action: waits until the UI settles (first UI event, then a short quiet or a stable tree; capped).
      * [baseline] is the compressed text of the screen the action was aimed at, or null; [kind] what the action
