@@ -19,8 +19,15 @@
         android:maxSdkVersion="32" />
     <!-- Asked for only when find_contact / the calendar tools are first used. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Asked for only when add_contact is first used. -->
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <!-- Asked for only when call / recent_calls are first used. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- set_volume's silent mode switches Do Not Disturb; works once the user allows the app under "Do Not Disturb access". -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <!-- set_alarm (AlarmClock.ACTION_SET_ALARM). -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <!-- Asked for only when the photo tools are first used. -->
@@ -34,6 +41,8 @@
     <!-- Asked for only when sms_search / send_sms are first used. -->
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- The SMS permissions would otherwise mark the app as phone-only; tablets can install it too. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <!-- Routines: alarms and geofences are set again after a reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Place routines (geofences); asked for separately after location, only when a place routine is made. -->

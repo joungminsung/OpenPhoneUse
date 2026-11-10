@@ -19,9 +19,11 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1341%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#benchmark)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/joungminsung/openphoneuse/total?label=downloads&color=3DDC84)](https://github.com/joungminsung/openphoneuse/releases)
+![Views](https://hits.sh/github.com/joungminsung/openphoneuse.svg?label=views&color=4c8bf5)
 
 <a href="docs/media/film.mp4"><img src="docs/media/film-hero.gif" alt="Excerpt from the 46-second OpenPhoneUse film" width="800"></a>
 
@@ -42,7 +44,7 @@ Ask in plain language, for example *"Get my phone ready for bed: turn on dark mo
 - **Uses your model.** Your ChatGPT plan, an OpenAI API key, Claude, Grok or Gemini.
 - **Asks first.** Always before paying or changing security settings. Before deleting, unless you asked for that one recoverable item, and before sending, unless you named the recipient and the text. It never types your passwords; it hands that step to you.
 
-**Benchmark: 94.5 / 100** on 31 graded tasks in 9 categories, with a median of 42 seconds per task (GPT-6.1 Terra with fast mode, on an Android emulator, 2026-11-03). [See how it is graded](#benchmark).
+**Benchmark: 94.5 / 100** on 31 graded tasks in 9 categories, with a median of 42 seconds per task (GPT-6.1 Terra with fast mode, on an Android emulator, 2026-11-03, one run on a build from before this release). [See how it is graded](#benchmark).
 
 **[Download the APK](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)** or read the [install steps](#install).
 
@@ -96,7 +98,7 @@ Besides driving apps, it has built-in tools for contacts, calendar, alarms, remi
 </tr>
 </table>
 
-1. **Install the APK.** Open the downloaded file and allow installs from that source when Android asks. It is not on the Play Store. If Android says the app was not installed, uninstall any earlier test build first.
+1. **Install the APK.** Open the downloaded file and allow installs from that source when Android asks. It is not on the Play Store. If Android says the app was not installed, uninstall any earlier test build first. Google Play Protect may show "App scan recommended" and then "Harmful app blocked". Google does not say why; OpenPhoneUse asks for strong access, such as accessibility control and text messages. Decide for yourself: compare the APK with the `OpenPhoneUse.apk.sha256` file in the release, read the source, or build it yourself. To go ahead, choose the option to install anyway, and leave Play Protect on.
 2. **Turn on control:** **Settings → Accessibility → OpenPhoneUse** → on. On Android 13 and newer, a sideloaded APK usually has this switch greyed out by "restricted settings"; if so, go to **Settings → Apps → OpenPhoneUse → ⋮ (top right) → Allow restricted settings**, then turn it on again.
 3. **Sign in:** in the app's Settings, choose **Continue with ChatGPT** to use your plan, or paste an OpenAI, Claude, Grok or Gemini API key.
 4. **Ask for something**, for example "Turn on Do Not Disturb" or "Compare the current price of the AirPods Pro 3 at Amazon, Best Buy and Walmart".

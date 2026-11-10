@@ -7,8 +7,16 @@ import com.phoneuse.phone.AlarmSource
 import com.phoneuse.phone.AlarmTool
 import com.phoneuse.phone.CalendarSource
 import com.phoneuse.phone.CalendarTool
+import com.phoneuse.phone.CallLogSource
+import com.phoneuse.phone.CallLogTool
+import com.phoneuse.phone.CallSource
+import com.phoneuse.phone.CallTool
+import com.phoneuse.phone.ContactAdder
+import com.phoneuse.phone.ContactWriter
 import com.phoneuse.phone.ContactsSource
 import com.phoneuse.phone.ContactsTool
+import com.phoneuse.phone.ControlsSource
+import com.phoneuse.phone.ControlsTool
 import com.phoneuse.phone.LocationSource
 import com.phoneuse.phone.LocationTool
 import com.phoneuse.phone.NotificationSource
@@ -16,6 +24,7 @@ import com.phoneuse.phone.NotificationTool
 import com.phoneuse.phone.PhotoSource
 import com.phoneuse.phone.PhotosTool
 import com.phoneuse.phone.PlaceSearch
+import com.phoneuse.phone.RecipientResolver
 import com.phoneuse.phone.SmsSource
 import com.phoneuse.phone.SmsTool
 import com.phoneuse.routine.ReminderScheduler
@@ -54,6 +63,10 @@ class ToolSpecsPinTest {
             calendar = CalendarTool(stub<CalendarSource>()) { emptyList() },
             alarms = AlarmTool(stub<AlarmSource>()),
             photos = PhotosTool(stub<PhotoSource>(), null, { emptyList() }),
+            calls = CallTool(stub<CallSource>(), RecipientResolver(stub<ContactsSource>())),
+            controls = ControlsTool(stub<ControlsSource>()),
+            callLog = CallLogTool(stub<CallLogSource>()),
+            contactAdder = ContactAdder(stub<ContactWriter>()),
         ),
         connectors = connector,
         messaging = MessagingAccess(NotificationTool(stub<NotificationSource>()), SmsTool(stub<SmsSource>())),
@@ -90,14 +103,15 @@ class ToolSpecsPinTest {
             "list_dir", "search_files", "file_info", "mkdir", "move_file", "move_files", "copy_file", "rename_file", "trash_files",
             "ask_user", "hand_to_user",
             "remember", "forget", "recall", "search_conversations",
-            "get_location", "geocode", "open_route", "remind_at", "find_contact", "calendar_list", "calendar_add",
-            "next_alarm", "set_alarm", "photos_find", "photos_look", "photos_album", "set_wallpaper",
+            "get_location", "geocode", "open_route", "remind_at", "find_contact", "call", "calendar_list", "calendar_add",
+            "next_alarm", "set_alarm", "set_timer", "photos_find", "photos_look", "photos_album", "set_wallpaper",
             "make_routine", "show_card", "finish",
             "notifications_recent", "dismiss_notifications", "sms_search", "send_sms",
             "update_plan",
+            "flashlight", "set_volume", "media_control", "device_status", "recent_calls", "add_contact",
             "mcp__notion__search",
         )
         const val BARE_HASH = "14ddf062771a5913479a589eb2a5457c9b895708b674fa45ead4c7734cf2af23"
-        const val FULL_HASH = "11a90537ebb9831fe2af93087518e3688161676d5068b1776858d35d8ba72133"
+        const val FULL_HASH = "82ca87b9ee3c8ad01b6fb0645704965ef9e37b3a479a60b9e3e360a6d6be4741"
     }
 }

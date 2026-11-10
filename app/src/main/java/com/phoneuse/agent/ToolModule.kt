@@ -73,4 +73,11 @@ class ToolDeps internal constructor(
     val userFixedSend: (to: String, body: String) -> Boolean = { _, _ -> false },
     /** Whether the user's own words this run ask for a deletion (see ToolExecutor.userAskedDelete). */
     val userAskedDelete: () -> Boolean = { false },
+    /** Whether the user's own words this run ask to call this recipient (see ToolExecutor.userAskedCall). */
+    val userAskedCall: (names: List<String>, number: String) -> Boolean = { _, _ -> false },
+    /** Whether the user's own words this run ask for an alarm / a timer (see ToolExecutor.userAskedAlarm). */
+    val userAskedAlarm: () -> Boolean = { false },
+    val userAskedTimer: () -> Boolean = { false },
+    /** Whether the user's own words this run give this contact's number, name and email (see ToolExecutor.userGaveContact). */
+    val userGaveContact: (name: String, number: String, email: String?) -> Boolean = { _, _, _ -> false },
 )

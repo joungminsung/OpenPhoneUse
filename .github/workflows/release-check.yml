@@ -1,0 +1,51 @@
+name: Release check
+
+# Checks the files of a published release: the checksum file matches the APK, the APK is signed with the project's
+# key, and its version matches the tag. The APK is built and signed on the maintainer's machine, so this workflow
+# checks what was uploaded; it does not build it.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to check, such as v0.0.1
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      # SHA-256 of the release signing certificate. See "Releasing" in CONTRIBUTING.md.
+      EXPECTED_CERT: 975d08ddf64b789916a15d1ee5aeb6088a8aa176640f90524e9bd16fa8bec8c6
+    steps:
+      - name: Download the release files
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern OpenPhoneUse.apk --pattern OpenPhoneUse.apk.sha256
+
+      - name: Checksum file matches the APK
+        run: sha256sum --check --strict OpenPhoneUse.apk.sha256
+
+      - name: APK is signed with the project's key
+        run: |
+          tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)"
+          echo "BUILD_TOOLS=$tools" >> "$GITHUB_ENV"
+          cert="$("$tools/apksigner" verify --print-certs OpenPhoneUse.apk \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          echo "certificate: $cert"
+          test "$cert" = "$EXPECTED_CERT"
+
+      - name: Version matches the tag
+        run: |
+          version="$("$BUILD_TOOLS/aapt2" dump badging OpenPhoneUse.apk \
+            | sed -n "s/^package: .* versionName='\([^']*\)'.*/\1/p")"
+          echo "versionName: $version, tag: $TAG"
+          test "v$version" = "$TAG"

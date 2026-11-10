@@ -19,6 +19,7 @@ playServicesLocation = "21.3.0"
 glance = "1.2.0"
 work = "2.11.2"
 anthropic = "2.75.0"
+aboutlibraries = "15.3.0"
 
 [libraries]
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -53,3 +54,4 @@ work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work"
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+aboutlibraries = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutlibraries" }

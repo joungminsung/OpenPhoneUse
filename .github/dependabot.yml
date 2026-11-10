@@ -1,0 +1,22 @@
+version: 2
+
+updates:
+  # Libraries and Gradle plugins, read from gradle/libs.versions.toml.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One pull request for the small updates; a major version gets its own.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # The actions the workflows pin by commit.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

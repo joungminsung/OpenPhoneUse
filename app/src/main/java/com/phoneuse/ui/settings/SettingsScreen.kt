@@ -174,6 +174,7 @@ fun SettingsScreen(
     var aboutDialog by remember { mutableStateOf(false) }
     var choice by rememberSaveable { mutableStateOf<Choice?>(null) }
     var permissionsOpen by rememberSaveable { mutableStateOf(false) }
+    var licensesOpen by rememberSaveable { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
     // A shorter retention that would delete conversations at once: (days, how many) until confirmed.
     var shorten by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -193,6 +194,11 @@ fun SettingsScreen(
     if (permissionsOpen) {
         BackHandler { permissionsOpen = false }
         PermissionsPage(permissions, onBack = { permissionsOpen = false }, modifier = modifier)
+        return
+    }
+    if (licensesOpen) {
+        BackHandler { licensesOpen = false }
+        LicensesPage(onBack = { licensesOpen = false }, modifier = modifier)
         return
     }
 
@@ -272,7 +278,7 @@ fun SettingsScreen(
                 LockRow(tr("Confirm before deleting", "삭제 전 확인"))
                 SwitchRow(
                     tr("Confirm before sending messages", "메시지 보내기 전 확인"),
-                    tr("Asks before sending messages or mail, posting, or changing alarms and wallpaper. Always confirms in tasks that read SMS or outside content", "메시지·메일·게시, 알람·배경화면을 바꾸기 전에 물어봐요. 문자(SMS)와 외부 내용을 읽은 작업에서는 계속 확인해요"),
+                    tr("Asks before sending messages or mail, calling, posting, or changing alarms and wallpaper. A call, alarm or timer you asked for yourself, or a text you dictated word for word, goes ahead without asking. Off: still confirms in tasks that read SMS or outside content", "메시지·메일·전화·게시, 알람·배경화면을 바꾸기 전에 물어봐요. 직접 요청한 전화·알람·타이머와 내용까지 그대로 불러 준 문자는 묻지 않고 진행해요. 꺼도 문자(SMS)나 외부 내용을 읽은 작업에서는 확인해요"),
                     confirmSend,
                 ) { v -> scope.launch { settings.setConfirmSend(v) } }
                 SwitchRow(
@@ -351,6 +357,7 @@ fun SettingsScreen(
                     Text(tr("Version", "버전"), Modifier.weight(1f), fontSize = 15.sp, color = c.text)
                     Text(BuildConfig.VERSION_NAME, style = MonoStyle, fontSize = 13.5.sp, color = c.textSub)
                 }
+                SubRow(tr("Open-source licenses", "오픈소스 라이선스"), tr("Libraries bundled in this app", "이 앱에 들어 있는 라이브러리"), onClick = { licensesOpen = true })
             }
         }
     }
@@ -682,7 +689,7 @@ private fun AccountCard(
             title = { Text(tr("You're using your ChatGPT plan", "ChatGPT 요금제를 사용하고 있어요"), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = c.text) },
             text = {
                 Text(
-                    tr("Eligible AI requests in this app use your ChatGPT plan. You can manage usage in ChatGPT settings.", "이 앱의 AI 요청은 ChatGPT 요금제를 사용해요. 사용량은 ChatGPT 설정에서 관리할 수 있어요."),
+                    tr("Eligible AI requests in this app use your ChatGPT plan. You can manage usage in ChatGPT settings. ", "이 앱의 AI 요청은 ChatGPT 요금제를 사용해요. 사용량은 ChatGPT 설정에서 관리할 수 있어요. ") + backgroundUseNote(),
                     fontSize = 14.sp, lineHeight = 20.sp, color = c.text2,
                 )
             },
@@ -782,7 +789,7 @@ private fun AccountCard(
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(tr("ChatGPT account", "ChatGPT 계정"), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.text)
-                        Text(tr("Use your ChatGPT plan: the AI requests of this app use the usage included in your ChatGPT plan, managed in ChatGPT settings. You sign in in the browser.", "ChatGPT 요금제 사용: 이 앱의 AI 요청은 ChatGPT 요금제에 포함된 사용량을 쓰고, ChatGPT 설정에서 관리해요. 브라우저에서 로그인해요."), fontSize = 12.5.sp, lineHeight = 18.sp, color = c.textSub)
+                        Text(tr("Use your ChatGPT plan: the AI requests of this app use the usage included in your ChatGPT plan, managed in ChatGPT settings. You sign in in the browser.", "ChatGPT 요금제 사용: 이 앱의 AI 요청은 ChatGPT 요금제에 포함된 사용량을 쓰고, ChatGPT 설정에서 관리해요. 브라우저에서 로그인해요.") + " " + backgroundUseNote(), fontSize = 12.5.sp, lineHeight = 18.sp, color = c.textSub)
                     }
                     // A saved account signs in under its own registration; any other account registers its own.
                     for (saved in savedAccounts) {
@@ -795,7 +802,7 @@ private fun AccountCard(
                     }
                     // The consent page says this for every app registered through the open-source flow.
                     Text(
-                        tr("OpenAI's consent page may say it hasn't verified this app. That's expected for open-source apps; continue only if you trust this one.", "OpenAI 동의 화면에 이 앱이 검증되지 않았다고 나올 수 있어요. 오픈소스 앱에는 정상적인 안내예요. 믿을 수 있는 경우에만 계속해 주세요."),
+                        tr("This app registers itself with OpenAI the first time you sign in, so OpenAI's consent page may say it hasn't verified this app. Continue only if you trust it.", "이 앱은 처음 로그인할 때 OpenAI에 직접 등록해서, OpenAI 동의 화면에 이 앱이 검증되지 않았다고 나올 수 있어요. 믿을 수 있는 경우에만 계속해 주세요."),
                         fontSize = 12.5.sp, lineHeight = 18.sp, color = c.textSub,
                     )
                 }
@@ -920,6 +927,10 @@ private fun ValueRow(
         Text(" ›", fontSize = 13.5.sp, color = c.textSub)
     }
 }
+
+/** Said wherever the ChatGPT plan is offered: a routine runs on its own schedule, with nobody tapping. */
+private fun backgroundUseNote(): String =
+    tr("Routines can also run in the background and use your plan without you tapping anything.", "루틴은 백그라운드에서도 실행되어 직접 누르지 않아도 요금제를 사용할 수 있어요.")
 
 /** "폰 권한" (board Settings → 연결): each permission with what it is for and the way to grant it. */
 @Composable

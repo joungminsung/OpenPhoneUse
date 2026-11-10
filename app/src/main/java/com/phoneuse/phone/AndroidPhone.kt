@@ -38,6 +38,10 @@ object AndroidPhone {
             calendar = CalendarTool(AndroidCalendarSource(context), priorCards),
             alarms = AlarmTool(AndroidAlarmSource(context)),
             photos = PhotosTool(AndroidPhotoSource(context), vision?.let { ModelPhotoVision(it) }, priorCards, bounds = geo),
+            calls = CallTool(AndroidCallSource(context), RecipientResolver(AndroidContactsSource(context))),
+            controls = ControlsTool(AndroidControlsSource(context)),
+            callLog = CallLogTool(AndroidCallLogSource(context)),
+            contactAdder = ContactAdder(AndroidContactWriter(context), AndroidContactsSource(context)),
             trigger = trigger,
         )
     }

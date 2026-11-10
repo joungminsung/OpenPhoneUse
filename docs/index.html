@@ -785,7 +785,7 @@ python bench/score.py report RUN_DIR... --judge JUDGE_DIR --out report.md</code>
     <div class="wrap">
       <h2 id="install-title">Install</h2>
       <ol class="steps install-steps">
-        <li><strong>Download the APK</strong> from <a href="https://github.com/joungminsung/openphoneuse/releases/latest">Releases</a> and install it (allow installs from that source when Android asks).</li>
+        <li><strong>Download the APK</strong> from <a href="https://github.com/joungminsung/openphoneuse/releases/latest">Releases</a> and install it (allow installs from that source when Android asks). Google Play Protect may show "App scan recommended" and then "Harmful app blocked". Google does not say why; OpenPhoneUse asks for strong access, such as accessibility control and text messages. Decide for yourself: compare the APK with the <code>OpenPhoneUse.apk.sha256</code> file in the release, read the source, or build it yourself. To go ahead, choose the option to install anyway, and leave Play Protect on.</li>
         <li><strong>Turn on control:</strong> Settings, then Accessibility, then OpenPhoneUse, and switch it on. On Android 13 and newer, a sideloaded APK usually has this switch greyed out by "restricted settings"; if so, go to Settings, then Apps, then OpenPhoneUse, then the ⋮ menu at the top right, choose Allow restricted settings, and turn it on again.</li>
         <li><strong>Sign in:</strong> in the app's Settings, choose Continue with ChatGPT to use your plan, or paste an OpenAI, Claude, Grok or Gemini API key.</li>
         <li><strong>Ask for something</strong>, for example <q>Turn on Do Not Disturb</q> or <q>Compare the current price of the AirPods Pro 3 at Amazon, Best Buy and Walmart</q>.</li>

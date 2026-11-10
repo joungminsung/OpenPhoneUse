@@ -26,7 +26,7 @@ object AndroidMessaging {
         val app = context.applicationContext
         return MessagingAccess(
             NotificationTool(AndroidNotificationSource(app, NotificationStore.get(app))),
-            SmsTool(AndroidSmsSource(app)),
+            SmsTool(AndroidSmsSource(app), AndroidContactsSource(app)),
         )
     }
 }

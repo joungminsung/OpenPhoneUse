@@ -1,6 +1,8 @@
 package com.phoneuse.phone
 
 import com.phoneuse.i18n.tr
+import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.ContentUris
@@ -8,10 +10,13 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.net.Uri
 import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.provider.ContactsContract
+import android.telecom.TelecomManager
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -144,20 +149,56 @@ class AndroidAlarmSource(private val context: Context) : AlarmSource {
         return Instant.ofEpochMilli(info.triggerTime).atZone(ZoneId.systemDefault())
     }
 
-    override fun set(hour: Int, minute: Int, label: String): Boolean {
+    override fun set(hour: Int, minute: Int, label: String, days: List<DayOfWeek>): Boolean {
         val intent = Intent(AlarmClock.ACTION_SET_ALARM)
             .putExtra(AlarmClock.EXTRA_HOUR, hour)
             .putExtra(AlarmClock.EXTRA_MINUTES, minute)
             .putExtra(AlarmClock.EXTRA_SKIP_UI, true)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (label.isNotEmpty()) intent.putExtra(AlarmClock.EXTRA_MESSAGE, label)
-        return try {
-            context.startActivity(intent)
-            true
-        } catch (e: ActivityNotFoundException) {
-            false
-        } catch (e: SecurityException) {
-            false
-        }
+        // The clock app counts days as Calendar does: Sunday is 1, Saturday 7.
+        if (days.isNotEmpty()) intent.putIntegerArrayListExtra(AlarmClock.EXTRA_DAYS, ArrayList(days.map { it.value % 7 + 1 }))
+        return open(intent)
+    }
+
+    override fun timer(seconds: Int, label: String): Boolean {
+        val intent = Intent(AlarmClock.ACTION_SET_TIMER)
+            .putExtra(AlarmClock.EXTRA_LENGTH, seconds)
+            .putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+        if (label.isNotEmpty()) intent.putExtra(AlarmClock.EXTRA_MESSAGE, label)
+        return open(intent)
+    }
+
+    override fun inFront(): Boolean {
+        val state = ActivityManager.RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(state)
+        return state.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+    }
+
+    private fun open(intent: Intent): Boolean = try {
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: ActivityNotFoundException) {
+        false
+    } catch (e: SecurityException) {
+        false
+    }
+}
+
+/** Outgoing calls through the phone's own call service, so the user's dialer app shows the call. */
+class AndroidCallSource(private val context: Context) : CallSource {
+    override fun canCall() = context.granted("android.permission.CALL_PHONE")
+
+    // CallTool checks canCall first; a permission revoked in between throws SecurityException, which it reports.
+    @SuppressLint("MissingPermission")
+    override fun call(number: String): Boolean {
+        if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) return false
+        val telecom = context.getSystemService(TelecomManager::class.java) ?: return false
+        telecom.placeCall(Uri.fromParts("tel", number, null), null)
+        return true
+    }
+
+    override fun inCall(): Boolean {
+        val mode = context.getSystemService(AudioManager::class.java)?.mode
+        return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
     }
 }

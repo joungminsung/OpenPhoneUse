@@ -1,6 +1,9 @@
 package com.phoneuse.ui.chat
 
 import com.phoneuse.i18n.tr
+import com.phoneuse.phone.AlarmTool
+import com.phoneuse.phone.CallTool
+import com.phoneuse.phone.ContactAdder
 import com.phoneuse.phone.SmsTool
 import com.phoneuse.risk.RiskCategory
 
@@ -37,17 +40,66 @@ fun confirmCopy(category: RiskCategory, summary: String): ConfirmCopy {
         )
     }
     if (category == RiskCategory.SEND && summary.startsWith(SmsTool.CONFIRM_PREFIX)) {
-        // The number actually sent, then the whole text as it will go out (the details box scrolls).
+        // Who it goes to (the number, or "name (number)"), then the whole text as it will go out (the details box scrolls).
         val rest = summary.removePrefix(SmsTool.CONFIRM_PREFIX)
-        val number = rest.substringBefore('\n').trim()
+        val to = rest.substringBefore('\n').trim()
+        val named = to.any(Char::isLetter)
         val body = rest.substringAfter('\n', "")
         return ConfirmCopy(
             kicker = tr("Confirm text message", "문자 전송 확인"),
-            question = tr("Send this text to $number?", "${number}에 이 문자를 보낼까요?"),
+            question = tr("Send this text to $to?", if (named) "${to}에게 이 문자를 보낼까요?" else "${to}에 이 문자를 보낼까요?"),
             details = listOf(body),
             monoDetails = false,
-            note = tr("To $number · ${body.length} characters", "받는 번호 $number · ${body.length}자"),
+            note = tr("To $to · ${body.length} characters", "${if (named) "받는 사람" else "받는 번호"} $to · ${body.length}자"),
             allowLabel = tr("Send", "보내기"),
+        )
+    }
+    if (category == RiskCategory.SEND && summary.startsWith(CallTool.CONFIRM_PREFIX)) {
+        val rest = summary.removePrefix(CallTool.CONFIRM_PREFIX)
+        val number = rest.substringBefore('\n').trim()
+        val name = rest.substringAfter('\n', "").trim()
+        return ConfirmCopy(
+            kicker = tr("Confirm call", "전화 확인"),
+            question = if (name.isEmpty()) tr("Call $number?", "${number}에 전화할까요?") else tr("Call $name?", "${name}에게 전화할까요?"),
+            details = if (name.isEmpty()) emptyList() else listOf(number),
+            monoDetails = false,
+            note = tr("The call starts right away.", "허용하면 바로 전화가 걸려요."),
+            allowLabel = tr("Call", "전화 걸기"),
+        )
+    }
+    if (category == RiskCategory.CHANGE && summary.startsWith(AlarmTool.ALARM_PREFIX)) {
+        // The time, then the repeat days and the name when there are any.
+        val lines = summary.removePrefix(AlarmTool.ALARM_PREFIX).split('\n').map { it.trim() }
+        val time = lines.first()
+        return ConfirmCopy(
+            kicker = tr("Confirm alarm", "알람 확인"),
+            question = tr("Set an alarm for $time?", "${time}에 알람을 맞출까요?"),
+            details = lines.drop(1).filter { it.isNotEmpty() },
+            monoDetails = false,
+            note = null,
+            allowLabel = tr("Set", "맞추기"),
+        )
+    }
+    if (category == RiskCategory.CHANGE && summary.startsWith(AlarmTool.TIMER_PREFIX)) {
+        val lines = summary.removePrefix(AlarmTool.TIMER_PREFIX).split('\n').map { it.trim() }
+        val length = lines.first()
+        return ConfirmCopy(
+            kicker = tr("Confirm timer", "타이머 확인"),
+            question = tr("Start a $length timer?", "$length 타이머를 시작할까요?"),
+            details = lines.drop(1).filter { it.isNotEmpty() },
+            monoDetails = false,
+            note = null,
+            allowLabel = tr("Start", "시작"),
+        )
+    }
+    if (category == RiskCategory.CHANGE && summary.startsWith(ContactAdder.CONFIRM_PREFIX)) {
+        return ConfirmCopy(
+            kicker = tr("Confirm new contact", "연락처 저장 확인"),
+            question = tr("Save this contact?", "이 연락처를 저장할까요?"),
+            details = summary.removePrefix(ContactAdder.CONFIRM_PREFIX).split('\n').map { it.trim() }.filter { it.isNotEmpty() },
+            monoDetails = false,
+            note = null,
+            allowLabel = tr("Save", "저장"),
         )
     }
     val details = listOf(summary.trim()).filter { it.isNotEmpty() }

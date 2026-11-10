@@ -19,9 +19,11 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1341%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#벤치마크)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/joungminsung/openphoneuse/total?label=downloads&color=3DDC84)](https://github.com/joungminsung/openphoneuse/releases)
+![Views](https://hits.sh/github.com/joungminsung/openphoneuse.svg?label=views&color=4c8bf5)
 
 <a href="docs/media/film.mp4"><img src="docs/media/film-hero.gif" alt="46초 OpenPhoneUse 영상의 일부 (영어)" width="800"></a>
 
@@ -42,7 +44,7 @@
 - **모델은 직접 고릅니다.** ChatGPT 요금제, OpenAI API 키, Claude, Grok, Gemini 중 원하는 것을 쓰면 됩니다.
 - **먼저 묻습니다.** 결제와 보안 설정 변경은 항상 묻습니다. 삭제는 직접 요청한 되돌릴 수 있는 항목 하나가 아니면 묻고, 전송은 받는 사람과 내용을 직접 말한 경우가 아니면 묻습니다. 비밀번호는 입력하지 않고 사용자에게 넘깁니다.
 
-**벤치마크 94.5 / 100점.** 9개 분야 31개 과제에서 받은 점수이고, 과제당 소요 시간 중앙값은 42초입니다(GPT-6.1 Terra, 빠른 모드, 안드로이드 에뮬레이터, 2026-11-03). [채점 방식 보기](#벤치마크).
+**벤치마크 94.5 / 100점.** 9개 분야 31개 과제에서 받은 점수이고, 과제당 소요 시간 중앙값은 42초입니다(GPT-6.1 Terra, 빠른 모드, 안드로이드 에뮬레이터, 2026-11-03, 이번 릴리스 이전 빌드에서 1회 측정). [채점 방식 보기](#벤치마크).
 
 **[APK 내려받기](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)** 또는 [설치 방법](#설치)을 보세요.
 
@@ -96,7 +98,7 @@
 </tr>
 </table>
 
-1. **APK 설치:** 내려받은 파일을 열고, 안드로이드가 물어보면 해당 출처의 설치를 허용합니다. 플레이 스토어에는 없습니다. 앱이 설치되지 않았다고 나오면 이전 테스트 빌드를 먼저 삭제하세요.
+1. **APK 설치:** 내려받은 파일을 열고, 안드로이드가 물어보면 해당 출처의 설치를 허용합니다. 플레이 스토어에는 없습니다. 앱이 설치되지 않았다고 나오면 이전 테스트 빌드를 먼저 삭제하세요. Google Play 프로텍트가 "앱 검사 권장됨"에 이어 "유해한 앱 차단됨"을 띄울 수 있습니다. 구글은 이유를 밝히지 않으며, OpenPhoneUse는 접근성 제어와 문자 같은 강한 권한을 요청합니다. 직접 판단해 주세요. 릴리스의 `OpenPhoneUse.apk.sha256` 파일과 APK를 비교하거나, 소스를 읽거나, 직접 빌드할 수 있습니다. 계속하려면 "무시하고 설치하기"를 누르고, Play 프로텍트는 끄지 마세요.
 2. **조작 권한 켜기:** **설정 → 접근성 → OpenPhoneUse** → 사용. 안드로이드 13 이상에서는 APK로 직접 설치한 앱의 이 스위치가 ‘제한된 설정’ 때문에 회색으로 막혀 있는 경우가 많습니다. 그럴 때는 **설정 → 애플리케이션 → OpenPhoneUse → 오른쪽 위 ⋮ → 제한된 설정 허용**을 누른 뒤 다시 켜 주세요.
 3. **로그인:** 앱 설정에서 **ChatGPT로 계속하기**를 골라 요금제를 쓰거나, OpenAI, Claude, Grok, Gemini API 키를 붙여 넣습니다.
 4. **시켜 보기:** 예를 들어 "방해 금지 모드 켜 줘", "아마존, 베스트바이, 월마트의 에어팟 프로 3 현재 가격 비교해 줘".

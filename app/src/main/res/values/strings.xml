@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">OpenPhoneUse</string>
+    <string name="app_name" translatable="false">OpenPhoneUse</string>
     <string name="accessibility_service_description">OpenPhoneUse reads the screen and operates apps for you.</string>
     <!-- Home-screen widgets: picker label, description and preview text. -->
     <string name="widget_ask_label">Ask bar</string>

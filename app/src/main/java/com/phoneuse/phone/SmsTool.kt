@@ -22,10 +22,17 @@ interface SmsSource {
 }
 
 /**
- * sms_search and send_sms. Reading needs READ_SMS and sending SEND_SMS, asked for on first use. Every send
- * shows the SEND confirmation with the number and the text, whoever asked for it.
+ * sms_search and send_sms. Reading needs READ_SMS and sending SEND_SMS, asked for on first use. A send goes to a
+ * number or to a contact's name ([contacts] finds the number; without it only numbers work), and its SEND
+ * confirmation shows who gets it and the whole text.
  */
-class SmsTool(private val source: SmsSource, private val now: () -> ZonedDateTime = ZonedDateTime::now) {
+class SmsTool(
+    private val source: SmsSource,
+    contacts: ContactsSource? = null,
+    private val now: () -> ZonedDateTime = ZonedDateTime::now,
+) {
+    private val resolver = RecipientResolver(contacts)
+
     suspend fun search(query: String?, days: Int): MessagingReply {
         if (!source.canRead()) return READ_NEEDED
         val d = days.coerceIn(1, MAX_DAYS)
@@ -67,18 +74,25 @@ class SmsTool(private val source: SmsSource, private val now: () -> ZonedDateTim
         )
     }
 
-    /** [confirm] shows the SEND card with its summary; nothing is sent unless it returns true. */
-    suspend fun send(to: String, body: String, confirm: suspend (String) -> Boolean): MessagingReply {
-        val number = normalizeNumber(to) ?: return MessagingReply.Failed("to는 전화번호여야 해요 ($to). 이름이면 연락처에서 번호를 먼저 찾으세요.")
+    /**
+     * [to] is a number or a contact's name. [confirm] gets who it resolved to and the SEND card's summary; nothing
+     * is sent unless it returns true.
+     */
+    suspend fun send(to: String, body: String, confirm: suspend (Recipient.Found, String) -> Boolean): MessagingReply {
+        val who = when (val r = resolver.resolve(to)) {
+            is Recipient.Found -> r
+            is Recipient.Unclear -> return MessagingReply.Failed(r.reason)
+            Recipient.NeedsContacts -> return MessagingReply.PermissionNeeded(ContactsTool.LABEL, ContactsTool.PERMISSIONS)
+        }
         val text = body.trim()
         if (text.isEmpty()) return MessagingReply.Failed("body가 비었어요")
         if (text.length > MAX_SEND) return MessagingReply.Failed("문자가 너무 길어요 (최대 ${MAX_SEND}자)")
         if (!source.canSend()) return SEND_NEEDED
         // The whole text and the number actually sent: the card is the only check on what goes out.
-        if (!confirm(confirmSummary(number, text))) return MessagingReply.Cancelled
+        if (!confirm(who, confirmSummary(who.shown, text))) return MessagingReply.Cancelled
         return try {
-            source.send(number, text)
-            MessagingReply.Ok("OK: ${number}에 문자를 보냈어요.")
+            source.send(who.number, text)
+            MessagingReply.Ok("OK: ${who.shown}에 문자를 보냈어요.")
         } catch (e: SecurityException) {
             SEND_NEEDED
         } catch (e: java.io.IOException) {
@@ -100,17 +114,24 @@ class SmsTool(private val source: SmsSource, private val now: () -> ZonedDateTim
         val CONFIRM_PREFIX get() = "" + tr("Send text → ", "문자 보내기 → ")
 
         /** "문자 보내기 → 01012345678", then the whole body on the following lines. */
-        fun confirmSummary(number: String, body: String) = "$CONFIRM_PREFIX$number\n$body"
+        /** [to] is the number, or "name (number)" for a contact. */
+        fun confirmSummary(to: String, body: String) = "$CONFIRM_PREFIX$to\n$body"
 
-        private val NUMBER = Regex("""\+?[\d\s()-]+""")
+        private val NUMBER = Regex("""\+?[\d\s().-]+""")
+        private val TRUNK_ZERO = Regex("""\(\s*0\s*\)""")
+        private const val MIN_DOTTED = 7
 
-        /** Digits (with a leading +) of a phone number written with spaces, dashes or brackets; null otherwise. */
+        /**
+         * Digits (with a leading +) of a phone number written with spaces, dashes, dots or brackets; null otherwise.
+         * The "(0)" of "+44 (0)20 …" is not dialled, and a dotted number needs [MIN_DOTTED] digits ("3.5" is not one).
+         */
         fun normalizeNumber(s: String): String? {
             val t = s.trim()
             if (!NUMBER.matches(t)) return null
-            val digits = t.filter { it.isDigit() }
-            if (digits.length !in 3..15) return null
-            return if (t.startsWith("+")) "+$digits" else digits
+            val abroad = t.startsWith("+")
+            val digits = (if (abroad) TRUNK_ZERO.replace(t, "") else t).filter { it.isDigit() }
+            if (digits.length !in 3..15 || ('.' in t && digits.length < MIN_DOTTED)) return null
+            return if (abroad) "+$digits" else digits
         }
     }
 }

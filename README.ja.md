@@ -19,9 +19,11 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1341%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#ベンチマーク)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/joungminsung/openphoneuse/total?label=downloads&color=3DDC84)](https://github.com/joungminsung/openphoneuse/releases)
+![Views](https://hits.sh/github.com/joungminsung/openphoneuse.svg?label=views&color=4c8bf5)
 
 <a href="docs/media/film.mp4"><img src="docs/media/film-hero.gif" alt="46 秒の OpenPhoneUse 紹介映像の一部（英語）" width="800"></a>
 
@@ -42,7 +44,7 @@
 - **モデルは自分で選べます。** ChatGPT プラン、OpenAI API キー、Claude、Grok、Gemini のいずれかを使います。
 - **まず確認します。** 支払いとセキュリティ設定の変更は必ず確認します。削除は自分で頼んだ元に戻せる 1 件以外は確認し、送信は宛先と本文を自分で指定した場合を除いて確認します。パスワードは入力せず、ユーザーに任せます。
 
-**ベンチマーク 94.5 / 100。** 9 分野・31 課題のスコアで、課題あたりの所要時間の中央値は 42 秒です（GPT-6.1 Terra、高速モード、Android エミュレーター、2026-11-03）。[採点方法を見る](#ベンチマーク)。
+**ベンチマーク 94.5 / 100。** 9 分野・31 課題のスコアで、課題あたりの所要時間の中央値は 42 秒です（GPT-6.1 Terra、高速モード、Android エミュレーター、2026-11-03、このリリースより前のビルドで 1 回測定）。[採点方法を見る](#ベンチマーク)。
 
 **[APK をダウンロード](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)** するか、[インストール手順](#インストール)をご覧ください。
 
@@ -96,7 +98,7 @@
 </tr>
 </table>
 
-1. **APK をインストール：** ダウンロードしたファイルを開き、Android に聞かれたらそのソースからのインストールを許可します。Play ストアにはありません。インストールできないと表示されたら、以前のテストビルドを先に削除してください。
+1. **APK をインストール：** ダウンロードしたファイルを開き、Android に聞かれたらそのソースからのインストールを許可します。Play ストアにはありません。インストールできないと表示されたら、以前のテストビルドを先に削除してください。Google Play プロテクトが「アプリのスキャンを推奨」に続けて「有害なアプリをブロック」のような警告を出すことがあります。Google は理由を明らかにしておらず、OpenPhoneUse はユーザー補助による操作や SMS などの強い権限を求めます。ご自身で判断してください。リリースの `OpenPhoneUse.apk.sha256` ファイルと APK を照合する、ソースを読む、自分でビルドする、といった確認ができます。続ける場合は警告画面でそのままインストールする項目を選び、Play プロテクトはオフにしないでください。
 2. **操作を許可：** **設定 → ユーザー補助 → OpenPhoneUse** → オン。Android 13 以降では、APK から直接インストールしたアプリはこのスイッチが「制限付き設定」によってグレー表示になっていることがよくあります。その場合は **設定 → アプリ → OpenPhoneUse → 右上の ⋮ → 制限付き設定を許可** を選んでから、もう一度オンにしてください。
 3. **サインイン：** アプリの設定で **Continue with ChatGPT** を選んでプランを使うか、OpenAI、Claude、Grok、Gemini の API キーを貼り付けます。
 4. **頼んでみる：** たとえば「おやすみモードをオンにして」「Amazon、Best Buy、Walmart で AirPods Pro 3 の今の価格を比較して」。

@@ -8,7 +8,10 @@ package com.phoneuse.agent
  */
 internal object ToolRegistry {
     fun modules(d: ToolDeps): List<ToolModule> {
-        val phone = PhoneModule(d.phone, d.device, d.confirming, d.runTainted, d.historyTainted)
+        val phone = PhoneModule(
+            d.phone, d.device, d.confirming, d.runTainted, d.historyTainted,
+            asks = d.gate, userAskedCall = d.userAskedCall, userAskedAlarm = d.userAskedAlarm, userAskedTimer = d.userAskedTimer,
+        )
         return listOfNotNull(
             d.screen,
             FileModule(d.files, d.confirming),
@@ -20,6 +23,8 @@ internal object ToolRegistry {
             ReplyModule { phone.lastLocation },
             MessagingModule(d.messaging, d.gate, d.userFixedSend, d.userAskedDelete),
             PlanModule(),
+            ControlsModule(d.phone?.controls),
+            PeopleModule(d.phone?.callLog, d.phone?.contactAdder, d.gate, d.userGaveContact),
             ConnectorModule(d.connectors, d.confirming),
         )
     }

@@ -42,7 +42,7 @@ Remove names, phone numbers, addresses and anything else personal from logs and 
 - **Larger changes** (a new tool family, a new provider, anything touching the risk gate or sign-in): open an issue first and describe the idea, so nobody spends a week on something that cannot be merged.
 - **Out of scope:** anything that needs root, ADB or Shizuku at runtime, a hosted OpenPhoneUse server, or a way around a confirmation.
 
-By contributing you agree that your work is released under the project's [MIT license](LICENSE).
+By contributing you agree that your work is released under the project's [MIT license](LICENSE). Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Set up your machine
 
@@ -122,7 +122,7 @@ Some things will waste your afternoon if you do not know them:
 - **`versionCode` cannot go down.** `adb install -r` fails when the installed build has a higher one.
 - **Sign-ins rotate their refresh tokens.** A saved emulator snapshot with a signed-in account may stop working once the token has been used elsewhere, so keep a running emulator rather than restoring an old one.
 
-To check a release build you do not need the project's key: `./gradlew assembleRelease` without one produces `app-release-unsigned.apk` and still runs the release lint checks. That lint is not part of CI, so run it when you change the manifest or dependencies. Release signing reads `storeFile`, `storePassword`, `keyAlias` and `keyPassword` from `~/.openphoneuse/keystore.properties`, which only the maintainer has.
+To check a release build you do not need the project's key: `./gradlew assembleRelease` without one produces `app-release-unsigned.apk` and still runs the release lint checks. CI runs `lintDebug` on every push and pull request; run `./gradlew lintDebug` yourself when you change the manifest, the resources or the dependencies. Release signing reads `storeFile`, `storePassword`, `keyAlias` and `keyPassword` from `~/.openphoneuse/keystore.properties`, which only the maintainer has.
 
 ## Code map
 
@@ -157,7 +157,7 @@ Outside the app: `bench/` holds the benchmark (`suites/v2.json`, the older `task
 - **Prefer facts over rules.** Give the model facts to judge from, such as `more-below` and "Seen before", rather than hard-coded keyword or turn-count rules.
 - **Secrets** go through `SecretBox` (Android Keystore) and are never logged. That includes tokens, API keys and verification codes, in debug builds too. Never commit a key, a token or a keystore, and never paste one into an issue.
 - **Do not invent numbers.** The ChatGPT plan sign-in reports no usage data, so the app links to "Manage usage" rather than showing an estimated limit. Show only what a provider actually reports.
-- **Match the surrounding code style.** The project has no auto-formatter or linter for Kotlin. Keep files small and focused, and write comments that explain *why*.
+- **Match the surrounding code style.** The project has no auto-formatter for Kotlin; Android Lint runs in CI and its errors fail the build. Keep files small and focused, and write comments that explain *why*.
 
 ## What each kind of change needs
 
@@ -320,5 +320,6 @@ Before you open one:
    git push origin refs/tags/vX.Y.Z
    gh release create vX.Y.Z --verify-tag --title "OpenPhoneUse vX.Y.Z" --notes-file notes.md --latest OpenPhoneUse.apk OpenPhoneUse.apk.sha256
    ```
+8. Publishing starts the "Release check" workflow, which downloads the two files and checks the checksum, the signing certificate and that `versionName` matches the tag. Wait for it to pass; if it fails, fix the release before you announce it.
 
 The release key and its password stay outside the repository. Losing the key means installed copies can never be updated again, so keep a backup away from the build machine.

@@ -6,9 +6,13 @@ import com.phoneuse.cards.PermissionCard
 import com.phoneuse.model.ToolSpec
 import com.phoneuse.phone.AlarmTool
 import com.phoneuse.phone.CalendarTool
+import com.phoneuse.phone.CallLogTool
+import com.phoneuse.phone.CallTool
 import com.phoneuse.phone.ConfirmGate
 import com.phoneuse.phone.ConfirmKind
+import com.phoneuse.phone.ContactAdder
 import com.phoneuse.phone.ContactsTool
+import com.phoneuse.phone.ControlsTool
 import com.phoneuse.phone.EventDraft
 import com.phoneuse.phone.LocationReply
 import com.phoneuse.phone.LocationTool
@@ -24,11 +28,13 @@ import com.phoneuse.routine.ReminderScheduler
 import com.phoneuse.routine.ReminderTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.IOException
+import java.time.DayOfWeek
 import java.time.ZonedDateTime
 
 /** Phone data tools a run may use; a null part leaves its tool out. [now] is for remind_at's "HH:mm". */
@@ -40,15 +46,20 @@ class PhoneAccess(
     val calendar: CalendarTool? = null,
     val alarms: AlarmTool? = null,
     val photos: PhotosTool? = null,
+    val calls: CallTool? = null,
+    /** The direct controls, the call log and saving a contact: ControlsModule's and PeopleModule's tools. */
+    val controls: ControlsTool? = null,
+    val callLog: CallLogTool? = null,
+    val contactAdder: ContactAdder? = null,
     /** Who started the run; confirmed calendar/album writes need the user (see [ConfirmGate]). */
     val trigger: RunTrigger = RunTrigger.Other,
     val now: () -> ZonedDateTime = ZonedDateTime::now,
 )
 
 /**
- * get_location / geocode / remind_at, contacts, calendar, alarms and photos, plus open_route (directions in the
- * map app, which needs only the [device]). Keeps the run's last location for places cards. set_alarm asks on
- * [gate] first.
+ * get_location / geocode / remind_at, contacts, calls, calendar, alarms and photos, plus open_route (directions in
+ * the map app, which needs only the [device]). Keeps the run's last location for places cards. set_alarm and
+ * set_timer ask on [gate] first and call on [asks], unless the user's own message asked for exactly that.
  */
 internal class PhoneModule(
     private val access: PhoneAccess?,
@@ -58,6 +69,11 @@ internal class PhoneModule(
     private val tainted: () -> Boolean = { true },
     /** An earlier run of this conversation read third-party text (see ConfirmGate.refusal). */
     private val historyTainted: Boolean = false,
+    /** Asks every time: a call's card is not one Settings can switch off. */
+    private val asks: UserGate? = null,
+    private val userAskedCall: (names: List<String>, number: String) -> Boolean = { _, _ -> false },
+    private val userAskedAlarm: () -> Boolean = { false },
+    private val userAskedTimer: () -> Boolean = { false },
 ) : ToolModule {
     override val specs: List<ToolSpec> get() = PhoneToolSpecs.all
 
@@ -68,10 +84,11 @@ internal class PhoneModule(
         if (a.places != null) add("geocode")
         if (a.reminders != null) add("remind_at")
         if (a.contacts != null) add("find_contact")
+        if (a.calls != null && asks != null) add("call")
         if (a.calendar != null) addAll(listOf("calendar_list", "calendar_add"))
         if (a.alarms != null) {
             add("next_alarm")
-            if (gate != null) add("set_alarm")
+            if (gate != null) addAll(listOf("set_alarm", "set_timer"))
         }
         if (a.photos != null) {
             addAll(listOf("photos_find", "photos_look", "photos_album"))
@@ -97,6 +114,16 @@ internal class PhoneModule(
                 "geocode" -> geocode(a.places!!, args)
                 "remind_at" -> remind(a.reminders!!, a.now(), args)
                 "find_contact" -> reply(io { a.contacts!!.find(args.str("name") ?: throw IllegalArgumentException("name required")) })
+                "call" -> {
+                    val to = args.requireStr("to")
+                    reply(
+                        io {
+                            a.calls!!.call(to) { who, summary ->
+                                userAskedCall(listOfNotNull(who.name, who.asked), who.number) || asks!!.confirm(RiskCategory.SEND, summary)
+                            }
+                        },
+                    )
+                }
                 "calendar_list" -> reply(io { a.calendar!!.list(args.requireStr("from"), args.requireStr("to")) })
                 "calendar_add" -> {
                     val draft = EventDraft(args.requireStr("title"), args.requireStr("start"), args.requireStr("end"), args.str("location"), args.int("reminder_min"))
@@ -108,7 +135,12 @@ internal class PhoneModule(
                 "set_alarm" -> {
                     val hour = args.int("hour") ?: throw IllegalArgumentException("hour required")
                     val minute = args.int("minute") ?: throw IllegalArgumentException("minute required")
-                    reply(a.alarms!!.set(hour, minute, args.str("label").orEmpty()) { gate!!.confirm(RiskCategory.CHANGE, it) })
+                    val days = days(args)
+                    reply(a.alarms!!.set(hour, minute, args.str("label").orEmpty(), days) { userAskedAlarm() || gate!!.confirm(RiskCategory.CHANGE, it) })
+                }
+                "set_timer" -> {
+                    val seconds = args.int("seconds") ?: throw IllegalArgumentException("seconds required")
+                    reply(a.alarms!!.timer(seconds, args.str("label").orEmpty()) { userAskedTimer() || gate!!.confirm(RiskCategory.CHANGE, it) })
                 }
                 "photos_find" -> {
                     val near = (args["near"] as? JsonObject)?.let {
@@ -140,6 +172,16 @@ internal class PhoneModule(
             fail("invalid arguments: ${e.message}")
         } catch (e: IOException) {
             fail(e.message ?: "network error")
+        }
+    }
+
+    /** set_alarm's days: "mon".."sun" (a longer spelling counts by its first three letters); none is a one-time alarm. */
+    private fun days(args: JsonObject): List<DayOfWeek> {
+        val given = args["days"]
+        if (given == null || given is JsonNull) return emptyList()
+        return args.strings("days").map { day ->
+            DayOfWeek.values().firstOrNull { it.name.take(3).equals(day.trim().take(3), ignoreCase = true) }
+                ?: throw IllegalArgumentException("days must be mon, tue, wed, thu, fri, sat or sun")
         }
     }
 
@@ -241,7 +283,7 @@ internal class PhoneModule(
         const val DEFAULT_RADIUS_KM = 1.0
 
         /** Tools whose output is the user's own data or the app's words, so it does not mark the run third-party. */
-        val OWN_DATA = setOf("find_contact", "next_alarm", "set_alarm", "photos_find", "photos_album", "set_wallpaper")
+        val OWN_DATA = setOf("find_contact", "call", "next_alarm", "set_alarm", "set_timer", "photos_find", "photos_album", "set_wallpaper")
         const val MAX_TEXT = 200
     }
 }

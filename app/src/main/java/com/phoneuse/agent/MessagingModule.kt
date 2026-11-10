@@ -55,7 +55,9 @@ internal class MessagingModule(
                 "send_sms" -> {
                     val to = args.requireStr("to")
                     val body = args.requireStr("body")
-                    a.sms!!.send(to, body) { userFixed(to, body) || gate.confirm(RiskCategory.SEND, it) }
+                    a.sms!!.send(to, body) { who, summary ->
+                        listOfNotNull(who.number, who.name, who.asked).any { userFixed(it, body) } || gate.confirm(RiskCategory.SEND, summary)
+                    }
                 }
                 else -> return fail("unknown tool $name")
             }
@@ -110,12 +112,13 @@ internal class MessagingModule(
             ),
             ToolSpec(
                 "send_sms",
-                "Send a text message (SMS) from the phone. The user always sees a confirmation with the number and " +
-                    "text first. Show a draft card (channel sms) before sending unless the user dictated the exact text.",
+                "Send a text message (SMS) from the phone. The user sees a confirmation card with the recipient and the " +
+                    "whole text first, unless their own message gave both the recipient and the exact text. Call it " +
+                    "directly: do not show a draft card first.",
                 schema(
                     required = listOf("to", "body"),
                     props = mapOf(
-                        "to" to prop("string", "Phone number, e.g. 010-1234-5678 (look a name up in contacts first)."),
+                        "to" to prop("string", "Phone number, or the contact's name as the user said it (the phone looks the number up)."),
                         "body" to prop("string", "The message text."),
                     ),
                 ),

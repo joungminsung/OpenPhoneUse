@@ -19,9 +19,11 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1245%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1341%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#基准测试)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/joungminsung/openphoneuse/total?label=downloads&color=3DDC84)](https://github.com/joungminsung/openphoneuse/releases)
+![Views](https://hits.sh/github.com/joungminsung/openphoneuse.svg?label=views&color=4c8bf5)
 
 <a href="docs/media/film.mp4"><img src="docs/media/film-hero.gif" alt="46 秒 OpenPhoneUse 短片的片段（英文）" width="800"></a>
 
@@ -42,7 +44,7 @@
 - **模型由你选。** 你的 ChatGPT 套餐、OpenAI API 密钥、Claude、Grok 或 Gemini 都可以。
 - **先问再做。** 付款和更改安全设置一定会先询问。删除时，除非是你亲自要求、可恢复的那一项，否则都会询问；发送时，除非你亲自指定了收件人和内容，否则也会询问。它从不输入密码，而是交给你自己输入。
 
-**基准测试 94.5 / 100。** 这是 9 个类别、31 个任务的得分，单个任务耗时中位数为 42 秒（GPT-6.1 Terra，快速模式，Android 模拟器，2026-11-03）。[查看评分方式](#基准测试)。
+**基准测试 94.5 / 100。** 这是 9 个类别、31 个任务的得分，单个任务耗时中位数为 42 秒（GPT-6.1 Terra，快速模式，Android 模拟器，2026-11-03，在本次发布之前的版本上运行一次）。[查看评分方式](#基准测试)。
 
 **[下载 APK](https://github.com/joungminsung/openphoneuse/releases/latest/download/OpenPhoneUse.apk)**，或查看[安装步骤](#安装)。
 
@@ -96,7 +98,7 @@
 </tr>
 </table>
 
-1. **安装 APK：** 打开下载的文件，Android 询问时，允许从该来源安装。Play 商店上没有这款应用。如果提示未安装应用，请先卸载之前的测试版本。
+1. **安装 APK：** 打开下载的文件，Android 询问时，允许从该来源安装。Play 商店上没有这款应用。如果提示未安装应用，请先卸载之前的测试版本。Google Play 保护机制可能会先提示建议扫描应用，再提示已拦截有害应用。Google 没有说明原因；OpenPhoneUse 会请求无障碍操控和短信等较高权限。请自行判断：可以用发布页的 `OpenPhoneUse.apk.sha256` 文件核对 APK、阅读源代码或自行构建。如要继续，请在警告页选择继续安装，并保持 Play 保护机制开启。
 2. **开启操控权限：** **设置 → 无障碍 → OpenPhoneUse** → 开启。在 Android 13 及更高版本上，直接安装 APK 的应用通常会因“受限制的设置”而无法打开此开关（显示为灰色）。遇到这种情况，请前往 **设置 → 应用 → OpenPhoneUse → 右上角 ⋮ → 允许受限制的设置**，然后再次开启。
 3. **登录：** 在应用的设置中选择 **Continue with ChatGPT** 以使用你的套餐，或粘贴 OpenAI、Claude、Grok 或 Gemini 的 API 密钥。
 4. **试着提个请求**，比如"打开勿扰模式"或"比较 Amazon、Best Buy 和 Walmart 上 AirPods Pro 3 的当前价格"。

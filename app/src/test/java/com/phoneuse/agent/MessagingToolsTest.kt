@@ -4,6 +4,8 @@ import com.phoneuse.cards.PermissionCard
 import com.phoneuse.memory.Confidence
 import com.phoneuse.memory.InMemoryMemoryStore
 import com.phoneuse.model.InputItem
+import com.phoneuse.phone.Contact
+import com.phoneuse.phone.ContactsSource
 import com.phoneuse.phone.NotificationSource
 import com.phoneuse.phone.NotificationTool
 import com.phoneuse.phone.SmsMessage
@@ -78,12 +80,26 @@ class MessagingToolsTest {
     )
     private val store = InMemoryMemoryStore()
 
+    private var contactsAllowed = true
+    private val contacts = object : ContactsSource {
+        private val book = listOf(
+            Contact("김민수", listOf("010-1234-5678"), emptyList()),
+            Contact("박민수", listOf("010-9999-8888"), emptyList()),
+            Contact("이지은", listOf("010-2222-3333", "02-555-0000"), emptyList()),
+            Contact("최수진", listOf("010-4444-5555"), emptyList()),
+            Contact("정하늘", listOf("010-5555-6666"), emptyList()),
+        )
+        override fun hasPermission() = contactsAllowed
+        // "자기" is 정하늘's nickname: found, but not by the name.
+        override fun search(name: String, limit: Int) = book.filter { name in it.name || (name == "자기" && it.name == "정하늘") }.take(limit)
+    }
+
     private fun executor(trust: Boolean = true) = ToolExecutor(
         FakeDeviceController(listOf(ScreenSnapshot("com.app", 1080, 2400, emptyList()))),
         gate,
         trustUserAuthorized = trust,
         memory = MemoryAccess(store, null),
-        messaging = MessagingAccess(NotificationTool(notifications) { now }, SmsTool(sms) { now }),
+        messaging = MessagingAccess(NotificationTool(notifications) { now }, SmsTool(sms, contacts) { now }),
     )
 
     private val ex = executor()
@@ -405,5 +421,58 @@ class MessagingToolsTest {
         assertTrue(none.specs.none { it.name in setOf("notifications_recent", "dismiss_notifications", "sms_search", "send_sms") })
         assertTrue(ex.specs.map { it.name }.containsAll(listOf("notifications_recent", "dismiss_notifications", "sms_search", "send_sms")))
         assertTrue(run("send_sms", """{"to":"01012345678","body":"x"}""", none).output.startsWith("ERROR"))
+    }
+
+    @Test fun sendSmsToAContactByName() {
+        val r = run("send_sms", """{"to":"김민수","body":"곧 가"}""")
+        assertTrue(r.output, r.output.startsWith("OK") && "김민수 (01012345678)" in r.output)
+        // The card shows who the name turned out to be.
+        assertEquals(listOf(RiskCategory.SEND to SmsTool.confirmSummary("김민수 (01012345678)", "곧 가")), gate.confirms)
+        assertEquals(listOf("01012345678" to "곧 가"), sms.sent)
+    }
+
+    @Test fun sendSmsNeverGuessesBetweenNumbers() {
+        val two = run("send_sms", """{"to":"민수","body":"곧 가"}""").output
+        assertTrue(two, two.startsWith("ERROR") && "김민수: 01012345678" in two && "박민수: 01099998888" in two)
+        val numbers = run("send_sms", """{"to":"이지은","body":"곧 가"}""").output
+        assertTrue(numbers, numbers.startsWith("ERROR") && "01022223333, 025550000" in numbers)
+        val nobody = run("send_sms", """{"to":"엄마","body":"곧 가"}""").output
+        assertTrue(nobody, nobody.startsWith("ERROR") && "찾지 못했어요" in nobody)
+        assertTrue(gate.confirms.isEmpty())
+        assertTrue(sms.sent.isEmpty())
+    }
+
+    @Test fun sendSmsByNameNeedsTheContacts() {
+        contactsAllowed = false
+        val r = run("send_sms", """{"to":"김민수","body":"곧 가"}""")
+        assertTrue(r.output, r.output.startsWith("권한 필요: 연락처"))
+        assertEquals(listOf("android.permission.READ_CONTACTS"), (r.card as PermissionCard).permissions)
+        assertTrue(gate.confirms.isEmpty())
+        // A number needs no contacts.
+        assertTrue(run("send_sms", """{"to":"01012345678","body":"곧 가"}""").output.startsWith("OK"))
+        assertEquals(listOf("01012345678" to "곧 가"), sms.sent)
+    }
+
+    @Test fun sendSmsTheUserDictatedToANameNeedsNoCard() {
+        gate.confirmResult = false
+        val e = executor()
+        e.userSaid("수진한테 '지금 출발해요' 라고 문자 보내줘")
+        val r = run("send_sms", """{"to":"수진","body":"지금 출발해요"}""", e)
+        assertTrue(r.output, r.output.startsWith("OK") && "최수진 (01044445555)" in r.output)
+        assertTrue(gate.confirms.isEmpty())
+        assertEquals(listOf("01044445555" to "지금 출발해요"), sms.sent)
+        // The same text to someone the user did not name still asks.
+        assertTrue(run("send_sms", """{"to":"김민수","body":"지금 출발해요"}""", e).output.startsWith("CANCELLED"))
+        assertEquals(1, sms.sent.size)
+    }
+
+    @Test fun sendSmsToAContactNotFoundByItsNameStillAsks() {
+        gate.confirmResult = false
+        val e = executor()
+        e.userSaid("자기한테 '지금 출발해요' 라고 문자 보내줘")
+        // The user never wrote 정하늘 or the number, so the card shows who "자기" turned out to be.
+        assertTrue(run("send_sms", """{"to":"자기","body":"지금 출발해요"}""", e).output.startsWith("CANCELLED"))
+        assertEquals(listOf(RiskCategory.SEND to SmsTool.confirmSummary("정하늘 (01055556666)", "지금 출발해요")), gate.confirms)
+        assertTrue(sms.sent.isEmpty())
     }
 }

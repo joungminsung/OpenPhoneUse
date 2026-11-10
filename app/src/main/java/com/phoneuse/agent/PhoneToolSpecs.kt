@@ -53,6 +53,12 @@ internal object PhoneToolSpecs {
             schema(required = listOf("name"), props = mapOf("name" to prop("string", "Name or part of it, e.g. \"민수\"."))),
         ),
         ToolSpec(
+            "call",
+            "Place a phone call. The user confirms on a card first unless their own message asked to call this person or " +
+                "number. The call screen then takes over: finish with stay_in_app=true.",
+            schema(required = listOf("to"), props = mapOf("to" to prop("string", "Phone number, or the contact's name as the user said it (e.g. \"엄마\")."))),
+        ),
+        ToolSpec(
             "calendar_list",
             "Events in the phone's calendars that overlap from–to: [{id, title, start, end, location?, all_day?}], by start.",
             schema(
@@ -87,13 +93,27 @@ internal object PhoneToolSpecs {
         ),
         ToolSpec(
             "set_alarm",
-            "Set an alarm in the clock app (the user confirms on a card first). For \"wake me / 알람\" requests, not for reminders.",
+            "Set an alarm in the clock app. The user confirms on a card first unless their own message asked for the alarm. " +
+                "For \"wake me / 알람\" requests, not for reminders.",
             schema(
                 required = listOf("hour", "minute"),
                 props = mapOf(
                     "hour" to prop("integer", "0-23."),
                     "minute" to prop("integer", "0-59."),
                     "label" to prop("string", "Alarm name (optional)."),
+                    "days" to arr(str(), "Repeat on these days: mon, tue, wed, thu, fri, sat, sun. Leave out for a one-time alarm."),
+                ),
+            ),
+        ),
+        ToolSpec(
+            "set_timer",
+            "Start a countdown timer in the clock app. The user confirms on a card first unless their own message asked for " +
+                "the timer. For \"3분 타이머\" requests; an alarm at a clock time is set_alarm.",
+            schema(
+                required = listOf("seconds"),
+                props = mapOf(
+                    "seconds" to prop("integer", "Length in seconds, 1-86400 (3 minutes is 180)."),
+                    "label" to prop("string", "Timer name (optional)."),
                 ),
             ),
         ),

@@ -13,12 +13,16 @@ import com.phoneuse.phone.BBox
 import com.phoneuse.phone.CalendarEvent
 import com.phoneuse.phone.CalendarSource
 import com.phoneuse.phone.CalendarTool
+import com.phoneuse.phone.CallSource
+import com.phoneuse.phone.CallTool
 import com.phoneuse.phone.Contact
 import com.phoneuse.phone.ContactsSource
 import com.phoneuse.phone.ContactsTool
 import com.phoneuse.phone.PhotoRow
 import com.phoneuse.phone.PhotoSource
 import com.phoneuse.phone.PhotosTool
+import com.phoneuse.phone.Recipient
+import com.phoneuse.phone.RecipientResolver
 import com.phoneuse.phone.RunTrigger
 import com.phoneuse.risk.RiskCategory
 import com.phoneuse.screen.ScreenSnapshot
@@ -28,6 +32,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
@@ -51,14 +56,37 @@ class PersonalToolsTest {
         }
     }
     private val alarms = mutableListOf<String>()
+    private val timers = mutableListOf<Int>()
     private var nextAlarm: ZonedDateTime? = null
     private val alarm = object : AlarmSource {
         override fun next(): ZonedDateTime? = nextAlarm
-        override fun set(hour: Int, minute: Int, label: String): Boolean {
-            alarms += "$hour:$minute"
-            nextAlarm = ZonedDateTime.now().plusDays(1).withHour(hour).withMinute(minute)
+        override fun set(hour: Int, minute: Int, label: String, days: List<DayOfWeek>): Boolean {
+            alarms += "$hour:$minute" + days.joinToString("") { " $it" }
+            // The first ring, as the clock app would have it: later today, or tomorrow.
+            val now = ZonedDateTime.now()
+            var at = now.withHour(hour).withMinute(minute).let { if (it.isAfter(now)) it else it.plusDays(1) }
+            while (days.isNotEmpty() && at.dayOfWeek !in days) at = at.plusDays(1)
+            nextAlarm = at
             return true
         }
+        override fun timer(seconds: Int, label: String): Boolean {
+            timers += seconds
+            return true
+        }
+        override fun inFront() = true
+    }
+
+    private var callAllowed = true
+    private var onCall = false
+    private val dialled = mutableListOf<String>()
+    private val phoneCalls = object : CallSource {
+        override fun canCall() = callAllowed
+        override fun call(number: String): Boolean {
+            dialled += number
+            onCall = true
+            return true
+        }
+        override fun inCall() = onCall
     }
     private var photosAllowed = true
     private val copied = mutableListOf<List<String>>()
@@ -95,6 +123,7 @@ class PersonalToolsTest {
             calendar = CalendarTool(calendar) { prior },
             alarms = AlarmTool(alarm, {}),
             photos = PhotosTool(photos, { _, _ -> "1번" }, { prior }, bounds = { if (it == "영국") BBox(49.674, 61.061, -14.015, 2.091) else null }),
+            calls = CallTool(phoneCalls, RecipientResolver(contacts), {}),
             trigger = trigger,
         ),
         historyTainted = historyTainted,
@@ -109,7 +138,7 @@ class PersonalToolsTest {
 
     @Test
     fun toolsOnlyWithTheirAccess() {
-        val mine = setOf("find_contact", "calendar_list", "calendar_add", "next_alarm", "set_alarm", "photos_find", "photos_look", "photos_album", "set_wallpaper")
+        val mine = setOf("find_contact", "call", "calendar_list", "calendar_add", "next_alarm", "set_alarm", "set_timer", "photos_find", "photos_look", "photos_album", "set_wallpaper")
         assertTrue(ex.specs.map { it.name }.containsAll(mine))
         val bare = ToolExecutor(FakeDeviceController(listOf(ScreenSnapshot("com.app", 1080, 2400, emptyList()))), FakeUserGate()).specs.map { it.name }
         assertFalse(bare.any { it in mine })
@@ -223,7 +252,10 @@ class PersonalToolsTest {
         val ok = run("set_alarm", """{"hour":7,"minute":0}""")
         assertTrue(ok.output, ok.output.startsWith("OK"))
         assertEquals(listOf("7:0"), alarms)
-        assertEquals(listOf(RiskCategory.CHANGE to "알람 설정: 07:00 · 기상", RiskCategory.CHANGE to "알람 설정: 07:00"), gate.confirms)
+        assertEquals(
+            listOf(RiskCategory.CHANGE to AlarmTool.alarmSummary("07:00", emptyList(), "기상"), RiskCategory.CHANGE to AlarmTool.alarmSummary("07:00", emptyList(), "")),
+            gate.confirms,
+        )
         assertTrue(run("set_alarm", """{"hour":"seven","minute":0}""").output.startsWith("ERROR: invalid arguments"))
     }
 
@@ -257,5 +289,74 @@ class PersonalToolsTest {
         assertTrue(run("photos_album", album).output.startsWith("ERROR"))
         ex = executor(RunTrigger.CardButton(CardActions.makeAlbum(prior[0] as PhotosCard, emptySet()).text), historyTainted = true)
         assertTrue(run("photos_album", album).output.startsWith("OK"))
+    }
+
+    @Test
+    fun setAlarmRepeatsOnTheGivenDays() {
+        val r = run("set_alarm", """{"hour":7,"minute":0,"label":"기상","days":["fri","Monday"]}""")
+        assertTrue(r.output, r.output.startsWith("OK") && "매주 월, 금" in r.output)
+        assertEquals(listOf("7:0 MONDAY FRIDAY"), alarms)
+        assertEquals(
+            listOf(RiskCategory.CHANGE to AlarmTool.alarmSummary("07:00", listOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), "기상")),
+            gate.confirms,
+        )
+        // A day the tool does not know sets nothing; a null list is a one-time alarm.
+        assertTrue(run("set_alarm", """{"hour":7,"minute":0,"days":["someday"]}""").output.startsWith("ERROR: invalid arguments"))
+        assertTrue(run("set_alarm", """{"hour":7,"minute":0,"days":null}""").output.startsWith("OK"))
+        assertEquals(listOf("7:0 MONDAY FRIDAY", "7:0"), alarms)
+    }
+
+    @Test
+    fun alarmOrTimerTheUserAskedForNeedsNoCard() {
+        gate.confirmResult = false
+        ex.userSaid("내일 7시에 알람 맞춰줘")
+        assertTrue(run("set_alarm", """{"hour":7,"minute":0}""").output.startsWith("OK"))
+        // Asking for an alarm is not asking for a timer.
+        assertTrue(run("set_timer", """{"seconds":180}""").output.startsWith("CANCELLED"))
+        assertEquals(listOf(RiskCategory.CHANGE to AlarmTool.timerSummary(180, "")), gate.confirms)
+        assertTrue(timers.isEmpty())
+
+        ex = executor()
+        ex.userSaid("3분 타이머")
+        val r = run("set_timer", """{"seconds":180,"label":"라면"}""")
+        assertTrue(r.output, r.output.startsWith("OK") && "3분" in r.output)
+        assertEquals(listOf(180), timers)
+        assertTrue(run("set_timer", """{"seconds":0}""").output.startsWith("ERROR"))
+        assertTrue(run("set_timer", """{}""").output.startsWith("ERROR: invalid arguments"))
+    }
+
+    @Test
+    fun callAsksUnlessTheUserAskedForThatCall() {
+        contactsAllowed = true
+        gate.confirmResult = false
+        assertTrue(run("call", """{"to":"김민수"}""").output.startsWith("CANCELLED"))
+        assertEquals(listOf(RiskCategory.SEND to CallTool.confirmSummary(Recipient.Found("010", "김민수", "김민수"))), gate.confirms)
+        // Asking for someone's number is not asking to call them.
+        ex.userSaid("김민수 전화번호 알려줘")
+        assertTrue(run("call", """{"to":"김민수"}""").output.startsWith("CANCELLED"))
+        assertTrue(dialled.isEmpty())
+
+        ex = executor()
+        ex.userSaid("김민수한테 전화해줘")
+        val r = run("call", """{"to":"김민수"}""")
+        assertTrue(r.output, r.output.startsWith("OK") && "김민수 (010)" in r.output)
+        assertEquals(listOf("010"), dialled)
+        // Another number in the same run still gets the card.
+        onCall = false
+        assertTrue(run("call", """{"to":"01099998888"}""").output.startsWith("CANCELLED"))
+        assertEquals(listOf("010"), dialled)
+    }
+
+    @Test
+    fun callNeedsItsPermissions() {
+        callAllowed = false
+        val r = run("call", """{"to":"01012345678"}""")
+        assertTrue(r.output, r.output.startsWith("권한 필요: 전화 걸기"))
+        assertEquals(listOf("android.permission.CALL_PHONE"), (r.card as PermissionCard).permissions)
+        // A name needs the contacts first.
+        assertTrue(run("call", """{"to":"김민수"}""").output.startsWith("권한 필요: 연락처"))
+        assertTrue(run("call", """{}""").output.startsWith("ERROR: invalid arguments"))
+        assertTrue(gate.confirms.isEmpty())
+        assertTrue(dialled.isEmpty())
     }
 }

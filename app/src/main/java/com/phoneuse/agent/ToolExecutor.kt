@@ -7,6 +7,8 @@ import com.phoneuse.chat.MemoryRef
 import com.phoneuse.files.FileTools
 import com.phoneuse.model.InputItem
 import com.phoneuse.model.ToolSpec
+import com.phoneuse.phone.ContactAdder
+import com.phoneuse.phone.SmsTool
 import com.phoneuse.risk.RiskCategory
 import com.phoneuse.risk.RiskGuard
 import com.phoneuse.risk.RiskMatch
@@ -125,16 +127,16 @@ class ToolExecutor(
 
     /**
      * Whether the user's own words in this run fix both [to] and exactly [body]: the text appears verbatim and the
-     * recipient's number (6+ digits) or name does too. Such a send was decided by the user, so it needs no card
-     * whatever the run read since. Never in a routine or card-started run, and never for the helper.
+     * recipient's number or name does too, as a number or a word of its own ([saysNumber], [saysName]). Such a send
+     * was decided by the user, so it needs no card whatever the run read since. Never in a routine or card-started
+     * run, and never for the helper.
      */
     fun userFixedSend(to: String, body: String): Boolean {
         if (!trustUserAuthorized || helperCall || fixedSend != null) return false
         val words = userWords.toString()
         val text = norm(body)
         if (text.isEmpty() || !words.contains(text)) return false
-        val digits = to.filter(Char::isDigit)
-        return if (digits.length >= 6) words.filter(Char::isDigit).contains(digits) else norm(to).let { it.isNotEmpty() && words.contains(it) }
+        return if (to.none(Char::isLetter)) saysNumber(words, to) else saysName(words, to)
     }
 
     /**
@@ -145,6 +147,49 @@ class ToolExecutor(
         if (!trustUserAuthorized || helperCall || fixedSend != null) return false
         val words = userWords.toString()
         return DELETE_VERBS_CJK.any { it in words } || DELETE_VERBS_EN.containsMatchIn(words)
+    }
+
+    /**
+     * Whether the user's own words in this run ask to call this recipient: a call word, and either [number] as a
+     * number of its own or one of [names] as a word of its own ([saysNumber], [saysName]). Asking about a phone
+     * number or the call log, or not to call, is not asking to call. Deterministic like [userAskedDelete].
+     */
+    fun userAskedCall(names: List<String>, number: String): Boolean {
+        if (!trustUserAuthorized || helperCall || fixedSend != null) return false
+        var words = userWords.toString()
+        NOT_A_CALL.forEach { words = words.replace(it, " ") }
+        words = NOT_A_CALL_EN.replace(words, " ")
+        if (CALL_WORDS_CJK.none { it in words } && !CALL_WORDS_EN.containsMatchIn(words)) return false
+        return saysNumber(words, number) || names.any { saysName(words, it) }
+    }
+
+    /**
+     * Whether the user's own words in this run ask for a new alarm; asking to stop, remove or look at one does not
+     * count. The time and the label are the model's, so this holds only while the run has read nothing third-party
+     * that could have chosen them. Deterministic like [userAskedDelete].
+     */
+    fun userAskedAlarm(): Boolean {
+        if (!trustUserAuthorized || helperCall || fixedSend != null || runThirdParty) return false
+        val words = NOT_AN_ALARM.fold(userWords.toString()) { left, phrase -> phrase.replace(left, " ") }
+        return ALARM_WORDS_CJK.any { it in words } || ALARM_WORDS_EN.containsMatchIn(words)
+    }
+
+    /** Whether the user's own words in this run ask to start a timer; as [userAskedAlarm]. */
+    fun userAskedTimer(): Boolean {
+        if (!trustUserAuthorized || helperCall || fixedSend != null || runThirdParty) return false
+        val words = NOT_A_TIMER.fold(userWords.toString()) { left, phrase -> phrase.replace(left, " ") }
+        return TIMER_WORDS_CJK.any { it in words } || TIMER_WORDS_EN.containsMatchIn(words)
+    }
+
+    /**
+     * Whether the user's own words in this run give this contact: [number] (6+ digits) as a number of its own, the
+     * [name], and the [email] when there is one. A name or an address the model chose still gets the card.
+     */
+    fun userGaveContact(name: String, number: String, email: String?): Boolean {
+        if (!trustUserAuthorized || helperCall || fixedSend != null) return false
+        val words = userWords.toString()
+        return number.count(Char::isDigit) >= 6 && saysNumber(words, number) && saysName(words, name) &&
+            (email == null || norm(email).let { it.isNotEmpty() && it in words })
     }
 
     /**
@@ -176,6 +221,8 @@ class ToolExecutor(
             device, gate, confirming, files, memory, phone, messaging, routines, connectors,
             runTainted = { runThirdParty }, historyTainted = historyTainted, screen = ScreenModule(), context = appContext,
             userFixedSend = ::userFixedSend, userAskedDelete = ::userAskedDelete,
+            userAskedCall = ::userAskedCall, userAskedAlarm = ::userAskedAlarm, userAskedTimer = ::userAskedTimer,
+            userGaveContact = ::userGaveContact,
         ),
     )
 
@@ -913,6 +960,71 @@ class ToolExecutor(
         /** Delete verbs in the user's own words (normalized, see [norm]) that make a DELETE skippable ([userAskedDelete]). */
         private val DELETE_VERBS_CJK = listOf("삭제", "지워", "지우", "제거", "없애", "빼줘", "빼 줘", "削除", "删除", "刪除")
         private val DELETE_VERBS_EN = Regex("""(?<![a-z])(?:delete|remove|erase|clear)""")
+
+        /** A phone number as people write it inside a sentence: digits with spaces, dashes, dots or brackets between them. */
+        private val NUMBER_TOKEN = Regex("""\+?[0-9][0-9 ().\-]*[0-9]""")
+
+        /**
+         * Whether [words] hold [number] written as one number: the same digits, or the same line with or without its
+         * country code. Digits scattered over the message (a time, a count, a date) never add up to one.
+         */
+        private fun saysNumber(words: String, number: String): Boolean {
+            val wanted = SmsTool.normalizeNumber(number) ?: return false
+            return NUMBER_TOKEN.findAll(words).any { token ->
+                SmsTool.normalizeNumber(token.value)?.let { ContactAdder.sameNumber(it, wanted) } == true
+            }
+        }
+
+        /**
+         * Whether [words] hold [name] (2+ letters) as a word of its own: not the tail of a longer word ("민수" in
+         * "김민수"), nor the head of a longer Latin one ("min" in "minsu"). What follows a Korean name is a particle.
+         */
+        private fun saysName(words: String, name: String): Boolean {
+            val wanted = norm(name)
+            if (wanted.length < 2) return false
+            val latinEnd = wanted.last().let { it in 'a'..'z' || it in '0'..'9' }
+            var at = words.indexOf(wanted)
+            while (at >= 0) {
+                val before = words.getOrNull(at - 1)
+                val after = words.getOrNull(at + wanted.length)
+                val runsOn = latinEnd && after != null && (after in 'a'..'z' || after in '0'..'9')
+                if (before?.isLetterOrDigit() != true && !runsOn) return true
+                at = words.indexOf(wanted, at + 1)
+            }
+            return false
+        }
+
+        /** Phrases with a call word in them that ask about calls, or not to call, instead of asking to place one. */
+        private val NOT_A_CALL = listOf(
+            "전화번호", "전화 번호", "통화 기록", "통화기록", "통화 내역", "통화내역", "부재중", "전화 왔", "전화왔", "전화 온", "전화온",
+            "전화하지", "전화 하지", "통화하지", "통화 하지", "전화했", "전화 했", "통화했", "통화 했", "전화받", "전화 받", "통화 녹음", "통화녹음",
+            "電話番号", "着信", "电话号码", "電話號碼", "未接", "phone number", "call log", "call history", "missed call",
+        )
+        private val NOT_A_CALL_EN = Regex("""(?<![a-z])(?:don['’]?t|do not|never|did(?:n['’]?t)?)(?![a-z])[^.?!]*?(?<![a-z])call""")
+        private val CALL_WORDS_CJK = listOf(
+            "전화", "통화", "걸어줘", "걸어 줘", "걸어주", "걸어 주", "걸어봐", "걸어 봐", "電話", "かけて", "电话", "打给", "打給", "拨打", "撥打",
+        )
+        private val CALL_WORDS_EN = Regex("""(?<![a-z])(?:call|dial)(?![a-z])""")
+
+        /** Asking to stop, remove or look at an alarm is not asking for a new one; these are taken out before the alarm words are looked for. */
+        private val NOT_AN_ALARM = listOf(
+            Regex("""알람[을은이도]?\s*(?:좀\s*|다\s*|모두\s*|전부\s*)*(?:꺼|끄|삭제|지워|지우|취소|해제|없애|몇|언제|있|확인|보여|알려)"""),
+            Regex("""(?:アラーム|目覚まし)[をはが]?\s*(?:消|止|解除|キャンセル|削除|オフ)"""),
+            Regex("""(?:关闭|取消|删除|關閉|刪除|停止)[^,.。，]{0,6}(?:闹钟|鬧鐘)"""),
+            Regex("""(?<![a-z])(?:cancel|delete|remove|dismiss|turn off|disable|stop|snooze|next|what|when|which|any)(?![a-z])[a-z ]{0,20}alarm"""),
+        )
+        private val ALARM_WORDS_CJK = listOf("알람", "깨워", "모닝콜", "アラーム", "目覚まし", "起こして", "闹钟", "鬧鐘", "叫醒")
+        private val ALARM_WORDS_EN = Regex("""(?<![a-z])(?:alarms?|wake)(?![a-z])""")
+
+        /** The same for a timer. */
+        private val NOT_A_TIMER = listOf(
+            Regex("""타이머[를은이도]?\s*(?:좀\s*|다\s*|모두\s*|전부\s*)*(?:꺼|끄|취소|중지|멈|정지|삭제|지워|지우|해제|없애|얼마|몇|확인)"""),
+            Regex("""タイマー[をはが]?\s*(?:消|止|解除|キャンセル|削除|オフ)"""),
+            Regex("""(?:关闭|取消|删除|關閉|刪除|停止|暂停|暫停)[^,.。，]{0,6}(?:计时|計時|定时)"""),
+            Regex("""(?<![a-z])(?:cancel|delete|remove|dismiss|stop|pause|reset|turn off|how much|how long)(?![a-z])[a-z ]{0,20}timer"""),
+        )
+        private val TIMER_WORDS_CJK = listOf("타이머", "タイマー", "计时", "計時", "定时", "倒计时")
+        private val TIMER_WORDS_EN = Regex("""(?<![a-z])(?:timers?|countdown)(?![a-z])""")
 
         /** Words for "all / many" in the user's request that make a delete bulk ([userAskedBulkDelete]). */
         private val BULK_WORDS_CJK = listOf(
