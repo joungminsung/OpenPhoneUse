@@ -305,23 +305,21 @@ Before you open one:
 2. Update the version in `CITATION.cff` (with `date-released`) and in `docs/index.html` (`softwareVersion` and the facts line under the download button). Set `<lastmod>` in `docs/sitemap.xml` if the page changed.
 3. Rename `## [Unreleased]` in `CHANGELOG.md` to the new version with the date, and add its link at the bottom.
 4. In all four READMEs, update the test badge if the count changed (tests minus skipped, from the report in `app/build/test-results/testDebugUnitTest/`) and the download size if it moved.
-5. Build and check:
+5. Push these changes to `main`, then run the **Release** workflow (Actions → Release → Run workflow, or `gh workflow run release.yml --ref main`). It runs the unit tests and release lint, builds and signs the APK with the key in the repository secrets, checks that the certificate's SHA-256 is `975d08ddf64b789916a15d1ee5aeb6088a8aa176640f90524e9bd16fa8bec8c6` and the version matches, and creates a draft release `vX.Y.Z` with `OpenPhoneUse.apk`, `OpenPhoneUse.apk.sha256` and this version's CHANGELOG section as notes.
+6. Read the draft on the Releases page and publish it. Publishing creates the tag. **Keep the file names:** the README's download button and QR code point to `releases/latest/download/OpenPhoneUse.apk`, and a versioned file name would break both.
+
+   The workflow needs four repository secrets: `RELEASE_KEYSTORE_BASE64` (the `.jks` file, base64), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. The build reads the same values from `RELEASE_*` environment variables, or from `~/.openphoneuse/keystore.properties` on the maintainer's machine.
+7. Without the workflow, build and publish by hand:
 
    ```bash
    ./gradlew testDebugUnitTest assembleRelease
    apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
-   ```
-
-   The certificate's SHA-256 must be `975d08ddf64b789916a15d1ee5aeb6088a8aa176640f90524e9bd16fa8bec8c6`. A build signed with any other key cannot update installed copies.
-6. Copy the signed `app-release.apk` to `OpenPhoneUse.apk`, so the files are `OpenPhoneUse.apk` and `OpenPhoneUse.apk.sha256`. **Keep these names:** the README's download button and QR code point to `releases/latest/download/OpenPhoneUse.apk`, and a versioned file name would break both.
-7. Tag and publish:
-
-   ```bash
+   cp app/build/outputs/apk/release/app-release.apk OpenPhoneUse.apk
    sha256sum OpenPhoneUse.apk > OpenPhoneUse.apk.sha256
    git tag -a vX.Y.Z -m "OpenPhoneUse X.Y.Z"
    git push origin refs/tags/vX.Y.Z
    gh release create vX.Y.Z --verify-tag --title "OpenPhoneUse vX.Y.Z" --notes-file notes.md --latest OpenPhoneUse.apk OpenPhoneUse.apk.sha256
    ```
-8. Publishing starts the "Release check" workflow, which downloads the two files and checks the checksum, the signing certificate and that `versionName` matches the tag. Wait for it to pass; if it fails, fix the release before you announce it.
+8. Either way, publishing starts the "Release check" workflow, which downloads the two files and checks the checksum, the signing certificate and that `versionName` matches the tag. Wait for it to pass; if it fails, fix the release before you announce it.
 
-The release key and its password stay outside the repository. Losing the key means installed copies can never be updated again, so keep a backup away from the build machine.
+The release key and its password stay outside the repository; the copy in the repository secrets cannot be read back, so it is not a backup. Losing the key means installed copies can never be updated again, so keep a backup away from the build machine.

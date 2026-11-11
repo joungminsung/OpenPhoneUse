@@ -19,10 +19,17 @@ android {
         versionName = "0.0.1"
     }
 
-    // The release key stays outside the repository; a build without it stays unsigned.
+    // The release key stays outside the repository: in ~/.openphoneuse/keystore.properties on the maintainer's
+    // machine, or in RELEASE_* environment variables in the release workflow. A build without either stays unsigned.
     val releaseKeys = Properties().apply {
         val file = File(System.getProperty("user.home"), ".openphoneuse/keystore.properties")
         if (file.isFile) file.inputStream().use { load(it) }
+        mapOf(
+            "storeFile" to "RELEASE_STORE_FILE",
+            "storePassword" to "RELEASE_STORE_PASSWORD",
+            "keyAlias" to "RELEASE_KEY_ALIAS",
+            "keyPassword" to "RELEASE_KEY_PASSWORD",
+        ).forEach { (key, env) -> System.getenv(env)?.takeIf { it.isNotEmpty() }?.let { setProperty(key, it) } }
     }
     signingConfigs {
         if (releaseKeys.isNotEmpty()) create("release") {

@@ -22,7 +22,7 @@ In this repository's issues, pull requests, reviews and discussions, and anywher
 
 ## Reporting a problem
 
-Report it privately through the repository's [private report form](https://github.com/joungminsung/openphoneuse/security/advisories/new). Only the maintainer can read what you send there. Say what happened and link to it if you can. For abuse that breaks GitHub's own rules, you can also use the "Report content" option on the comment itself.
+Email the maintainer at [joungminsung080830@gmail.com](mailto:joungminsung080830@gmail.com), or use the repository's [private report form](https://github.com/joungminsung/openphoneuse/security/advisories/new). Only the maintainer reads what you send. Say what happened and link to it if you can. For abuse that breaks GitHub's own rules, you can also use the "Report content" option on the comment itself.
 
 The maintainer will read every report, keep the reporter's identity private, and reply with what was decided.
 
