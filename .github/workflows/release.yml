@@ -10,6 +10,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      check_only:
+        description: Only build, sign and check; create no release (to test the secrets)
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -27,6 +32,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       # SHA-256 of the release signing certificate, as in release-check.yml.
       EXPECTED_CERT: 975d08ddf64b789916a15d1ee5aeb6088a8aa176640f90524e9bd16fa8bec8c6
+      CHECK_ONLY: ${{ inputs.check_only }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -35,7 +41,7 @@ jobs:
           version="$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)"
           tag="v$version"
           test -n "$version"
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+          if [ "$CHECK_ONLY" != true ] && gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             echo "::error::A release $tag already exists. Raise versionName and versionCode first."
             exit 1
           fi
@@ -45,7 +51,7 @@ jobs:
             on && /^## \[/ { exit }
             on { print }
           ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
-          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+          if [ "$CHECK_ONLY" != true ] && ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
             echo "::error::CHANGELOG.md has no section \"## [$version]\". Rename [Unreleased] to it first."
             exit 1
           fi
@@ -97,6 +103,7 @@ jobs:
           sha256sum OpenPhoneUse.apk > OpenPhoneUse.apk.sha256
 
       - name: Draft the release
+        if: inputs.check_only != true
         run: |
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
             --title "OpenPhoneUse $TAG" --notes-file "$RUNNER_TEMP/notes.md" \
