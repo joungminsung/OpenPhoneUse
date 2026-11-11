@@ -209,6 +209,9 @@ class PhoneUseAccessibilityService : AccessibilityService() {
         debugReceiver = receiver
     }
 
+    // adb-only debug actions (DUMP permission). Lint's newer interprocedural thread check (AGP 9.5) flags the probe
+    // branch; every branch runs on the service's main scope, unchanged from before the check existed.
+    @android.annotation.SuppressLint("ThreadConstraint")
     private suspend fun handleDebug(action: String, index: Int, mode: String?, text: String?, finish: () -> Unit) {
         when (action) {
             ACTION_OVERLAY -> {
