@@ -27,8 +27,9 @@ jobs:
       # Also checks that gradle-wrapper.jar is an official Gradle release.
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.4
 
+      # lintRelease catches checks that only fail in a release build; it needs no signing key.
       - name: Unit tests, lint and debug build
-        run: ./gradlew testDebugUnitTest lintDebug assembleDebug --console=plain
+        run: ./gradlew testDebugUnitTest lintDebug lintRelease assembleDebug --console=plain
 
       - name: Upload unit test report
         if: failure()
@@ -43,5 +44,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: lint-report
-          path: app/build/reports/lint-results-debug.html
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-release.html
           if-no-files-found: ignore

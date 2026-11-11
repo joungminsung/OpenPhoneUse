@@ -1,0 +1,30 @@
+# Labels for pull requests, applied by .github/workflows/labeler.yml.
+
+# Code where a mistake could let the model pay, delete, call, text or change settings without asking, leak a
+# secret, or change what the app may do on the phone. A maintainer reads these changes line by line.
+safety-review:
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/main/java/com/phoneuse/agent/**
+          - app/src/main/java/com/phoneuse/risk/**
+          - app/src/main/java/com/phoneuse/security/**
+          - app/src/main/java/com/phoneuse/auth/**
+          - app/src/main/java/com/phoneuse/service/**
+          - app/src/main/java/com/phoneuse/phone/**
+          - app/src/main/java/com/phoneuse/connectors/**
+          - app/src/main/java/com/phoneuse/mcp/**
+          - app/src/main/java/com/phoneuse/app/*Gate.kt
+          - app/src/main/java/com/phoneuse/overlay/OverlayUserGate.kt
+          - app/src/main/java/com/phoneuse/ui/chat/ConfirmCopy.kt
+          - app/src/main/java/com/phoneuse/ui/chat/CardViews.kt
+          - app/src/main/AndroidManifest.xml
+          - app/src/test/java/com/phoneuse/agent/**
+          - app/src/test/java/com/phoneuse/risk/**
+          - app/build.gradle.kts
+          - app/proguard-rules.pro
+          - build.gradle.kts
+          - settings.gradle.kts
+          - gradle/**
+          - gradlew
+          - gradlew.bat
+          - .github/**

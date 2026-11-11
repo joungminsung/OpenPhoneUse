@@ -122,7 +122,7 @@ Some things will waste your afternoon if you do not know them:
 - **`versionCode` cannot go down.** `adb install -r` fails when the installed build has a higher one.
 - **Sign-ins rotate their refresh tokens.** A saved emulator snapshot with a signed-in account may stop working once the token has been used elsewhere, so keep a running emulator rather than restoring an old one.
 
-To check a release build you do not need the project's key: `./gradlew assembleRelease` without one produces `app-release-unsigned.apk` and still runs the release lint checks. CI runs `lintDebug` on every push and pull request; run `./gradlew lintDebug` yourself when you change the manifest, the resources or the dependencies. Release signing reads `storeFile`, `storePassword`, `keyAlias` and `keyPassword` from `~/.openphoneuse/keystore.properties`, which only the maintainer has.
+To check a release build you do not need the project's key: `./gradlew assembleRelease` without one produces `app-release-unsigned.apk` and still runs the release lint checks. CI runs `lintDebug` and `lintRelease` on every push and pull request; run `./gradlew lintDebug lintRelease` yourself when you change the manifest, the resources or the dependencies. Release signing reads `storeFile`, `storePassword`, `keyAlias` and `keyPassword` from `~/.openphoneuse/keystore.properties`, which only the maintainer has.
 
 ## Code map
 
@@ -290,12 +290,14 @@ Keep GIFs under about 5 MB so the README loads quickly.
 
 Before you open one:
 
-- [ ] `./gradlew testDebugUnitTest assembleDebug` passes. CI ([ci.yml](.github/workflows/ci.yml)) runs the same on every push to `main` and every pull request.
+- [ ] `./gradlew testDebugUnitTest assembleDebug` passes. CI ([ci.yml](.github/workflows/ci.yml)) runs these plus `lintDebug` and `lintRelease` on every push to `main` and every pull request.
 - [ ] Every behavior change has a test.
 - [ ] Anything a unit test cannot show was tried on a device or emulator, and the pull request says which one.
 - [ ] No new path lets the model pay, delete, change security settings or send without the risk gate.
 - [ ] Nothing secret or personal is in the diff, the logs or the screenshots.
 - [ ] A change users will notice has a line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md). Add that heading above the newest version if it is not there.
+
+**Review and merging.** Only the maintainer merges into `main`, and only after CI passes. A pull request that touches the risk gate, the tools, permissions, sign-in, key storage, the build or the workflows gets the `safety-review` label automatically ([labeler.yml](.github/labeler.yml)), and the maintainer reads it line by line, so expect questions on those.
 
 ## Releasing (maintainers)
 
