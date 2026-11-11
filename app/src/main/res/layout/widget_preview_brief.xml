@@ -1,29 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The widget picker's preview of the brief widget (static; the widget itself is drawn by Glance). -->
+<!-- The widget picker's preview of the brief (static; the widget itself is drawn by Glance): the mono date line,
+     the brief, and the source with More and refresh. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_preview_bg"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:padding="14dp">
-
-    <ImageView
-        android:layout_width="28dp"
-        android:layout_height="28dp"
-        android:background="@drawable/widget_preview_dot"
-        android:importantForAccessibility="no"
-        android:padding="6dp"
-        android:src="@drawable/ic_widget_spark"
-        android:tint="@color/widget_preview_accent" />
+    android:orientation="vertical"
+    android:padding="20dp">
 
     <TextView
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
+        android:fontFamily="monospace"
+        android:maxLines="1"
+        android:text="@string/widget_brief_preview_date"
+        android:textColor="@color/widget_preview_sub"
+        android:textSize="12.5sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
         android:layout_weight="1"
-        android:maxLines="3"
+        android:ellipsize="end"
         android:text="@string/widget_brief_preview"
         android:textColor="@color/widget_preview_text"
-        android:textSize="14sp" />
+        android:textSize="17sp"
+        android:fontFamily="sans-serif-medium" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:text="@string/widget_brief_preview_source"
+            android:textColor="@color/widget_preview_sub"
+            android:textSize="12.5sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_preview_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_widget_open"
+                android:tint="@color/widget_preview_accent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/widget_brief_preview_more"
+                android:textColor="@color/widget_preview_text"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_preview_round"
+            android:importantForAccessibility="no"
+            android:padding="13dp"
+            android:src="@drawable/ic_widget_refresh"
+            android:tint="@color/widget_preview_text" />
+    </LinearLayout>
 </LinearLayout>

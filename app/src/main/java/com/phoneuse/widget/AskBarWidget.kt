@@ -25,12 +25,11 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
 import androidx.glance.layout.Row
+import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
-import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -81,7 +80,12 @@ class AskBarWidget : GlanceAppWidget() {
 private fun AskBar(chips: List<AskChip>) {
     val context = LocalContext.current
     val size = LocalSize.current
-    WidgetRoot(padding = if (size.height < 100.dp) 6.dp else 12.dp) {
+    if (size.height < 100.dp) {
+        // One row: the widget is the bar itself, a white pill.
+        WidgetRoot(padding = 0.dp, radius = size.height / 2) { SearchBar(context, alone = true) }
+        return
+    }
+    WidgetRoot(padding = 16.dp) {
         if (size.height >= 160.dp) {
             Text(
                 WidgetText.greeting(ZonedDateTime.now().hour),
@@ -91,8 +95,8 @@ private fun AskBar(chips: List<AskChip>) {
             WidgetSub(tr("What can I do for you?", "무엇을 도와드릴까요?"))
             VSpace(10.dp)
         }
-        SearchBar(context)
-        if (size.height >= 100.dp && chips.isNotEmpty()) {
+        SearchBar(context, alone = false)
+        if (chips.isNotEmpty()) {
             VSpace(8.dp)
             val shown = chips.take(if (size.width < 260.dp) 2 else 3)
             Row(GlanceModifier.fillMaxWidth()) {
@@ -110,27 +114,38 @@ private fun AskBar(chips: List<AskChip>) {
     }
 }
 
+/**
+ * The bar: the placeholder opens the quick-ask window, the round ink mic starts voice. When [alone] the bar is the
+ * whole widget (on the card itself, with the design's 56dp mic); otherwise it sits in a taller card on the grey fill.
+ */
 @Composable
-private fun SearchBar(context: Context) {
+private fun SearchBar(context: Context, alone: Boolean) {
+    val base = if (alone) {
+        GlanceModifier.fillMaxSize().padding(start = 22.dp, end = 10.dp)
+    } else {
+        GlanceModifier.fillMaxWidth().height(56.dp).cornerRadius(28.dp).background(GlanceTheme.colors.surfaceVariant)
+            .padding(start = 18.dp, end = 6.dp)
+    }
+    val mic = if (alone) 56.dp else 44.dp
     Row(
-        GlanceModifier.fillMaxWidth().height(48.dp).cornerRadius(24.dp).background(GlanceTheme.colors.surface)
-            .clickable(actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.ASK)))
-            .padding(start = 14.dp, end = 6.dp),
+        base.clickable(actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.ASK))),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        WidgetIcon(R.drawable.ic_widget_search, GlanceTheme.colors.onSurfaceVariant, 20.dp)
-        HSpace(10.dp)
         Text(
-            tr("Ask ${WidgetText.appName}", "${WidgetText.appName}에게 물어보기"),
-            style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 15.sp),
+            tr("Ask me anything", "무엇이든 시켜보세요"),
+            style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 16.sp),
             maxLines = 1,
             modifier = GlanceModifier.defaultWeight(),
         )
-        Box(
-            GlanceModifier.size(36.dp).cornerRadius(18.dp).background(GlanceTheme.colors.primary)
-                .clickable(actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.VOICE))),
-            contentAlignment = Alignment.Center,
-        ) { WidgetIcon(R.drawable.ic_widget_mic, GlanceTheme.colors.onPrimary, 20.dp, tr("Voice", "음성")) }
+        HSpace(10.dp)
+        WidgetRoundButton(
+            R.drawable.ic_widget_mic,
+            actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.VOICE)),
+            tr("Voice", "음성"),
+            size = mic,
+            glyph = 22.dp,
+            strong = true,
+        )
     }
 }
 

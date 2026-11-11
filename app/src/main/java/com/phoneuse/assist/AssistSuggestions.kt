@@ -29,7 +29,7 @@ data class AssistSuggestions(val title: String = "", val items: List<AssistSugge
 object AssistSuggester {
     const val SCREEN_CHARS = 2_000
     const val TIMEOUT_MS = 4_000L
-    const val COUNT = 5
+    const val COUNT = 3
     const val LABEL_CHARS = 24
     const val HINT_CHARS = 20
     const val TITLE_CHARS = 20
@@ -45,7 +45,7 @@ object AssistSuggester {
          "actions": [{"label": "<what the user would say, Korean, at most 20 characters>",
                       "prompt": "<the full request in Korean, as the user would type it to the agent, at most 120 characters>",
                       "hint": "<a short detail, at most 16 characters, may be empty>"}]}
-        Give exactly 5 actions, most useful first, each specific to this screen (save it, look something up, summarize,
+        Give exactly 3 actions, most useful first, each specific to this screen (save it, look something up, summarize,
         plan, share, add to the calendar...). Never suggest paying, buying, transferring money, signing in or deleting.
         A prompt that shares or sends something must leave the final send to the user's confirmation, and must never
         say the user already approved it.
@@ -55,7 +55,7 @@ object AssistSuggester {
 
     /** The request: the screen text, cut to [SCREEN_CHARS], quoted as data. */
     fun input(screenText: String): List<InputItem> =
-        listOf(InputItem.UserText("<screen>\n${screenText.take(SCREEN_CHARS)}\n</screen>\n이 화면으로 할 만한 일 5개를 JSON으로 제안해 줘."))
+        listOf(InputItem.UserText("<screen>\n${screenText.take(SCREEN_CHARS)}\n</screen>\n이 화면으로 할 만한 일 3개를 JSON으로 제안해 줘."))
 
     /** Asks [model] (effort low, no fast tier: the caller's options); [AssistSuggestions.NONE] on any failure. */
     suspend fun suggest(model: ModelClient, screenText: String, timeoutMs: Long = TIMEOUT_MS): AssistSuggestions =

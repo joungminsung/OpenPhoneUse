@@ -26,7 +26,10 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
@@ -89,44 +92,51 @@ private fun Live(view: LiveView) {
     val context = LocalContext.current
     val compact = LocalSize.current.height < 130.dp
     when (view) {
-        is LiveView.Running -> WidgetRoot(onClick = actionStartActivity(WidgetLinks.open(context, null))) {
-            WidgetHeader(
-                R.drawable.ic_widget_spark,
-                if (view.needsYou) tr("Needs your OK", "확인이 필요해요") else tr("Working on it", "작업 중"),
-                tr("Step ${view.steps}", "${view.steps}단계"),
-            )
-            Text(view.title, style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 15.sp, fontWeight = FontWeight.Medium), maxLines = if (compact) 1 else 2)
-            if (!compact) {
-                VSpace(2.dp)
-                WidgetSub(view.step.ifEmpty { tr("Thinking…", "생각하는 중…") }, maxLines = 2)
-            }
-            VSpace(8.dp)
-            LinearProgressIndicator(
-                progress = view.progress,
-                modifier = GlanceModifier.fillMaxWidth().height(6.dp).cornerRadius(3.dp),
-                color = if (view.needsYou) GlanceTheme.colors.tertiary else GlanceTheme.colors.primary,
-                backgroundColor = GlanceTheme.colors.secondaryContainer,
-            )
-            if (!compact) {
-                VSpace(10.dp)
-                Row(GlanceModifier.fillMaxWidth()) {
-                    WidgetPill(tr("Open", "열기"), actionStartActivity(WidgetLinks.open(context, null)), GlanceModifier.defaultWeight(), R.drawable.ic_widget_open)
-                    HSpace(8.dp)
-                    WidgetPill(tr("Stop", "중단"), WidgetActions.stop(context), GlanceModifier.defaultWeight(), R.drawable.ic_widget_stop, strong = true)
+        is LiveView.Running -> WidgetRoot(padding = if (compact) 10.dp else 12.dp, onClick = actionStartActivity(WidgetLinks.open(context, null))) {
+            // The accent dot, the task and its step over a thin bar, and Stop.
+            Row(GlanceModifier.fillMaxSize().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                WidgetDot()
+                HSpace(14.dp)
+                Column(GlanceModifier.defaultWeight()) {
+                    Text(view.title, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Medium), maxLines = if (compact) 1 else 2)
+                    VSpace(if (compact) 2.dp else 4.dp)
+                    val count = tr("Step ${view.steps}", "${view.steps}단계")
+                    if (view.needsYou) {
+                        Text(
+                            tr("Needs your OK", "확인이 필요해요") + " · " + count,
+                            style = TextStyle(color = GlanceTheme.colors.onPrimaryContainer, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                            maxLines = 1,
+                        )
+                    } else {
+                        WidgetSub(view.step.ifEmpty { tr("Thinking…", "생각하는 중…") } + " · " + count, maxLines = if (compact) 1 else 2)
+                    }
+                    VSpace(if (compact) 6.dp else 8.dp)
+                    LinearProgressIndicator(
+                        progress = view.progress,
+                        modifier = GlanceModifier.fillMaxWidth().height(3.dp).cornerRadius(2.dp),
+                        color = GlanceTheme.colors.onSurface,
+                        backgroundColor = GlanceTheme.colors.secondaryContainer,
+                    )
                 }
+                HSpace(14.dp)
+                WidgetPill(tr("Stop", "중단"), WidgetActions.stop(context), danger = true)
             }
         }
-        is LiveView.Idle -> WidgetRoot {
-            WidgetHeader(R.drawable.ic_widget_check, tr("Last task", "마지막 작업"))
-            if (view.title.isNotEmpty() && !compact) WidgetSub(view.title)
+        is LiveView.Idle -> WidgetRoot(padding = if (compact) 14.dp else 16.dp) {
+            WidgetLabel(tr("Last task", "마지막 작업"))
+            if (view.title.isNotEmpty() && !compact) {
+                VSpace(6.dp)
+                Text(view.title, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+            }
+            VSpace(if (compact) 2.dp else 4.dp)
             Text(
                 view.result,
-                style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 14.sp),
-                maxLines = if (compact) 1 else 3,
+                style = TextStyle(color = if (compact) GlanceTheme.colors.onSurface else GlanceTheme.colors.onSurfaceVariant, fontSize = if (compact) 14.sp else 13.sp),
+                maxLines = if (compact) 1 else 2,
                 modifier = GlanceModifier.clickable(actionStartActivity(WidgetLinks.open(context, view.conversationId))),
             )
             if (!compact) {
-                VSpace(10.dp)
+                Spacer(GlanceModifier.defaultWeight())
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     WidgetPill(tr("Open", "열기"), actionStartActivity(WidgetLinks.open(context, view.conversationId)), GlanceModifier.defaultWeight(), R.drawable.ic_widget_open)
                     HSpace(8.dp)
@@ -140,12 +150,14 @@ private fun Live(view: LiveView) {
                 }
             }
         }
-        LiveView.Empty -> WidgetRoot(onClick = actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.ASK))) {
-            WidgetHeader(R.drawable.ic_widget_spark, WidgetText.appName)
-            Text(tr("Nothing running", "진행 중인 작업 없음"), style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 15.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+        LiveView.Empty -> WidgetRoot(padding = if (compact) 14.dp else 16.dp, onClick = actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.ASK))) {
+            WidgetLabel(WidgetText.appName)
+            VSpace(if (compact) 2.dp else 6.dp)
+            Text(tr("Nothing running", "진행 중인 작업 없음"), style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Medium), maxLines = 1)
             if (!compact) {
+                VSpace(4.dp)
                 WidgetSub(tr("Tasks you start show up here, live.", "시작한 작업이 여기에 실시간으로 보여요."), maxLines = 2)
-                VSpace(10.dp)
+                Spacer(GlanceModifier.defaultWeight())
                 WidgetPill(tr("Ask something", "물어보기"), actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.ASK)), icon = R.drawable.ic_widget_search, strong = true)
             }
         }

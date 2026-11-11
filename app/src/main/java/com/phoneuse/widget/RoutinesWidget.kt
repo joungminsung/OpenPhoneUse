@@ -21,14 +21,12 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
-import androidx.glance.background
 import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
-import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -64,15 +62,20 @@ private fun Routines(rows: List<RoutineRow>) {
     val wide = LocalSize.current.width >= 240.dp
     val active = rows.count { it.enabled }
     WidgetRoot(padding = 12.dp) {
-        WidgetHeader(R.drawable.ic_widget_routine, tr("Routines", "루틴"), if (rows.isEmpty()) null else tr("$active on", "${active}개 켜짐"))
+        Column(GlanceModifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp, bottom = 4.dp)) {
+            WidgetLabel(tr("Routines", "루틴"), if (rows.isEmpty()) null else tr("$active on", "${active}개 켜짐"))
+        }
         if (rows.isEmpty()) {
-            Text(tr("No routines yet", "아직 루틴이 없어요"), style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.Medium))
-            WidgetSub(tr("Say \"every day at 7, brief me\" to make one.", "\"매일 7시에 브리핑해줘\"처럼 말해서 만들어요."), maxLines = 2)
-            VSpace(8.dp)
-            WidgetPill(tr("Make one", "만들기"), actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.ASK)), icon = R.drawable.ic_widget_add, strong = true)
+            Column(GlanceModifier.fillMaxWidth().defaultWeight().padding(start = 4.dp)) {
+                VSpace(4.dp)
+                Text(tr("No routines yet", "아직 루틴이 없어요"), style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 14.5.sp, fontWeight = FontWeight.Medium))
+                WidgetSub(tr("Say \"every day at 7, brief me\" to make one.", "\"매일 7시에 브리핑해줘\"처럼 말해서 만들어요."), maxLines = 2)
+                Spacer(GlanceModifier.defaultWeight())
+                WidgetPill(tr("Make one", "만들기"), actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.ASK)), icon = R.drawable.ic_widget_add, strong = true)
+            }
         } else LazyColumn {
             items(rows, itemId = { it.id }) { row ->
-                Column(GlanceModifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                Column(GlanceModifier.fillMaxWidth()) {
                     RoutineLine(context, row, wide)
                 }
             }
@@ -80,12 +83,13 @@ private fun Routines(rows: List<RoutineRow>) {
     }
 }
 
+/** A routine: its name over a mono "when" line, and the round run button. */
 @Composable
 private fun RoutineLine(context: Context, row: RoutineRow, wide: Boolean) {
     Row(
-        GlanceModifier.fillMaxWidth().cornerRadius(16.dp).background(GlanceTheme.colors.surface)
+        GlanceModifier.fillMaxWidth().cornerRadius(16.dp)
             .clickable(actionStartActivity(WidgetLinks.open(context, null)))
-            .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
+            .padding(start = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(GlanceModifier.defaultWeight()) {
@@ -93,7 +97,7 @@ private fun RoutineLine(context: Context, row: RoutineRow, wide: Boolean) {
                 row.title,
                 style = TextStyle(
                     color = if (row.enabled) GlanceTheme.colors.onSurface else GlanceTheme.colors.onSurfaceVariant,
-                    fontSize = 14.sp,
+                    fontSize = 14.5.sp,
                     fontWeight = FontWeight.Medium,
                 ),
                 maxLines = 1,
@@ -104,14 +108,10 @@ private fun RoutineLine(context: Context, row: RoutineRow, wide: Boolean) {
                 row.next != null -> row.next
                 else -> row.whenText
             }
-            WidgetSub(detail)
+            WidgetMono(detail, GlanceTheme.colors.onSurfaceVariant, 11.5f)
         }
-        HSpace(8.dp)
-        Box(
-            GlanceModifier.size(36.dp).cornerRadius(18.dp).background(GlanceTheme.colors.primaryContainer)
-                .clickable(WidgetActions.runRoutine(context, row.id)),
-            contentAlignment = Alignment.Center,
-        ) { WidgetIcon(R.drawable.ic_widget_play, GlanceTheme.colors.onPrimaryContainer, 20.dp, tr("Run now", "지금 실행")) }
+        HSpace(6.dp)
+        WidgetRoundButton(R.drawable.ic_widget_play, WidgetActions.runRoutine(context, row.id), tr("Run now", "지금 실행"), glyph = 16.dp)
     }
 }
 

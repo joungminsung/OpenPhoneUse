@@ -12,6 +12,17 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +39,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -43,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -80,11 +93,9 @@ import kotlinx.coroutines.withContext
 import com.phoneuse.chat.Conversation
 import com.phoneuse.overlay.OverlayLifecycleOwner
 import com.phoneuse.service.PhoneUseAccessibilityService
-import com.phoneuse.ui.theme.IconBtn
 import com.phoneuse.ui.theme.PhoneUseTheme
 import com.phoneuse.ui.theme.PlexSans
 import com.phoneuse.ui.theme.PuIcons
-import com.phoneuse.ui.theme.SendCircle
 import com.phoneuse.ui.theme.isDark
 import com.phoneuse.ui.theme.pu
 import kotlinx.coroutines.CoroutineScope
@@ -108,8 +119,8 @@ object AssistSession {
 }
 
 /**
- * The side-button sheet (board AssistSheet): "이 화면으로 할 일" (five suggestions for the screen underneath, never
- * run until tapped), a chip to continue the most recent conversation, and the input, 🎤 and send. Without
+ * The side-button sheet: "이 화면에서" (three suggestions for the screen underneath, never run until tapped), a
+ * text toggle to continue the most recent conversation, and the input with one button (🎤, or send once typed). Without
  * suggestions it is "무엇을 도와드릴까요?" with the input focused and the keyboard up. Sending hides the sheet, then runs the message once the screen settles;
  * the run's progress shows in the overlay dock and the conversation is saved in the chat app.
  */
@@ -225,10 +236,13 @@ private fun AssistSheet(
         val result = onSend(text, target, false)
         if (result is SubmitResult.Blocked) notice = result.reason
     }
-    // Board AssistSheet: "이 화면으로 할 일" (null while they load); none = the plain input with the keyboard up.
+    // "이 화면에서" (null while they load); none = the plain input with the keyboard up.
     var suggestions by remember { mutableStateOf<AssistSuggestions?>(null) }
+    // The sheet rises once composed, so its first frame is never a sheet already in place.
+    var risen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        risen = true
         suggestions = loadSuggestions()
         if (suggestions?.items.isNullOrEmpty()) {
             focus.requestFocus()
@@ -246,99 +260,116 @@ private fun AssistSheet(
             .navigationBarsPadding(),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        val shape = RoundedCornerShape(26.dp)
-        Column(
-            Modifier
-                .padding(8.dp)
-                .widthIn(max = 560.dp)
-                .fillMaxWidth()
-                .shadow(16.dp, shape, ambientColor = c.glow, spotColor = c.glow)
-                .clip(shape)
-                .background(c.surface)
-                .border(1.5.dp, c.glow.copy(alpha = 0.7f), shape)
-                // Taps inside the sheet must not reach the scrim.
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                .padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+        AnimatedVisibility(
+            visible = risen,
+            enter = slideInVertically(spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow)) { it } + fadeIn(tween(160)),
         ) {
-            val loading = suggestions == null
-            Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.Bottom) {
-                Text(
-                    if (loading || shown.isNotEmpty()) tr("What to do with this screen", "이 화면으로 할 일") else tr("How can I help?", "무엇을 도와드릴까요?"),
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = c.text,
-                    modifier = Modifier.weight(1f),
-                )
-                val side = if (loading) tr("Looking at the screen…", "화면을 살펴보는 중…") else suggestions?.title.orEmpty().takeIf { shown.isNotEmpty() }
-                side?.takeIf { it.isNotEmpty() }?.let {
-                    Text(it, fontSize = 12.5.sp, color = c.textSub, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val shape = RoundedCornerShape(28.dp)
+            Column(
+                Modifier
+                    .padding(8.dp)
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .shadow(16.dp, shape, ambientColor = SheetShadow, spotColor = SheetShadow)
+                    .clip(shape)
+                    .background(c.surface)
+                    // Taps inside the sheet must not reach the scrim.
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                    .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                val loading = suggestions == null
+                val plain = !loading && shown.isEmpty()
+                Row(Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val title = suggestions?.title.orEmpty()
+                    val head = when {
+                        loading -> tr("Looking at the screen…", "화면을 살펴보는 중…")
+                        plain -> tr("How can I help?", "무엇을 도와드릴까요?")
+                        title.isEmpty() -> tr("On this screen", "이 화면에서")
+                        else -> tr("On this screen", "이 화면에서") + " · " + title
+                    }
+                    Text(
+                        head,
+                        fontSize = if (plain) 17.sp else 13.sp,
+                        fontWeight = if (plain) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (plain) c.text else c.textSub,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (recent != null) ContinueToggle(recent, chipSelected) { chipSelected = !chipSelected }
                 }
-            }
-            if (!serviceOn) ServiceBanner(onOpenAccessibility)
-            if (shown.isNotEmpty()) {
-                Column {
-                    shown.forEachIndexed { i, s ->
-                        SuggestionRow(s, last = i == shown.lastIndex) {
-                            val result = onSend(s.prompt, target, true)
-                            if (result is SubmitResult.Blocked) notice = result.reason
+                if (!serviceOn) ServiceBanner(onOpenAccessibility)
+                if (loading) SuggestionSkeleton()
+                AnimatedVisibility(
+                    visible = shown.isNotEmpty(),
+                    enter = fadeIn(tween(200)) + slideInVertically(tween(240)) { it / 6 },
+                ) {
+                    Column {
+                        shown.forEach { s ->
+                            SuggestionRow(s) {
+                                val result = onSend(s.prompt, target, true)
+                                if (result is SubmitResult.Blocked) notice = result.reason
+                            }
                         }
                     }
                 }
-            }
-            // The banner already says the service is off; other reasons (a run in progress) show here.
-            notice?.takeUnless { !serviceOn && it == AssistSender.NO_SERVICE }?.let {
-                Text(it, fontSize = 14.sp, color = c.danger, modifier = Modifier.padding(horizontal = 6.dp))
-            }
-            if (recent != null) ContinueChip(recent, chipSelected) { chipSelected = !chipSelected }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(c.sunken)
-                    .padding(4.dp),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                val placeholder = when {
-                    chipSelected -> tr("Keep talking", "이어서 말해 주세요")
-                    shown.isNotEmpty() -> tr("Or tell me yourself", "아니면 직접 말해 주세요")
-                    else -> tr("Tell me what you need", "직접 말해 주세요")
+                // The banner already says the service is off; other reasons (a run in progress) show here.
+                notice?.takeUnless { !serviceOn && it == AssistSender.NO_SERVICE }?.let {
+                    Text(it, fontSize = 14.sp, color = c.danger, modifier = Modifier.padding(horizontal = 8.dp))
                 }
-                Box(
+                Row(
                     Modifier
-                        .weight(1f)
-                        .heightIn(min = 44.dp)
-                        .padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
-                    contentAlignment = Alignment.CenterStart,
+                        .padding(top = 4.dp)
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(c.sunken)
+                        .padding(4.dp),
+                    verticalAlignment = Alignment.Bottom,
                 ) {
-                    if (text.isEmpty()) Text(placeholder, fontSize = 16.sp, lineHeight = 22.sp, color = c.textSub, maxLines = 1)
-                    BasicTextField(
-                        value = text,
-                        onValueChange = {
-                            text = it
-                            notice = null
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focus)
-                            .semantics { contentDescription = placeholder },
-                        textStyle = TextStyle(fontFamily = PlexSans, fontSize = 16.sp, lineHeight = 22.sp, color = c.text),
-                        cursorBrush = SolidColor(c.accent),
-                        maxLines = 4,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                            imeAction = ImeAction.Send,
-                        ),
-                        keyboardActions = KeyboardActions(onSend = { submit() }),
+                    val placeholder = if (chipSelected) tr("Keep talking", "이어서 말해 주세요") else tr("Say it or type it", "직접 말하거나 입력하세요")
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (text.isEmpty()) Text(placeholder, fontSize = 16.sp, lineHeight = 22.sp, color = c.textSub, maxLines = 1)
+                        BasicTextField(
+                            value = text,
+                            onValueChange = {
+                                text = it
+                                notice = null
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focus)
+                                .semantics { contentDescription = placeholder },
+                            textStyle = TextStyle(fontFamily = PlexSans, fontSize = 16.sp, lineHeight = 22.sp, color = c.text),
+                            cursorBrush = SolidColor(c.accent),
+                            maxLines = 4,
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Sentences,
+                                imeAction = ImeAction.Send,
+                            ),
+                            keyboardActions = KeyboardActions(onSend = { if (text.isNotBlank()) submit() }),
+                        )
+                    }
+                    MicOrSend(
+                        send = text.isNotBlank(),
+                        onSend = { submit() },
+                        onVoice = { onVoice(target)?.let { notice = it } },
                     )
                 }
-                IconBtn(PuIcons.Mic, tr("Voice input", "음성 입력"), onClick = { onVoice(target)?.let { notice = it } }, tint = c.textSub)
-                SendCircle(onClick = { submit() }, enabled = text.isNotBlank())
             }
         }
     }
 }
+
+/** The sheet floats over another app: a neutral shadow, never a coloured glow. */
+private val SheetShadow = androidx.compose.ui.graphics.Color(0x2E14161A)
 
 /**
  * The suggestions for the screen under the sheet, or none: when "측면 버튼 길게 누르기" is the plain input, a run is
@@ -373,54 +404,93 @@ private suspend fun loadSuggestions(): AssistSuggestions {
 }
 
 @Composable
-private fun SuggestionRow(s: AssistSuggestion, last: Boolean, onClick: () -> Unit) {
+private fun SuggestionRow(s: AssistSuggestion, onClick: () -> Unit) {
     val c = pu
-    Box(Modifier.fillMaxWidth().height(1.dp).background(c.lineSoft))
-    Row(
+    Column(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 50.dp)
+            .heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
-        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
-            Text(s.label, fontSize = 15.sp, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            // The exact request a tap sends, all of it (at most PROMPT_CHARS), so nothing written from the
-            // screen goes unseen.
-            Text(s.prompt, fontSize = 12.5.sp, lineHeight = 17.sp, color = c.textSub)
-        }
-        if (s.hint.isNotEmpty()) {
-            Text(s.hint, Modifier.padding(start = 8.dp), fontSize = 12.5.sp, color = c.textSub, maxLines = 1)
-        }
+        Text(s.label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // The exact request a tap sends, all of it (at most PROMPT_CHARS), so nothing written from the
+        // screen goes unseen.
+        Text(s.prompt, fontSize = 13.sp, lineHeight = 18.sp, color = c.textSub)
     }
-    if (last) Box(Modifier.fillMaxWidth().height(1.dp).background(c.lineSoft))
 }
 
+/** Three grey bars while the suggestions load. */
 @Composable
-private fun ContinueChip(recent: Conversation, selected: Boolean, onToggle: () -> Unit) {
+private fun SuggestionSkeleton() {
     val c = pu
-    val shape = RoundedCornerShape(18.dp)
+    val pulse by rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+        label = "pulse",
+    )
+    Column(
+        Modifier.padding(horizontal = 8.dp, vertical = 10.dp).alpha(pulse),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        listOf(0.7f, 0.55f, 0.62f).forEach { w ->
+            Box(Modifier.fillMaxWidth(w).height(14.dp).clip(RoundedCornerShape(7.dp)).background(c.segmentBg))
+        }
+    }
+}
+
+/** "이어서 하기", or the conversation it continues once on: a text button, not a chip. */
+@Composable
+private fun ContinueToggle(recent: Conversation, selected: Boolean, onToggle: () -> Unit) {
+    val c = pu
     Row(
         Modifier
-            .clip(shape)
-            .background(if (selected) c.accentSoft else c.chip)
-            .border(1.dp, if (selected) c.accentBorder else c.line, shape)
+            .heightIn(min = 40.dp)
+            .widthIn(max = 220.dp)
+            .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Checkbox, onClick = onToggle)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .semantics { contentDescription = tr("Continue: ", "이어서: ") + recent.title }
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (selected) Icon(PuIcons.Check, null, tint = c.accentText, modifier = Modifier.size(16.dp))
-        Text(tr("Continue", "이어서"), fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = if (selected) c.accentText else c.text)
-        Text(
-            recent.title,
-            fontSize = 13.5.sp,
-            color = if (selected) c.accentText else c.textSub,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 240.dp),
-        )
+        if (selected) {
+            Text(
+                recent.title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = c.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Text(tr("continued", "에 이어서"), fontSize = 13.sp, color = c.text, maxLines = 1)
+            Icon(PuIcons.Close, null, tint = c.textSub, modifier = Modifier.size(14.dp))
+        } else {
+            Text(tr("Continue", "이어서 하기"), fontSize = 13.sp, color = c.textSub, maxLines = 1)
+        }
+    }
+}
+
+/** The input's one round button: the mic while it is empty, send once there is text. */
+@Composable
+private fun MicOrSend(send: Boolean, onSend: () -> Unit, onVoice: () -> Unit) {
+    val c = pu
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(c.primary)
+            .clickable(role = Role.Button, onClick = if (send) onSend else onVoice)
+            .semantics { contentDescription = if (send) tr("Send", "보내기") else tr("Voice input", "음성 입력") },
+        contentAlignment = Alignment.Center,
+    ) {
+        Crossfade(send, animationSpec = tween(160), label = "micOrSend") { isSend ->
+            Icon(if (isSend) PuIcons.Send else PuIcons.Mic, null, tint = c.onPrimary, modifier = Modifier.size(if (isSend) 20.dp else 22.dp))
+        }
     }
 }
 

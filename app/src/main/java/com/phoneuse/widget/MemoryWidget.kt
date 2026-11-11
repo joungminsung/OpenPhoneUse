@@ -12,13 +12,15 @@ import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
-import androidx.glance.LocalSize
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
@@ -58,38 +60,34 @@ class MemoryWidget : GlanceAppWidget() {
 @Composable
 private fun MemoryContent(memories: List<Memory>?, on: Boolean) {
     val context = LocalContext.current
-    val size = LocalSize.current
     val count = memories?.size
-    WidgetRoot(padding = 12.dp) {
-        WidgetHeader(R.drawable.ic_widget_bulb, tr("Memory", "기억"), count?.let { tr("$it saved", "${it}개") })
+    val remember = actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.REMEMBER))
+    // While memory is on, the whole card is the capture button too: a tap anywhere jots something down.
+    WidgetRoot(padding = 16.dp, onClick = if (on) remember else null) {
+        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(GlanceModifier.defaultWeight()) { WidgetLabel(tr("Memory", "기억")) }
+            if (on) {
+                HSpace(8.dp)
+                WidgetRoundButton(R.drawable.ic_widget_add, remember, tr("Remember this", "기억해 줘"), strong = true)
+            }
+        }
+        VSpace(4.dp)
         if (!on) {
             WidgetSub(tr("Memory is off in Settings.", "설정에서 기억이 꺼져 있어요."), maxLines = 2)
-            VSpace(8.dp)
+            Spacer(GlanceModifier.defaultWeight())
             WidgetPill(tr("Open app", "앱 열기"), actionStartActivity(WidgetLinks.open(context, null)), icon = R.drawable.ic_widget_open)
         } else {
-            if (size.height >= 160.dp) {
-                val newest = MemoryWidget.newest(memories.orEmpty(), 3)
+            // The two newest memories take what room the cell has; a short cell clips them and keeps the count.
+            Column(GlanceModifier.fillMaxWidth().defaultWeight()) {
+                val newest = MemoryWidget.newest(memories.orEmpty(), 2)
                 if (newest.isEmpty()) {
-                    WidgetSub(tr("Things you ask me to remember show up here.", "기억해 달라고 한 것이 여기에 보여요."), maxLines = 2)
+                    WidgetSub(tr("Jot down anything to keep.", "기억할 것을 바로 적어 두세요."), maxLines = 2)
                 }
                 newest.forEach { m ->
-                    Row(GlanceModifier.fillMaxWidth().padding(bottom = 4.dp)) {
-                        Text("•  ", style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 13.sp))
-                        Text(m.text, style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 13.sp), maxLines = 1, modifier = GlanceModifier.defaultWeight())
-                    }
+                    Text(m.text, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 14.5.sp), maxLines = 1, modifier = GlanceModifier.padding(bottom = 4.dp))
                 }
-                VSpace(6.dp)
-            } else {
-                WidgetSub(tr("Jot down anything to keep.", "기억할 것을 바로 적어 두세요."), maxLines = 2)
-                VSpace(8.dp)
             }
-            WidgetPill(
-                tr("Remember this", "기억해 줘"),
-                actionStartActivity(WidgetLinks.quickAsk(context, QuickAskMode.REMEMBER)),
-                GlanceModifier.fillMaxWidth(),
-                icon = R.drawable.ic_widget_add,
-                strong = true,
-            )
+            if (count != null) WidgetSub(tr("$count saved", "${count}개 저장됨"), size = 12.5f)
         }
     }
 }

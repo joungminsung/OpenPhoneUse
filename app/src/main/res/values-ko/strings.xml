@@ -4,10 +4,10 @@
     <!-- 홈 화면 위젯 -->
     <string name="widget_ask_label">물어보기 바</string>
     <string name="widget_ask_description">글이나 말로 할 일을 맡기고, 지금 물어볼 만한 것을 추천받아요</string>
-    <string name="widget_ask_preview">OpenPhoneUse에게 물어보기</string>
+    <string name="widget_ask_preview">무엇이든 시켜보세요</string>
     <string name="widget_live_label">진행 중인 작업</string>
     <string name="widget_live_description">지금 작업을 단계별로 보고 홈 화면에서 멈춰요</string>
-    <string name="widget_live_preview">작업 중 · 3단계</string>
+    <string name="widget_live_preview">절전 모드를 켜는 중 · 2단계</string>
     <string name="widget_brief_label">오늘 브리핑</string>
     <string name="widget_brief_description">남은 하루를 AI가 정리해요. 백그라운드에서 새로 고쳐요</string>
     <string name="widget_brief_preview">다음 일정은 15:00 팀 회의, 그 뒤로 1개 더. 알람 07:00.</string>
@@ -20,4 +20,24 @@
     <string name="widget_memory_label">기억해 줘</string>
     <string name="widget_memory_description">OpenPhoneUse가 기억할 것을 바로 적어요</string>
     <string name="widget_memory_preview">기억해 줘</string>
+    <string name="widget_actions_preview_1">1시간 무음</string>
+    <string name="widget_actions_preview_2">집으로 길안내</string>
+    <string name="widget_actions_preview_3">알림 요약</string>
+    <string name="widget_actions_preview_4">내일 일정</string>
+    <string name="widget_actions_preview_5">7시 알람</string>
+    <string name="widget_actions_preview_6">절전 모드</string>
+    <string name="widget_live_preview_title">배터리 아끼기</string>
+    <string name="widget_live_preview_stop">중단</string>
+    <string name="widget_brief_preview_date">11월 11일 화 · 5분 전</string>
+    <string name="widget_brief_preview_source">폰 정보로 AI가 정리</string>
+    <string name="widget_brief_preview_more">자세히</string>
+    <string name="widget_routines_preview_count">2개 켜짐</string>
+    <string name="widget_routines_preview_1_title">아침 브리핑</string>
+    <string name="widget_routines_preview_1_when">오늘 07:00 · 매일 07:00</string>
+    <string name="widget_routines_preview_2_title">자기 전 정리</string>
+    <string name="widget_routines_preview_2_when">오늘 23:00 · 매일 23:00</string>
+    <string name="widget_memory_preview_title">기억</string>
+    <string name="widget_memory_preview_1">엄마 생일은 3월 12일</string>
+    <string name="widget_memory_preview_2">회사는 강남역 근처</string>
+    <string name="widget_memory_preview_count">24개 저장됨</string>
 </resources>

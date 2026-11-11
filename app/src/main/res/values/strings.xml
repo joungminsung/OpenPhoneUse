@@ -5,10 +5,10 @@
     <!-- Home-screen widgets: picker label, description and preview text. -->
     <string name="widget_ask_label">Ask bar</string>
     <string name="widget_ask_description">Type or say a task; chips suggest what to ask right now</string>
-    <string name="widget_ask_preview">Ask OpenPhoneUse</string>
+    <string name="widget_ask_preview">Ask me anything</string>
     <string name="widget_live_label">Live task</string>
     <string name="widget_live_description">Follow the current task step by step and stop it from the home screen</string>
-    <string name="widget_live_preview">Working on it · Step 3</string>
+    <string name="widget_live_preview">Turning on battery saver · Step 2</string>
     <string name="widget_brief_label">Today brief</string>
     <string name="widget_brief_description">An AI summary of the rest of your day, refreshed in the background</string>
     <string name="widget_brief_preview">Next up: Team sync at 15:00, then 1 more. Alarm 07:00.</string>
@@ -21,4 +21,24 @@
     <string name="widget_memory_label">Remember this</string>
     <string name="widget_memory_description">Jot something down for OpenPhoneUse to remember</string>
     <string name="widget_memory_preview">Remember this</string>
+    <string name="widget_actions_preview_1">Silent 1h</string>
+    <string name="widget_actions_preview_2">Go home</string>
+    <string name="widget_actions_preview_3">Alerts</string>
+    <string name="widget_actions_preview_4">Tomorrow</string>
+    <string name="widget_actions_preview_5">Alarm 7:00</string>
+    <string name="widget_actions_preview_6">Battery saver</string>
+    <string name="widget_live_preview_title">Save battery</string>
+    <string name="widget_live_preview_stop">Stop</string>
+    <string name="widget_brief_preview_date">Tue, Nov 11 · 5 min ago</string>
+    <string name="widget_brief_preview_source">Written by AI from your phone</string>
+    <string name="widget_brief_preview_more">More</string>
+    <string name="widget_routines_preview_count">2 on</string>
+    <string name="widget_routines_preview_1_title">Morning brief</string>
+    <string name="widget_routines_preview_1_when">Today 07:00 · Every day 07:00</string>
+    <string name="widget_routines_preview_2_title">Wind down</string>
+    <string name="widget_routines_preview_2_when">Today 23:00 · Every day 23:00</string>
+    <string name="widget_memory_preview_title">Memory</string>
+    <string name="widget_memory_preview_1">Mom\'s birthday: Mar 12</string>
+    <string name="widget_memory_preview_2">Office: Gangnam</string>
+    <string name="widget_memory_preview_count">24 saved</string>
 </resources>

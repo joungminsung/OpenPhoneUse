@@ -78,7 +78,7 @@ class WidgetLogicTest {
     @Test
     fun gridFitsTheSize() {
         assertEquals(2 to 1, QuickActionsWidget.grid(180f, 110f))
-        assertEquals(3 to 1, QuickActionsWidget.grid(300f, 110f))
-        assertEquals(3 to 2, QuickActionsWidget.grid(300f, 220f))
+        assertEquals(4 to 1, QuickActionsWidget.grid(300f, 110f))
+        assertEquals(4 to 2, QuickActionsWidget.grid(300f, 220f))
     }
 }

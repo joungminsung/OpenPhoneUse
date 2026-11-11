@@ -26,11 +26,13 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxHeight
+import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
-import androidx.glance.layout.size
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.phoneuse.R
 import com.phoneuse.i18n.tr
@@ -56,8 +58,11 @@ class QuickActionsWidget : GlanceAppWidget() {
         private val TALL = DpSize(180.dp, 200.dp)
         private val LARGE = DpSize(280.dp, 200.dp)
 
-        /** Columns and rows for a widget of [widthDp] x [heightDp]. */
-        fun grid(widthDp: Float, heightDp: Float): Pair<Int, Int> = (if (widthDp >= 260f) 3 else 2) to (if (heightDp >= 190f) 2 else 1)
+        /**
+         * Columns and rows for a widget of [widthDp] x [heightDp]: four across from the wide bucket up (the real
+         * widget is at least that wide, usually wider), two on a narrow one.
+         */
+        fun grid(widthDp: Float, heightDp: Float): Pair<Int, Int> = (if (widthDp >= 260f) 4 else 2) to (if (heightDp >= 190f) 2 else 1)
     }
 }
 
@@ -67,49 +72,50 @@ private fun Grid(tiles: List<QuickTile>) {
     val size = LocalSize.current
     val (cols, rows) = QuickActionsWidget.grid(size.width.value, size.height.value)
     val shown = tiles.take(cols * rows)
-    WidgetRoot(padding = 10.dp) {
-        Row(GlanceModifier.fillMaxWidth().padding(start = 4.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            WidgetIcon(R.drawable.ic_widget_bolt, GlanceTheme.colors.primary, 16.dp)
-            HSpace(6.dp)
-            Text(tr("Quick actions", "빠른 실행"), style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 1, modifier = GlanceModifier.defaultWeight())
-            Box(
-                GlanceModifier.size(28.dp).cornerRadius(14.dp).clickable(actionStartActivity(configIntent(context))),
-                contentAlignment = Alignment.Center,
-            ) { WidgetIcon(R.drawable.ic_widget_edit, GlanceTheme.colors.onSurfaceVariant, 16.dp, tr("Edit", "편집")) }
-        }
-        shown.chunked(cols).forEachIndexed { r, row ->
-            if (r > 0) VSpace(6.dp)
-            Row(GlanceModifier.fillMaxWidth().defaultWeight()) {
-                row.forEachIndexed { c, tile ->
-                    if (c > 0) HSpace(6.dp)
-                    Tile(context, tile, highlight = r == 0 && c == 0, modifier = GlanceModifier.defaultWeight().fillMaxHeight())
-                }
-                // Keep a short last row's tiles the same width as the rows above.
-                repeat(cols - row.size) {
-                    HSpace(6.dp)
-                    Box(GlanceModifier.defaultWeight()) {}
+    WidgetRoot(padding = 8.dp) {
+        Row(GlanceModifier.fillMaxSize()) {
+            Column(GlanceModifier.defaultWeight().fillMaxHeight()) {
+                shown.chunked(cols).forEachIndexed { r, row ->
+                    if (r > 0) VSpace(6.dp)
+                    Row(GlanceModifier.fillMaxWidth().defaultWeight()) {
+                        row.forEachIndexed { c, tile ->
+                            if (c > 0) HSpace(6.dp)
+                            Tile(context, tile, GlanceModifier.defaultWeight().fillMaxHeight())
+                        }
+                        // Keep a short last row's tiles the same width as the rows above.
+                        repeat(cols - row.size) {
+                            HSpace(6.dp)
+                            Box(GlanceModifier.defaultWeight()) {}
+                        }
+                    }
                 }
             }
+            // The tile editor: a quiet pencil column at the end, a full 44dp wide.
+            Box(
+                GlanceModifier.width(44.dp).fillMaxHeight().cornerRadius(20.dp).clickable(actionStartActivity(configIntent(context))),
+                contentAlignment = Alignment.Center,
+            ) { WidgetIcon(R.drawable.ic_widget_edit, GlanceTheme.colors.onSurfaceVariant, 18.dp, tr("Edit", "편집")) }
         }
     }
 }
 
+/** A tile: the accent glyph over its label, on the grey fill (prompts have no on/off state to show). */
 @Composable
-private fun Tile(context: Context, tile: QuickTile, highlight: Boolean, modifier: GlanceModifier) {
-    val bg = if (highlight) GlanceTheme.colors.primaryContainer else GlanceTheme.colors.secondaryContainer
-    val fg = if (highlight) GlanceTheme.colors.onPrimaryContainer else GlanceTheme.colors.onSecondaryContainer
+private fun Tile(context: Context, tile: QuickTile, modifier: GlanceModifier) {
     Column(
-        modifier.cornerRadius(18.dp).background(bg)
+        modifier.cornerRadius(20.dp).background(GlanceTheme.colors.surfaceVariant)
             .clickable(actionStartActivity(WidgetLinks.prompt(context, WidgetPrompt(tile.prompt, typed = false))))
-            .padding(10.dp),
-        verticalAlignment = Alignment.Top,
+            .padding(horizontal = 6.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            GlanceModifier.size(28.dp).cornerRadius(14.dp).background(GlanceTheme.colors.surface),
-            contentAlignment = Alignment.Center,
-        ) { WidgetIcon(tile.icon.drawable(), GlanceTheme.colors.primary, 16.dp) }
-        VSpace(6.dp)
-        Text(tile.label, style = TextStyle(color = fg, fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 2)
+        WidgetIcon(tile.icon.drawable(), GlanceTheme.colors.primary, 22.dp)
+        VSpace(5.dp)
+        Text(
+            tile.label,
+            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
+            maxLines = 2,
+        )
     }
 }
 

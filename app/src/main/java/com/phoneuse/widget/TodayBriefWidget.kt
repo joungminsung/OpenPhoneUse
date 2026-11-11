@@ -25,7 +25,6 @@ import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxWidth
-import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -69,54 +68,63 @@ private fun Brief(state: BriefState) {
         state.at > 0 -> WidgetText.ago(now, state.at)
         else -> null
     }
-    WidgetRoot(onClick = actionStartActivity(WidgetLinks.open(context, null))) {
-        Row(GlanceModifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                GlanceModifier.size(26.dp).cornerRadius(13.dp).background(GlanceTheme.colors.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) { WidgetIcon(R.drawable.ic_widget_spark, GlanceTheme.colors.onPrimaryContainer, 16.dp) }
-            HSpace(8.dp)
-            androidx.glance.layout.Column(GlanceModifier.defaultWeight()) {
-                Text(
-                    WidgetText.greeting(ZonedDateTime.now().hour),
-                    style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                    maxLines = 1,
-                )
-                if (stamp != null) WidgetSub(stamp)
-            }
-            Box(
-                GlanceModifier.size(32.dp).cornerRadius(16.dp).background(GlanceTheme.colors.secondaryContainer)
-                    .clickable(WidgetActions.refreshBrief(context)),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (state.refreshing) {
-                    CircularProgressIndicator(GlanceModifier.size(16.dp), color = GlanceTheme.colors.primary)
-                } else {
-                    WidgetIcon(R.drawable.ic_widget_refresh, GlanceTheme.colors.onSecondaryContainer, 18.dp, tr("Refresh", "새로고침"))
-                }
+    val large = size.height >= 210.dp
+    val roomy = size.height >= 140.dp
+    WidgetRoot(padding = if (large) 20.dp else 16.dp, onClick = actionStartActivity(WidgetLinks.open(context, null))) {
+        // The date in mono with when the brief was written; on a short widget the refresh button sits beside it.
+        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            WidgetMono(
+                WidgetText.date(ZonedDateTime.now()) + (stamp?.let { " · $it" } ?: ""),
+                GlanceTheme.colors.onSurfaceVariant,
+                12.5f,
+                GlanceModifier.defaultWeight(),
+            )
+            if (!roomy) {
+                HSpace(8.dp)
+                RefreshButton(state.refreshing)
             }
         }
-        val lines = when {
-            size.height >= 210.dp -> 8
-            size.height >= 140.dp -> 5
-            else -> 3
-        }
+        VSpace(if (roomy) 8.dp else 4.dp)
         Text(
             state.text.ifEmpty { tr("Writing today's brief…", "오늘 브리핑을 쓰고 있어요…") },
-            style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 14.sp),
-            maxLines = lines,
+            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = if (large) 17.sp else 15.sp, fontWeight = FontWeight.Medium),
+            maxLines = when {
+                large -> 5
+                roomy -> 2
+                else -> 1
+            },
             modifier = GlanceModifier.defaultWeight(),
         )
-        if (size.height >= 140.dp) {
+        if (roomy) {
             VSpace(6.dp)
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                WidgetSub(if (state.ai) tr("Written by AI from your phone", "폰 정보로 AI가 정리") else tr("From your phone", "폰 정보로 정리"), modifier = GlanceModifier.defaultWeight())
+                WidgetSub(if (state.ai) tr("Written by AI from your phone", "폰 정보로 AI가 정리") else tr("From your phone", "폰 정보로 정리"), modifier = GlanceModifier.defaultWeight(), size = 12.5f)
+                HSpace(8.dp)
                 WidgetPill(
                     tr("More", "자세히"),
                     actionStartActivity(WidgetLinks.prompt(context, WidgetPrompt(BriefingText.TODAY_PROMPT, typed = false))),
                     icon = R.drawable.ic_widget_open,
                 )
+                HSpace(8.dp)
+                RefreshButton(state.refreshing)
             }
+        }
+    }
+}
+
+/** The round refresh button; a spinner while the brief is being rewritten. */
+@Composable
+private fun RefreshButton(refreshing: Boolean) {
+    val context = LocalContext.current
+    Box(
+        GlanceModifier.size(44.dp).cornerRadius(22.dp).background(GlanceTheme.colors.surfaceVariant)
+            .clickable(WidgetActions.refreshBrief(context)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (refreshing) {
+            CircularProgressIndicator(GlanceModifier.size(16.dp), color = GlanceTheme.colors.primary)
+        } else {
+            WidgetIcon(R.drawable.ic_widget_refresh, GlanceTheme.colors.onSurface, 18.dp, tr("Refresh", "새로고침"))
         }
     }
 }

@@ -84,9 +84,9 @@ import com.phoneuse.ui.theme.pu
 import kotlinx.coroutines.delay
 
 /** The agent-activity blue stays the same in light and dark (OverlayRunning board). */
-private val GlowEdge = Color(0xFF8EC5FF)
-private val GlowSoft = Color(0xFF6EAAFF)
-private val HaloBlue = Color(0xFF2563EB)
+private val GlowEdge = Color(0xFFE4572E)
+private val GlowSoft = Color(0xFFF08A66)
+private val Halo = Color(0xFFE4572E)
 
 private const val GLOW_STEPS = 24
 private const val CORNER_DP = 36f
@@ -300,7 +300,7 @@ private fun StatusDot(live: Boolean) {
         0.16f
     }
     Box(Modifier.size(19.dp), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(19.dp).clip(CircleShape).background(HaloBlue.copy(alpha = halo)))
+        Box(Modifier.size(19.dp).clip(CircleShape).background(Halo.copy(alpha = halo)))
         Box(Modifier.size(9.dp).clip(CircleShape).background(pu.text))
     }
 }

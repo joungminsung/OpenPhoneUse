@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.paneTitle
@@ -65,16 +65,16 @@ fun VoiceSheet(voice: VoiceInput, autoStart: Boolean, onDismiss: () -> Unit) {
             enter = fadeIn(tween(200)) + slideInVertically(tween(260)) { it / 3 },
             exit = fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 3 },
         ) {
-            val shape = RoundedCornerShape(26.dp)
+            val shape = RoundedCornerShape(28.dp)
             Column(
                 Modifier
                     .padding(8.dp)
                     .widthIn(max = 560.dp)
                     .fillMaxWidth()
-                    .shadow(16.dp, shape, ambientColor = c.glow, spotColor = c.glow)
+                    // Like the side-button sheet: a neutral shadow, never a coloured glow.
+                    .shadow(16.dp, shape, ambientColor = Color(0x2E14161A), spotColor = Color(0x2E14161A))
                     .clip(shape)
                     .background(c.surface)
-                    .border(1.5.dp, c.glow.copy(alpha = 0.7f), shape)
                     // Taps inside the card must not reach the scrim.
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                     .semantics { paneTitle = tr("Voice input", "음성 입력") }
