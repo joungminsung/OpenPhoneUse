@@ -93,8 +93,9 @@ jobs:
         run: |
           apk=app/build/outputs/apk/release/app-release.apk
           tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)"
-          cert="$("$tools/apksigner" verify --print-certs "$apk" \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          "$tools/apksigner" verify --print-certs "$apk" > "$RUNNER_TEMP/certs.txt" 2>&1
+          cat "$RUNNER_TEMP/certs.txt"
+          cert="$(grep -m1 -oE 'certificate SHA-256 digest: [0-9a-f]{64}' "$RUNNER_TEMP/certs.txt" | grep -oE '[0-9a-f]{64}' || true)"
           echo "certificate: $cert"
           test "$cert" = "$EXPECTED_CERT"
           built="$("$tools/aapt2" dump badging "$apk" | sed -n "s/^package: .* versionName='\([^']*\)'.*/\1/p")"

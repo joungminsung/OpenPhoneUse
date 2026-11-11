@@ -38,8 +38,9 @@ jobs:
         run: |
           tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)"
           echo "BUILD_TOOLS=$tools" >> "$GITHUB_ENV"
-          cert="$("$tools/apksigner" verify --print-certs OpenPhoneUse.apk \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          "$tools/apksigner" verify --print-certs OpenPhoneUse.apk > certs.txt 2>&1
+          cat certs.txt
+          cert="$(grep -m1 -oE 'certificate SHA-256 digest: [0-9a-f]{64}' certs.txt | grep -oE '[0-9a-f]{64}' || true)"
           echo "certificate: $cert"
           test "$cert" = "$EXPECTED_CERT"
 
