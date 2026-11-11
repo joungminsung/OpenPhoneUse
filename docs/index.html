@@ -1452,8 +1452,8 @@ footer .disc { width: 100%; font-size: 12.5px; color: rgba(255, 255, 255, .35); 
     const mobile = innerWidth < 820, Hh = stage.clientHeight, half = device.offsetHeight / 2;
     let s0 = mobile ? .8 : .78;
     const top0 = heroCopy.offsetTop + heroCopy.offsetHeight + (mobile ? 30 : 44);
-    // On a short desktop screen, shrink the phone so all of it shows under the copy.
-    if (!mobile) s0 = clamp((Hh - top0 - 20) / (half * 2), .46, s0);
+    // On a short desktop screen, shrink the phone a little so about 70% of it shows under the copy; the bottom runs off the screen.
+    if (!mobile) s0 = clamp((Hh - top0 - 10) / (half * 2 * .7), .6, s0);
     geo = { mobile, H: Hh, half, s0, ty0: top0 - Hh / 2 + half * s0 };
     horizon.style.top = (top0 + half * s0 * .95) + 'px';
   }
