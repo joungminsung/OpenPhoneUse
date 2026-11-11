@@ -10,8 +10,8 @@ abstract: >-
   the user asked for that one recoverable item and before sending unless the user named the recipient
   and the text, and never types passwords, handing that step to the user.
 type: software
-version: "0.0.1"
-date-released: "2026-11-04"
+version: "0.0.2"
+date-released: "2026-11-11"
 authors:
   - alias: joungminsung
 repository-code: "https://github.com/joungminsung/openphoneuse"
