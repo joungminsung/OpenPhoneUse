@@ -9,3 +9,4 @@ interface UserGate {
     /** Returns once the user presses the done button. */
     suspend fun handToUser(reason: String)
 }
+
