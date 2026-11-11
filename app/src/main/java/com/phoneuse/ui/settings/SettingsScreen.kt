@@ -178,6 +178,7 @@ fun SettingsScreen(
     var exporting by remember { mutableStateOf(false) }
     // A shorter retention that would delete conversations at once: (days, how many) until confirmed.
     var shorten by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val modelAuto by settings.modelAuto.collectAsState(true)
     val retention by settings.retentionDays.collectAsState(0)
     val confirmSend by settings.confirmSend.collectAsState(true)
     val riskJudge by settings.riskJudge.collectAsState(true)
@@ -227,7 +228,7 @@ fun SettingsScreen(
 
             Section("AI")
             Group {
-                ValueRow(tr("Default model", "기본 모델"), modelDisplayName(model), onClick = onOpenModelSheet, first = true)
+                ValueRow(tr("Default model", "기본 모델"), (if (modelAuto) tr("Auto · ", "자동 · ") else "") + modelDisplayName(model), onClick = onOpenModelSheet, first = true)
                 if (ModelProviders.supportsFast(account.mode)) SwitchRow(FAST_MODE_LABEL, tr("Faster answers, uses your plan or credits faster", "답이 빨라지고 요금제나 크레딧을 더 빨리 써요"), fast) { v -> scope.launch { settings.setFastMode(v) } }
                 ValueRow(REASONING_EFFORT_LABEL, EFFORT_OPTIONS.first { it.first == effort }.second, onClick = onOpenModelSheet)
                 SwitchRow(tr("Web search", "웹 검색"), tr("Looks things up on the web when needed and shows sources", "필요하면 웹에서 찾아보고 출처를 보여줘요"), webSearch) { v -> scope.launch { settings.setWebSearch(v) } }

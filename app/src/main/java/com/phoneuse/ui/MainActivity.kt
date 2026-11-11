@@ -409,6 +409,7 @@ private fun AppRoot(
         .takeIf { it.isNotEmpty() }?.joinToString(" · ", postfix = tr(" connected", " 연결됨")).orEmpty()
 
     val model by settings.model.collectAsState(SettingsStore.DEFAULT_MODEL)
+    val modelAuto by settings.modelAuto.collectAsState(true)
     val fast by settings.fastMode.collectAsState(SettingsStore.DEFAULT_FAST_MODE)
     val effort by settings.reasoningEffort.collectAsState(ReasoningEffort.MEDIUM)
     val authMode by settings.authMode.collectAsState(null)
@@ -438,7 +439,10 @@ private fun AppRoot(
         if (key.isBlank()) return@produceState
         val shown = value
         value = try {
-            shown.copy(listed = ModelProviders.listModels(mode, key, AppGraph.http))
+            val listed = ModelProviders.listModels(mode, key, AppGraph.http)
+            // A newer model of the default's family becomes the default, unless one was picked.
+            settings.rememberListedModels(mode, listed)
+            shown.copy(listed = listed, defaultModel = ModelProviders.upgrades(mode, listed).first ?: shown.defaultModel)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -804,6 +808,8 @@ private fun AppRoot(
             fast = fast,
             effort = effort,
             onModel = { scope.launch { settings.setModel(it) } },
+            auto = modelAuto,
+            onAuto = { scope.launch { settings.setModelAuto() } },
             onFast = { scope.launch { settings.setFastMode(it) } },
             onEffort = { scope.launch { settings.setReasoningEffort(it) } },
             onDismiss = { sheetOpen = false },

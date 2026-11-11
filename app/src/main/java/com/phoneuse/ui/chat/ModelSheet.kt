@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -91,6 +92,8 @@ fun ModelSheet(
     onEffort: (ReasoningEffort) -> Unit,
     onDismiss: () -> Unit,
     choices: ModelChoices = ModelChoices(),
+    auto: Boolean = false,
+    onAuto: (() -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -102,7 +105,7 @@ fun ModelSheet(
             Box(Modifier.padding(top = 10.dp, bottom = 10.dp).size(36.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(pu.inputBorder))
         },
     ) {
-        ModelSettingsContent(model, fast, effort, onModel, onFast, onEffort, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 28.dp), choices)
+        ModelSettingsContent(model, fast, effort, onModel, onFast, onEffort, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 28.dp), choices, auto, onAuto)
     }
 }
 
@@ -116,6 +119,8 @@ fun ModelSettingsContent(
     onEffort: (ReasoningEffort) -> Unit,
     modifier: Modifier = Modifier,
     choices: ModelChoices = ModelChoices(),
+    auto: Boolean = false,
+    onAuto: (() -> Unit)? = null,
 ) {
     val c = pu
     val context = LocalContext.current
@@ -138,9 +143,35 @@ fun ModelSettingsContent(
                 textDecoration = TextDecoration.Underline,
             )
         }
+        // "자동": follows the newest of the default's family; any row below pins that model, today's newest too.
+        if (onAuto != null) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 60.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (auto) c.accentSoft else Color.Transparent)
+                    .selectable(selected = auto, role = Role.RadioButton) { onAuto(); custom = false }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PuRadio(auto)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        tr("Auto · always the newest", "자동 · 항상 최신 모델"),
+                        fontSize = 15.sp,
+                        fontWeight = if (auto) FontWeight.Medium else FontWeight.Normal,
+                        color = c.text,
+                        maxLines = 1,
+                    )
+                    Text(tr("Now: ", "지금: ") + modelDisplayName(choices.defaultModel), fontSize = 12.5.sp, color = c.textSub, maxLines = 1)
+                }
+            }
+        }
         val options = if (model in known) known else known + model
         for (id in options) {
-            val on = id == model
+            val on = id == model && !(onAuto != null && auto)
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -161,7 +192,7 @@ fun ModelSettingsContent(
                     color = c.text,
                     maxLines = 1,
                 )
-                if (id == choices.defaultModel) {
+                if (onAuto == null && id == choices.defaultModel) {
                     Text(
                         tr("Default", "기본"),
                         Modifier

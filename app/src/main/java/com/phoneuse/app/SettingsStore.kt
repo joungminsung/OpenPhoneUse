@@ -242,12 +242,35 @@ class SettingsStore internal constructor(
         store.edit { it.remove(LEGACY_API_KEY) }
     }
 
+    /** Keeps [v] as the chosen model, also when it is today's newest; empty = back to [setModelAuto]. */
     suspend fun setModel(v: String) {
         store.edit { prefs ->
-            val mode = modeOf(prefs)
-            prefs[ModelProviders.modelPref(mode)] = v.trim().ifEmpty { ModelProviders.defaultModel(mode) }
+            val key = ModelProviders.modelPref(modeOf(prefs))
+            val id = v.trim()
+            if (id.isEmpty()) prefs.remove(key) else prefs[key] = id
         }
     }
+
+    /** "자동": no model is kept, so the newest of the default's family is used (see [ModelUpgrade]). */
+    suspend fun setModelAuto() {
+        store.edit { prefs -> prefs.remove(ModelProviders.modelPref(modeOf(prefs))) }
+    }
+
+    /** True while no model is chosen and the newest is followed. */
+    val modelAuto: Flow<Boolean> = store.data.map { it[ModelProviders.modelPref(modeOf(it))].isNullOrBlank() }
+
+    /** Keeps the newest default and light model of [mode] that its own model list [listed] holds. */
+    suspend fun rememberListedModels(mode: AuthMode, listed: List<String>) {
+        if (listed.isEmpty()) return
+        val (default, light) = ModelProviders.upgrades(mode, listed)
+        store.edit { prefs ->
+            if (default != null) prefs[ModelProviders.autoPref(mode)] = default else prefs.remove(ModelProviders.autoPref(mode))
+            if (light != null) prefs[ModelProviders.autoLightPref(mode)] = light else prefs.remove(ModelProviders.autoLightPref(mode))
+        }
+    }
+
+    /** The quick model of the chosen provider, following its newest; null = it has none. */
+    val lightModel: Flow<String?> = store.data.map { ModelProviders.lightModel(it, modeOf(it)) }
 
     private fun modeOf(prefs: Preferences): AuthMode =
         prefs[AUTH_MODE]?.let { s -> AuthMode.entries.firstOrNull { it.name == s } } ?: AuthMode.CHATGPT
