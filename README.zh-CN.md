@@ -19,7 +19,7 @@
 ![Platform](https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
-![Tests](https://img.shields.io/badge/unit%20tests-1341%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-1351%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#基准测试)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Website](https://img.shields.io/badge/%E7%BD%91%E7%AB%99-joungminsung.github.io%2FOpenPhoneUse-ff5a2a)](https://joungminsung.github.io/OpenPhoneUse/)

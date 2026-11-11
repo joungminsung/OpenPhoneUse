@@ -222,7 +222,7 @@ routines, and a "remember this" memory capture.
 
 ## Tests
 
-`app/src/test` holds more than 1,100 JVM unit tests. They use the following fakes:
+`app/src/test` holds more than 1,300 JVM unit tests. They use the following fakes:
 
 - `FakeDeviceController`, a scripted list of screens;
 - `FakeUserGate`;

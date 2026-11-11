@@ -4,6 +4,11 @@ All notable changes to OpenPhoneUse are listed here, newest first. The format fo
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-11-11
+
+- **The default model follows new releases.** The model sheet has an "Auto · always the newest" choice at the top. While it is on, the default moves to the highest-numbered model of the same family in your provider's own list (for example GPT-6.1 Terra to GPT-6.2 Terra), and the lighter model used for routine steps follows the same way. Tiers, previews and dated snapshots never replace one another. Picking a model by hand keeps it until you choose Auto again. With an OpenAI key, the list now shows only chat models.
+- **Updated libraries.** Jetpack Compose, the Android Gradle Plugin 9.5, Kotlin 2.4.21, OkHttp 5 and the Anthropic SDK 3.6 are updated, and the app now compiles against Android 37. It still targets Android 36, so nothing changes in how it behaves on your phone.
+
 ## [0.0.2] - 2026-11-11
 
 - **A calmer look.** The side-button sheet rises from the bottom with a plain shadow instead of a blue glow, shows three suggestions for the screen, and has one button that is the mic while the box is empty and send once you type. "Continue" is a text toggle at the top. The six home-screen widgets are redrawn, and the widget list now shows what each one looks like. Accents are down to one orange: the blue edge glow, purple memory and security cards, amber payment cards and green checks are gone. The other screens are unchanged.
@@ -26,5 +31,6 @@ First release.
 
 Anyone with an earlier test build must uninstall it first: those were signed with a different key and carry a higher version code.
 
+[0.0.3]: https://github.com/joungminsung/openphoneuse/releases/tag/v0.0.3
 [0.0.2]: https://github.com/joungminsung/openphoneuse/releases/tag/v0.0.2
 [0.0.1]: https://github.com/joungminsung/openphoneuse/releases/tag/v0.0.1
