@@ -22,6 +22,7 @@
 ![Tests](https://img.shields.io/badge/unit%20tests-1341%20passing-brightgreen)
 [![Benchmark](https://img.shields.io/badge/benchmark-94.5%2F100-orange)](#벤치마크)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Website](https://img.shields.io/badge/%EC%9B%B9%EC%82%AC%EC%9D%B4%ED%8A%B8-joungminsung.github.io%2FOpenPhoneUse-ff5a2a)](https://joungminsung.github.io/OpenPhoneUse/)
 [![Downloads](https://img.shields.io/github/downloads/joungminsung/openphoneuse/total?label=downloads&color=3DDC84)](https://github.com/joungminsung/openphoneuse/releases)
 ![Views](https://hits.sh/github.com/joungminsung/openphoneuse.svg?label=views&color=4c8bf5)
 
