@@ -49,7 +49,7 @@ By contributing you agree that your work is released under the project's [MIT li
 | You need | Notes |
 |---|---|
 | JDK 17 or newer | CI uses Temurin 17. Android Studio's bundled JBR works. |
-| Android SDK with platform 36 | `compileSdk` and `targetSdk` are 36, `minSdk` is 30 (Android 11). |
+| Android SDK with platforms 36 and 37 | `compileSdk` is 37, `targetSdk` is 36, `minSdk` is 30 (Android 11). |
 | Gradle | Nothing to install. The wrapper (`./gradlew`) downloads the right version. |
 | A device or emulator running Android 11 or newer | Only to run the app. Unit tests need no device. |
 | A model to sign in with | Only to run the agent: a ChatGPT plan, or your own OpenAI, Claude, Grok or Gemini API key. |
