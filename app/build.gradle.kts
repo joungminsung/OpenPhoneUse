@@ -15,8 +15,8 @@ android {
         applicationId = "com.phoneuse"
         minSdk = 30
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.0.3"
+        versionCode = 4
+        versionName = "0.0.4"
     }
 
     // The release key stays outside the repository: in ~/.openphoneuse/keystore.properties on the maintainer's
@@ -41,7 +41,9 @@ android {
     }
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
         }
     }
@@ -57,6 +59,10 @@ android {
             it.systemProperty("user.language", "ko")
             it.systemProperty("user.country", "KR")
         }
+    }
+    // Compressed dex keeps the download small enough to attach to an email (about 75MB uncompressed).
+    packaging {
+        dex { useLegacyPackaging = true }
     }
     buildFeatures {
         compose = true
