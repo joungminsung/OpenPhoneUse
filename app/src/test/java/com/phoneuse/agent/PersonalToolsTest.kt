@@ -58,12 +58,15 @@ class PersonalToolsTest {
     private val alarms = mutableListOf<String>()
     private val timers = mutableListOf<Int>()
     private var nextAlarm: ZonedDateTime? = null
+    // A fixed Wednesday noon: with the real clock, a one-time 7:00 and a Monday/Friday 7:00 meet on Friday morning
+    // when the tests run on a Thursday, and the tool then rightly reports an alarm already due at that minute.
+    private val clock = ZonedDateTime.of(2026, 11, 11, 12, 0, 0, 0, java.time.ZoneId.of("Asia/Seoul"))
     private val alarm = object : AlarmSource {
         override fun next(): ZonedDateTime? = nextAlarm
         override fun set(hour: Int, minute: Int, label: String, days: List<DayOfWeek>): Boolean {
             alarms += "$hour:$minute" + days.joinToString("") { " $it" }
             // The first ring, as the clock app would have it: later today, or tomorrow.
-            val now = ZonedDateTime.now()
+            val now = clock
             var at = now.withHour(hour).withMinute(minute).let { if (it.isAfter(now)) it else it.plusDays(1) }
             while (days.isNotEmpty() && at.dayOfWeek !in days) at = at.plusDays(1)
             nextAlarm = at
@@ -121,7 +124,7 @@ class PersonalToolsTest {
             null, null, null,
             contacts = ContactsTool(contacts),
             calendar = CalendarTool(calendar) { prior },
-            alarms = AlarmTool(alarm, {}),
+            alarms = AlarmTool(alarm, {}, { clock }),
             photos = PhotosTool(photos, { _, _ -> "1번" }, { prior }, bounds = { if (it == "영국") BBox(49.674, 61.061, -14.015, 2.091) else null }),
             calls = CallTool(phoneCalls, RecipientResolver(contacts), {}),
             trigger = trigger,
