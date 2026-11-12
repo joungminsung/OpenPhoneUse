@@ -1,11 +1,6 @@
-# Release builds are shrunk with R8 to keep the APK small. The libraries below ship their own rules too;
-# these keep the reflection-heavy parts whole so a missed rule shows up as a bigger APK, not a crash.
+# Release builds are shrunk with R8 to keep the APK small. The app's own classes and osmdroid stay whole.
 
-# Claude: the Anthropic SDK builds its requests and responses with Jackson and Kotlin reflection.
--keep class com.anthropic.** { *; }
--keep class com.fasterxml.jackson.** { *; }
--keep class kotlin.Metadata { *; }
--keep class kotlin.reflect.** { *; }
+# Claude: the Anthropic SDK ships its own rules for Jackson and Kotlin reflection (META-INF/proguard in the jar).
 -dontwarn com.fasterxml.jackson.**
 -dontwarn com.anthropic.**
 

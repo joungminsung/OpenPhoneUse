@@ -4,6 +4,10 @@ All notable changes to OpenPhoneUse are listed here, newest first. The format fo
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-11-13
+
+- **An even smaller download.** The APK is about 6 MB. R8 now also shrinks the Anthropic SDK, using the rules the SDK ships for it; Claude requests, streamed replies, thinking and tool calls were checked on a shrunk build.
+
 ## [0.0.4] - 2026-11-12
 
 - **A smaller download.** The APK is about 13 MB instead of 75 MB. Release builds are now shrunk with R8 and their code is stored compressed. Nothing changes in what the app does.
