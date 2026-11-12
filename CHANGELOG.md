@@ -4,6 +4,8 @@ All notable changes to OpenPhoneUse are listed here, newest first. The format fo
 
 ## [Unreleased]
 
+- **No texts, calls, call log or contacts permissions.** Galaxy phones refused to install the app as a suspected phishing app ("악성 앱으로 의심"), and those permissions next to accessibility are what phishing apps ask for. The APK now leaves them out. Calls, texts and contacts go through the phone's own Phone, Messages and Contacts apps on screen, and the `call`, `send_sms`, `sms_search`, `find_contact`, `recent_calls` and `add_contact` tools are offered only in a build that declares those permissions.
+
 ## [0.0.5] - 2026-11-13
 
 - **An even smaller download.** The APK is about 6 MB. R8 now also shrinks the Anthropic SDK, using the rules the SDK ships for it; Claude requests, streamed replies, thinking and tool calls were checked on a shrunk build.

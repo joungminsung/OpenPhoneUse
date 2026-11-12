@@ -1,5 +1,6 @@
 package com.phoneuse.ui.connectors
 
+import com.phoneuse.phone.Declared
 import com.phoneuse.i18n.tr
 import android.Manifest
 import android.content.ActivityNotFoundException
@@ -102,15 +103,18 @@ private fun open(context: Context, intent: Intent) {
     }
 }
 
-/** The six phone sources of board Connectors; each is asked for the first time a tool needs it. */
+/** The phone sources of board Connectors; each is asked for the first time a tool needs it. */
 private fun phoneSources(context: Context): List<PhoneSource> {
     val listeners = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners").orEmpty()
     val photos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE
     val location = granted(context, Manifest.permission.ACCESS_FINE_LOCATION) || granted(context, Manifest.permission.ACCESS_COARSE_LOCATION)
-    return listOf(
-        PhoneSource(tr("Contacts", "연락처"), null, granted(context, Manifest.permission.READ_CONTACTS), ::appDetails),
+    // Sources whose permission this build leaves out (see Declared) are not listed.
+    return listOfNotNull(
+        PhoneSource(tr("Contacts", "연락처"), null, granted(context, Manifest.permission.READ_CONTACTS), ::appDetails)
+            .takeIf { Declared.has(context, Manifest.permission.READ_CONTACTS) },
         PhoneSource(tr("Calendar", "캘린더"), null, granted(context, Manifest.permission.READ_CALENDAR), ::appDetails),
-        PhoneSource(tr("SMS", "문자"), null, granted(context, Manifest.permission.READ_SMS), ::appDetails),
+        PhoneSource(tr("SMS", "문자"), null, granted(context, Manifest.permission.READ_SMS), ::appDetails)
+            .takeIf { Declared.has(context, Manifest.permission.READ_SMS) },
         PhoneSource(tr("Notifications", "알림"), null, listeners.contains(context.packageName + "/")) {
             open(it, Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         },

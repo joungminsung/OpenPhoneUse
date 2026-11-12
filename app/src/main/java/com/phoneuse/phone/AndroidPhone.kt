@@ -30,18 +30,20 @@ object AndroidPhone {
         priorCards: suspend () -> List<CardSpec> = { emptyList() },
     ): PhoneAccess {
         val geo = geocoder(http)
+        fun declares(permission: String) = Declared.has(context, "android.permission.$permission")
+        val contactsReadable = declares("READ_CONTACTS")
         return PhoneAccess(
             location = LocationTool(AndroidLocationSource(context)) { lat, lng -> geo.reverse(lat, lng) },
             places = geo,
             reminders = AlarmReminderScheduler(context),
-            contacts = ContactsTool(AndroidContactsSource(context)),
+            contacts = if (contactsReadable) ContactsTool(AndroidContactsSource(context)) else null,
             calendar = CalendarTool(AndroidCalendarSource(context), priorCards),
             alarms = AlarmTool(AndroidAlarmSource(context)),
             photos = PhotosTool(AndroidPhotoSource(context), vision?.let { ModelPhotoVision(it) }, priorCards, bounds = geo),
-            calls = CallTool(AndroidCallSource(context), RecipientResolver(AndroidContactsSource(context))),
+            calls = if (declares("CALL_PHONE")) CallTool(AndroidCallSource(context), RecipientResolver(AndroidContactsSource(context))) else null,
             controls = ControlsTool(AndroidControlsSource(context)),
-            callLog = CallLogTool(AndroidCallLogSource(context)),
-            contactAdder = ContactAdder(AndroidContactWriter(context), AndroidContactsSource(context)),
+            callLog = if (declares("READ_CALL_LOG")) CallLogTool(AndroidCallLogSource(context)) else null,
+            contactAdder = if (declares("WRITE_CONTACTS")) ContactAdder(AndroidContactWriter(context), AndroidContactsSource(context)) else null,
             trigger = trigger,
         )
     }

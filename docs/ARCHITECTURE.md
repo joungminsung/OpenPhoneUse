@@ -30,7 +30,8 @@ This note explains how a request becomes taps on the phone. Paths below are rela
    - `PhoneModule`: location, directions, reminders, calendar, contacts, alarms, photos;
    - `RoutineModule`: make_routine;
    - `ReplyModule`: show_card, finish;
-   - `MessagingModule`: notifications, SMS;
+   - `MessagingModule`: notifications, and SMS in a build that declares the SMS permissions (the release does not;
+     see `phone.Declared`);
    - `PlanModule`: update_plan, the agent's own checklist for long tasks;
    - `ConnectorModule`: the connector and MCP tools.
 
