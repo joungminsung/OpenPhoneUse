@@ -168,6 +168,29 @@ class ChatDbSchemaTest {
     }
 
     @Test
+    fun migratesV7ToV8QueuesOnlyTheLast48HoursForAnalysis() {
+        db().use { c ->
+            c.exec(*v2.toTypedArray())
+            c.exec(*ChatDbSchema.migrations(2, 7).toTypedArray())
+            val now = System.currentTimeMillis()
+            c.exec(
+                "INSERT INTO notifications (key, package, app_label, title, text, posted_at) VALUES ('fresh', 'p', 'a', 't', 'x', ${now - 60 * 60 * 1000L})",
+                "INSERT INTO notifications (key, package, app_label, title, text, posted_at) VALUES ('old', 'p', 'a', 't', 'x', ${now - 3 * 24 * 60 * 60 * 1000L})",
+            )
+            c.exec(*ChatDbSchema.migrations(7, 8).toTypedArray())
+            val status = c.createStatement().use { s ->
+                s.executeQuery("SELECT key, status FROM notification_facts ORDER BY key").use { r ->
+                    buildList { while (r.next()) add(r.getString(1) + "=" + r.getString(2)) }
+                }
+            }
+            assertEquals(listOf("fresh=pending", "old=skipped"), status)
+            assertEquals(listOf(0L), c.longs("SELECT COUNT(*) FROM money_events"))
+            assertEquals(listOf(0L), c.longs("SELECT COUNT(*) FROM parcels"))
+            assertEquals(listOf(0L), c.longs("SELECT COUNT(*) FROM understand_calls"))
+        }
+    }
+
+    @Test
     fun compactingAfterAWipeLeavesNoIndexedText() {
         // Deleted text must not linger in FTS segments or free pages after "모든 데이터 지우기".
         db().use { c ->
@@ -188,7 +211,7 @@ class ChatDbSchemaTest {
 
     @Test
     fun freshSchemaMatchesMigratedOne() {
-        assertEquals(7, ChatDbSchema.VERSION)
+        assertEquals(8, ChatDbSchema.VERSION)
         val messages = ChatDbSchema.create.single { it.startsWith("CREATE TABLE messages") }
         assertTrue(messages, "cards_json TEXT" in messages)
         assertTrue(messages, "steps_json TEXT NOT NULL" in messages)
@@ -199,11 +222,11 @@ class ChatDbSchemaTest {
         }
         val migrated = db().use { c ->
             c.exec(*v2.toTypedArray())
-            c.exec(*ChatDbSchema.migrations(2, 7).toTypedArray())
+            c.exec(*ChatDbSchema.migrations(2, 8).toTypedArray())
             c.schema()
         }
         assertEquals(fresh, migrated)
-        assertTrue(fresh.containsAll(listOf("table:memories", "table:memories_fts", "table:messages_fts", "table:app_tips", "table:notifications")))
+        assertTrue(fresh.containsAll(listOf("table:memories", "table:memories_fts", "table:messages_fts", "table:app_tips", "table:notifications", "table:notification_facts", "table:money_events", "table:parcels", "table:understand_calls")))
     }
 
     @Test

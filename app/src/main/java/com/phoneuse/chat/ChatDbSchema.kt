@@ -6,7 +6,7 @@ package com.phoneuse.chat
  * [create] (as v3 does), so a new and an upgraded database end up with the same schema.
  */
 object ChatDbSchema {
-    const val VERSION = 7
+    const val VERSION = 8
 
     /** Version 2 as created: conversations and messages, with cards_json. */
     private val v2: List<String> = listOf(
@@ -76,8 +76,35 @@ object ChatDbSchema {
      */
     private val v7: List<String> = listOf("UPDATE conversations SET third_party_seen = 1")
 
+    /**
+     * v8: what the model understood of each notification (NotificationUnderstanding), the payments and parcels those
+     * notices add up to, and the daily count of analysis calls. Facts follow their notification's 7 days; money events
+     * keep no notification text and last 90 days.
+     */
+    private val v8: List<String> = listOf(
+        "CREATE TABLE notification_facts (key TEXT PRIMARY KEY, posted_at INTEGER NOT NULL, status TEXT NOT NULL, " +
+            "ready_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, kind TEXT, amount INTEGER, currency TEXT, " +
+            "merchant TEXT, instrument TEXT, sender TEXT, needs_reply INTEGER, summary TEXT, money_event INTEGER, " +
+            "parcel_id INTEGER, model TEXT, analyzed_at INTEGER)",
+        "CREATE INDEX idx_facts_status ON notification_facts(status, ready_at)",
+        "CREATE TABLE money_events (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, amount INTEGER NOT NULL, " +
+            "currency TEXT NOT NULL, merchant TEXT, instrument TEXT, first_at INTEGER NOT NULL, last_at INTEGER NOT NULL, " +
+            "source_count INTEGER NOT NULL, cancelled_amount INTEGER NOT NULL DEFAULT 0, refund_of INTEGER)",
+        "CREATE INDEX idx_money_events_first ON money_events(first_at)",
+        "CREATE TABLE parcels (id INTEGER PRIMARY KEY AUTOINCREMENT, carrier TEXT, tracking TEXT, item_hint TEXT, " +
+            "stage TEXT NOT NULL, first_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, delivered_at INTEGER)",
+        "CREATE TABLE understand_calls (day TEXT PRIMARY KEY, n INTEGER NOT NULL, last_at INTEGER NOT NULL)",
+    )
+
+    /** On upgrade only: notifications from the last 48 hours wait for analysis, older ones are skipped. */
+    private val v8Seed: List<String> = listOf(
+        "INSERT INTO notification_facts (key, posted_at, status, ready_at) SELECT key, posted_at, " +
+            "CASE WHEN posted_at >= CAST(strftime('%s','now') AS INTEGER) * 1000 - 172800000 THEN 'pending' ELSE 'skipped' END, 0 " +
+            "FROM notifications",
+    )
+
     /** The current schema, for a fresh install: the same statements an upgrade runs, so both end up equal. */
-    val create: List<String> = v2 + v3 + v4 + v5 + v6 + v7
+    val create: List<String> = v2 + v3 + v4 + v5 + v6 + v7 + v8
 
     /**
      * After deleting everything (Settings "모든 데이터 지우기"): merges the full-text segments so deleted text
@@ -98,6 +125,7 @@ object ChatDbSchema {
         5 to v5,
         6 to v6,
         7 to v7,
+        8 to v8 + v8Seed,
     )
 
     /** The statements that take a database from [from] to [to], in order. */
