@@ -82,7 +82,7 @@ sealed interface Ref {
 
 /**
  * The model's reading of notification [index] of a batch. [amountMinor] is in the currency's minor unit (won, cents).
- * [cancels] is the id of the payment event a refund undoes.
+ * [cancels] is the payment a refund undoes: a stored event, or another notification of the same batch.
  */
 data class NoticeJudgment(
     val index: Int,
@@ -92,7 +92,7 @@ data class NoticeJudgment(
     val merchant: String?,
     val instrument: String?,
     val sameAs: Ref?,
-    val cancels: Long?,
+    val cancels: Ref?,
     val parcel: ParcelInfo?,
     val sender: Sender,
     val needsReply: Boolean,

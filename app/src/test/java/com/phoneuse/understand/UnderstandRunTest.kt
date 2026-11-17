@@ -77,6 +77,66 @@ class UnderstandRunTest {
         assertEquals(1, deps.pokes)
     }
 
+    @Test fun aBurstIsJudgedAndStoredInOneCall() = runBlocking {
+        // Four notices 4 s apart; the run starts when the first one's 20 s wait is over.
+        for ((i, k) in listOf("sms", "card", "pay", "bank").withIndex()) {
+            post(k, "t", "승인 4,500원 스타벅스")
+            if (i < 3) now += 4_000
+        }
+        now += 20_000 - 12_000
+        val model = FakeModel { starbucksAnswer }
+        assertEquals(RunResult.Done(4, more = false), UnderstandRun(Deps(model)).once())
+        assertEquals(1, model.calls)
+        assertEquals(listOf("done", "done", "done", "done"), statuses())
+        assertEquals(listOf(4500L), sql.query("SELECT amount FROM money_events") { it.long(0) })
+    }
+
+    @Test fun aTimedOutCallCountsTowardTheGapAndTheBudget() = runBlocking {
+        starbucks()
+        val slow = object : ModelClient {
+            override suspend fun next(instructions: String, input: List<InputItem>, tools: List<ToolSpec>, onTextDelta: (String) -> Unit): ModelTurn {
+                kotlinx.coroutines.delay(5_000)
+                error("not reached")
+            }
+        }
+        assertEquals(RunResult.Failed(4), UnderstandRun(Deps(slow), timeoutMs = 50).once())
+        assertEquals(1, store.callsOn("2026-11-17"))
+        assertEquals(now, store.lastCallAt())
+    }
+
+    @Test fun anErrorAfterTheCallStillCountsIt() = runBlocking {
+        starbucks()
+        val broken = object : ModelClient {
+            override suspend fun next(instructions: String, input: List<InputItem>, tools: List<ToolSpec>, onTextDelta: (String) -> Unit): ModelTurn =
+                throw java.io.IOException("connection reset")
+        }
+        assertEquals(RunResult.Failed(4), UnderstandRun(Deps(broken)).once())
+        assertEquals(1, store.callsOn("2026-11-17"))
+    }
+
+    @Test fun aFailureNeverBooksTheNextRunSooner() {
+        val t = 1_000_000L
+        // Keys are still ready (nextReadyAt in the past): the next run still waits the gap.
+        assertEquals(UnderstandRun.MIN_GAP_MS, UnderstandRun.nextDelay(RunResult.Failed(0), t, t - 5_000))
+        assertEquals(UnderstandRun.MIN_GAP_MS, UnderstandRun.nextDelay(RunResult.Failed(3), t, t))
+        assertEquals(3_600_000L, UnderstandRun.nextDelay(RunResult.Failed(3), t, t + 3_600_000))
+        assertEquals(UnderstandRun.MIN_GAP_MS, UnderstandRun.nextDelay(RunResult.Done(20, more = true), t, t))
+        assertEquals(40_000L, UnderstandRun.nextDelay(RunResult.TooSoon(t + 40_000), t, t))
+        assertEquals(15_000L, UnderstandRun.nextDelay(RunResult.NothingReady, t, t + 15_000))
+        assertEquals(null, UnderstandRun.nextDelay(RunResult.NothingReady, t, null))
+        assertEquals(null, UnderstandRun.nextDelay(RunResult.Disabled, t, t))
+    }
+
+    @Test fun anErrorWhileStoringFailsTheBatchInsteadOfResendingIt() = runBlocking {
+        starbucks()
+        // An answer that cannot be stored: a refund pointing at an event the store does not have is fine, so break
+        // the store instead by dropping the money table under the run.
+        sql.exec("DROP TABLE money_events")
+        val r = UnderstandRun(Deps(FakeModel { starbucksAnswer })).once()
+        assertEquals(RunResult.Failed(4), r)
+        assertEquals(listOf(1L, 1L, 1L, 1L), sql.query("SELECT attempts FROM notification_facts") { it.long(0) })
+    }
+
     @Test fun recordsTokensAndCountsTheCall() = runBlocking {
         starbucks()
         val deps = Deps(FakeModel { starbucksAnswer })

@@ -94,6 +94,15 @@ class TodaySummaryTest {
     }
 
     @Test
+    fun noDiffWhenLastMonthIsOnlyPartlyKnown() {
+        // History starts Oct 10: October 1-9 is unknown, so "vs last month" would look like a jump.
+        val payments = listOf(pay(9_000, at(11, 14)), pay(1_000, at(10, 12)))
+        val tile = TodaySummary.build(now, TodaySources(payments = payments, coverageStart = at(10, 10))).single() as TodayTile.Spending
+        assertNull(tile.diff)
+        assertNull(tile.since)
+    }
+
+    @Test
     fun spendingWithoutLastMonthHasNoDiff() {
         val tile = TodaySummary.build(now, TodaySources(payments = listOf(pay(9_000, at(11, 14))), coverageStart = at(9, 1))).single() as TodayTile.Spending
         assertNull(tile.diff)

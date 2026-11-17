@@ -33,22 +33,16 @@ class UnderstandWorker(context: Context, params: WorkerParameters) : CoroutineWo
         val app = applicationContext
         if (!PhoneUseNotificationListener.enabled(app)) return@withContext Result.success()
         val result = try {
-            lock.withLock { UnderstandRun(AppDeps(app)).once() }
+            // A provider without a light model answers with the chosen (larger) model: give it longer.
+            val mainModel = AppGraph.runner.automaticBackend()?.let { it.lightModel == null } ?: false
+            lock.withLock { UnderstandRun(AppDeps(app), if (mainModel) MAIN_MODEL_TIMEOUT_MS else UnderstandRun.TIMEOUT_MS).once() }
         } catch (e: Exception) {
             Log.w(TAG, "notification analysis failed: ${e.javaClass.simpleName}")
             RunResult.Failed(0)
         }
         val now = System.currentTimeMillis()
-        val store = NotificationStore.get(app).understanding
-        when (result) {
-            is RunResult.Done -> if (result.more) UnderstandScheduler.scheduleNext(app, UnderstandRun.MIN_GAP_MS)
-                else store.nextReadyAt()?.let { UnderstandScheduler.scheduleNext(app, it - now) }
-            is RunResult.NothingReady, is RunResult.Failed -> store.nextReadyAt()?.let { UnderstandScheduler.scheduleNext(app, it - now) }
-            is RunResult.TooSoon -> UnderstandScheduler.scheduleNext(app, result.at - now)
-            is RunResult.OverBudget -> UnderstandScheduler.scheduleNext(app, result.until - now)
-            is RunResult.Paused -> UnderstandScheduler.scheduleNext(app, result.until - now)
-            RunResult.Disabled, RunResult.NoBackend -> Unit
-        }
+        val nextReady = runCatching { NotificationStore.get(app).understanding.nextReadyAt() }.getOrNull()
+        UnderstandRun.nextDelay(result, now, nextReady)?.let { UnderstandScheduler.scheduleNext(app, it) }
         Result.success()
     }
 
@@ -74,6 +68,7 @@ class UnderstandWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
     private companion object {
         const val TAG = "UnderstandWorker"
+        const val MAIN_MODEL_TIMEOUT_MS = 90_000L
 
         /** One analysis at a time in the process, whichever request started it. */
         val lock = Mutex()

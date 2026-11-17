@@ -25,6 +25,8 @@ data class NewMoneyEvent(
     val instrument: String?,
     val at: Long,
     val refundOf: Long?,
+    /** Taken off at once: a cancellation that arrived in the same batch. */
+    val cancelledMinor: Long = 0,
 )
 
 /** One more notice of a stored payment; [merchant] and [instrument] only fill what the event lacks. */
@@ -74,11 +76,37 @@ object EventMerger {
             return e.kind == NoticeKind.SPEND && e.currency == j.currency && (e.amountMinor ?: 0) >= (j.amountMinor ?: Long.MAX_VALUE) &&
                 at[j.index] - e.at in 0..UnderstandingStore.REFUND_WINDOW_MS
         }
-        for (group in components(money) { a, b -> (a.sameAs as? Ref.Batch)?.index == b.index && sameMoney(a, b) }) {
+        /** A spend of this batch that [j] (a refund) may cancel: earlier, same currency, at least its amount. */
+        fun cancelsItem(j: NoticeJudgment, k: Int): Boolean {
+            val o = judgments[k] ?: return false
+            return o.kind == NoticeKind.SPEND && o.currency == j.currency && (o.amountMinor ?: 0) >= (j.amountMinor ?: Long.MAX_VALUE) &&
+                at[j.index] - at[k] in 0..UnderstandingStore.REFUND_WINDOW_MS
+        }
+        // Refunds last, so a cancellation of a spend in this same batch finds that spend's event.
+        val groups = components(money) { a, b -> (a.sameAs as? Ref.Batch)?.index == b.index && sameMoney(a, b) }
+            .sortedBy { g -> if (g.first().kind == NoticeKind.REFUND) 1 else 0 }
+        for (group in groups) {
             val first = group.minBy { at[it.index] }
             val existing = group.firstNotNullOfOrNull { j -> (j.sameAs as? Ref.Event)?.id?.takeIf { joinsEvent(j, it) } }
+            val sameBatch = if (existing == null && first.kind == NoticeKind.REFUND) {
+                group.firstNotNullOfOrNull { j -> (j.cancels as? Ref.Batch)?.index?.takeIf { cancelsItem(j, it) }?.let { moneyTarget[it] } }
+            } else {
+                null
+            }
+            if (sameBatch != null) {
+                when (sameBatch) {
+                    is EventTarget.Existing -> cancels += Cancellation(sameBatch.id, first.amountMinor!!)
+                    is EventTarget.New -> {
+                        val i = newEvents.indexOfFirst { it.slot == sameBatch.slot }
+                        val e = newEvents[i]
+                        newEvents[i] = e.copy(cancelledMinor = minOf(e.amountMinor, e.cancelledMinor + first.amountMinor!!))
+                    }
+                }
+                group.forEach { moneyTarget[it.index] = sameBatch }
+                continue
+            }
             val cancelled = if (existing == null && first.kind == NoticeKind.REFUND) {
-                group.firstNotNullOfOrNull { j -> j.cancels?.takeIf { cancelsEvent(j, it) } }
+                group.firstNotNullOfOrNull { j -> (j.cancels as? Ref.Event)?.id?.takeIf { cancelsEvent(j, it) } }
             } else {
                 null
             }

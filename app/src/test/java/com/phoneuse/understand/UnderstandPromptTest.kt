@@ -62,7 +62,13 @@ class UnderstandPromptTest {
         )!!
         assertEquals(Ref.Event(12), r[0]!!.sameAs)
         assertEquals(Ref.Batch(0), r[1]!!.sameAs)
-        assertEquals(12L, r[2]!!.cancels)
+        assertEquals(Ref.Event(12), r[2]!!.cancels)
+    }
+
+    @Test fun cancelsAnItemOfTheSameBatch() {
+        val r = UnderstandPrompt.parse(one("{\"i\":0,\"kind\":\"refund\",\"amount\":\"100,000\",\"currency\":\"KRW\",\"cancels\":{\"item\":1},\"sender\":\"business\",\"needs_reply\":false}"), 2)!!
+        assertEquals(Ref.Batch(1), r[0]!!.cancels)
+        assertTrue(UnderstandPrompt.INSTRUCTIONS.contains("\"cancels\":{\"event\""))
     }
 
     @Test fun badAmountLeavesItNull() {

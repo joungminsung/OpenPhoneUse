@@ -80,15 +80,27 @@ class EventMergerTest {
         run(listOf(n("a", "p", "t", "승인 4,500원", t0)), listOf(spend(0, 4500, "스타벅스", null)), t0)
         val id = longs("SELECT id FROM money_events").single()!!
         val later = t0 + 3 * 24 * 60 * minute
-        val refund = NoticeJudgment(0, NoticeKind.REFUND, 4500, "KRW", "스타벅스", null, null, id, null, Sender.BUSINESS, false, "")
+        val refund = NoticeJudgment(0, NoticeKind.REFUND, 4500, "KRW", "스타벅스", null, null, Ref.Event(id), null, Sender.BUSINESS, false, "")
         run(listOf(n("c", "p", "t", "승인취소 4,500원", later)), listOf(refund), later)
         assertEquals(listOf(4500L), longs("SELECT cancelled_amount FROM money_events WHERE id = $id"))
         assertEquals(1, longs("SELECT id FROM money_events").size)
         assertEquals(listOf(id), longs("SELECT money_event FROM notification_facts WHERE key = 'c'"))
     }
 
+    @Test fun refundInTheSameBatchCancelsItsPayment() {
+        // A fuel pre-authorisation and its cancellation arrive within seconds.
+        val batch = listOf(
+            n("ok", "p", "현대카드", "승인 100,000원 GS칼텍스", t0),
+            n("cancel", "p", "현대카드", "승인취소 100,000원 GS칼텍스", t0 + 10_000),
+        )
+        val refund = NoticeJudgment(1, NoticeKind.REFUND, 100_000, "KRW", "GS칼텍스", null, null, Ref.Batch(0), null, Sender.BUSINESS, false, "")
+        run(batch, listOf(spend(0, 100_000, "GS칼텍스", "현대카드"), refund), t0 + minute)
+        assertEquals(listOf(100_000L), longs("SELECT cancelled_amount FROM money_events"))
+        assertEquals(1, longs("SELECT id FROM money_events").size)
+    }
+
     @Test fun unmatchedRefundStandsAlone() {
-        val refund = NoticeJudgment(0, NoticeKind.REFUND, 12000, "KRW", "쿠팡", null, null, 999, null, Sender.BUSINESS, false, "")
+        val refund = NoticeJudgment(0, NoticeKind.REFUND, 12000, "KRW", "쿠팡", null, null, Ref.Event(999), null, Sender.BUSINESS, false, "")
         run(listOf(n("r", "p", "t", "환불 12,000원", t0)), listOf(refund), t0)
         assertEquals(listOf("refund"), strings("SELECT kind FROM money_events"))
         assertNull(longs("SELECT refund_of FROM money_events").single())
@@ -97,7 +109,7 @@ class EventMergerTest {
     @Test fun refundLargerThanTheOriginalDoesNotCancelIt() {
         run(listOf(n("a", "p", "t", "승인 4,500원", t0)), listOf(spend(0, 4500, "스타벅스", null)), t0)
         val id = longs("SELECT id FROM money_events").single()!!
-        val refund = NoticeJudgment(0, NoticeKind.REFUND, 9000, "KRW", null, null, null, id, null, Sender.BUSINESS, false, "")
+        val refund = NoticeJudgment(0, NoticeKind.REFUND, 9000, "KRW", null, null, null, Ref.Event(id), null, Sender.BUSINESS, false, "")
         run(listOf(n("c", "p", "t", "환불 9,000원", t0 + minute)), listOf(refund), t0 + minute)
         assertEquals(listOf(0L), longs("SELECT cancelled_amount FROM money_events WHERE id = $id"))
         assertEquals(2, longs("SELECT id FROM money_events").size)

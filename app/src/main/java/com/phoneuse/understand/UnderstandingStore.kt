@@ -28,11 +28,19 @@ class UnderstandingStore(private val sql: SqlPort, private val clock: () -> Long
         }
     }
 
-    /** Keys ready for analysis at [now], oldest notification first, at most [limit]. */
-    fun pendingBatch(now: Long, limit: Int = BATCH): List<String> = sql.query(
-        "SELECT key FROM notification_facts WHERE status = '$PENDING' AND ready_at <= ? ORDER BY posted_at, key LIMIT ?",
-        listOf(now, limit),
-    ) { it.string(0)!! }
+    /**
+     * Keys to analyse at [now], oldest notification first, at most [limit]. Once one is ready, the rest of its burst
+     * (notices still in their first wait) comes along, so one payment's several notices are judged together; a chat
+     * still changing (its quiet wait is longer) does not.
+     */
+    fun pendingBatch(now: Long, limit: Int = BATCH): List<String> {
+        val ready = sql.query("SELECT 1 FROM notification_facts WHERE status = '$PENDING' AND ready_at <= ? LIMIT 1", listOf(now)) { 1 }
+        if (ready.isEmpty()) return emptyList()
+        return sql.query(
+            "SELECT key FROM notification_facts WHERE status = '$PENDING' AND ready_at <= ? ORDER BY posted_at, key LIMIT ?",
+            listOf(now + FIRST_WAIT_MS, limit),
+        ) { it.string(0)!! }
+    }
 
     /** When the next pending notification becomes ready, or null when none waits. */
     fun nextReadyAt(): Long? =
@@ -104,15 +112,15 @@ class UnderstandingStore(private val sql: SqlPort, private val clock: () -> Long
 
     /**
      * Stores one analysed batch in one transaction. A fact whose notification changed again while it was analysed
-     * (its ready_at moved past [now]) keeps waiting and is not overwritten. A parcel's stage only moves forward.
+     * (its quiet wait moved past the burst window) keeps waiting and is not overwritten. A parcel's stage only moves forward.
      */
     fun apply(plan: MergePlan, model: String, now: Long) = sql.transaction {
         val moneyIds = HashMap<Int, Long>()
         for (e in plan.newEvents) {
             moneyIds[e.slot] = sql.insert(
-                "INSERT INTO money_events (kind, amount, currency, merchant, instrument, first_at, last_at, source_count, refund_of) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
-                listOf(e.kind.wire, e.amountMinor, e.currency, e.merchant, e.instrument, e.at, e.at, e.refundOf),
+                "INSERT INTO money_events (kind, amount, currency, merchant, instrument, first_at, last_at, source_count, refund_of, cancelled_amount) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+                listOf(e.kind.wire, e.amountMinor, e.currency, e.merchant, e.instrument, e.at, e.at, e.refundOf, e.cancelledMinor),
             )
         }
         for (j in plan.joins) {
@@ -166,7 +174,7 @@ class UnderstandingStore(private val sql: SqlPort, private val clock: () -> Long
                     "WHERE key = ? AND status = '$PENDING' AND ready_at <= ?",
                 listOf(
                     j.kind.wire, j.amountMinor, j.currency, j.merchant, j.instrument, j.sender.wire, if (j.needsReply) 1L else 0L,
-                    j.summary, money, parcel, model, now, f.key, now,
+                    j.summary, money, parcel, model, now, f.key, now + FIRST_WAIT_MS,
                 ),
             )
         }

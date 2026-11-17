@@ -162,7 +162,9 @@ object TodaySummary {
             tr("Spending this month", "이번 달 지출"),
             total,
             currency,
-            if (since != null || lastMonth.isEmpty()) null else total - lastMonth.sumOf { it.amountMinor },
+            // Last month is compared only when the history covers all of it (from its 1st).
+            if (since != null || lastMonth.isEmpty() || (s.coverageStart ?: Long.MAX_VALUE) > ms(lastStart)) null
+            else total - lastMonth.sumOf { it.amountMinor },
             refunds,
             s.pending,
             since,

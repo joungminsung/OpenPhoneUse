@@ -39,6 +39,20 @@ class UnderstandingStoreTest {
         assertEquals(listOf("room"), store.pendingBatch(now + 120_000))
     }
 
+    @Test fun aBurstIsTakenTogetherOnceItsFirstNoticeIsReady() {
+        // One purchase: card text, card app, pay app and bank withdrawal a few seconds apart.
+        for (i in 0 until 4) { post("k$i", at = now + i * 4_000L); store.noteArrival("k$i", now + i * 4_000L, changed = false); now += 4_000 }
+        now -= 16_000
+        assertEquals(listOf("k0", "k1", "k2", "k3"), store.pendingBatch(now + 20_000))
+    }
+
+    @Test fun aChatStillChangingIsNotPulledIntoABurst() {
+        post("a"); store.noteArrival("a", now, changed = false)
+        post("room"); store.noteArrival("room", now, changed = false)
+        sql.exec("UPDATE notification_facts SET ready_at = ? WHERE key = 'room'", listOf(now + 120_000))
+        assertEquals(listOf("a"), store.pendingBatch(now + 20_000))
+    }
+
     @Test fun repostWithSameContentKeepsAnalysedFact() {
         post("a"); store.noteArrival("a", now, changed = false)
         sql.exec("UPDATE notification_facts SET status = 'done' WHERE key = 'a'")

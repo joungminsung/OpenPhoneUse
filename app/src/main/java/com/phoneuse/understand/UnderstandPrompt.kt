@@ -34,7 +34,7 @@ object UnderstandPrompt {
         You sort phone notifications for the phone's owner. For every notification in the batch, decide what it is
         and answer with JSON only, no prose:
         {"items":[{"i":<index>,"kind":"…","amount":"…","currency":"…","merchant":"…","instrument":"…",
-          "same_as":{"event":<id>}|{"item":<index>}|null,"cancels":<event id>|null,
+          "same_as":{"event":<id>}|{"item":<index>}|null,"cancels":{"event":<id>}|{"item":<index>}|null,
           "parcel":{"carrier":"…","tracking":"…","item":"…","stage":"…"}|null,
           "sender":"…","needs_reply":true|false,"summary":"…"}]}
         Give exactly one item per notification, using its index.
@@ -64,7 +64,8 @@ object UnderstandPrompt {
         same_as: one payment often arrives as several notifications (card text, card app, pay app, bank withdrawal).
         When this notification reports the same payment or parcel as a recent event or as another item of this batch
         (same amount and currency within minutes, or the same tracking number), point to it; otherwise null.
-        cancels: for a refund, the id of the recent spend event it undoes, when one matches; otherwise null.
+        cancels: for a refund, the spend it undoes: a recent event, or another item of this batch (an approval and its
+        cancellation can arrive together); otherwise null.
 
         parcel.stage, one of: received (order or pickup registered), in_transit (moving between hubs), action_needed
         (the owner must act, such as customs or a failed delivery), out_for_delivery (on the way today), pickup_ready
@@ -161,7 +162,11 @@ object UnderstandPrompt {
             merchant = o.str("merchant"),
             instrument = o.str("instrument"),
             sameAs = sameAs,
-            cancels = o.prim("cancels")?.longOrNull,
+            cancels = when (val c = o["cancels"]) {
+                is JsonObject -> c.prim("event")?.longOrNull?.let { Ref.Event(it) } ?: c.prim("item")?.intOrNull?.let { Ref.Batch(it) }
+                is JsonPrimitive -> c.longOrNull?.let { Ref.Event(it) }
+                else -> null
+            },
             parcel = parcel,
             sender = sender,
             needsReply = o.prim("needs_reply")?.booleanOrNull ?: false,
