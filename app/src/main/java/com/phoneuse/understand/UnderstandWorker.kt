@@ -121,6 +121,12 @@ object UnderstandScheduler {
         )
     }
 
+    /** Settings switched analysis on or off: off cancels everything booked, on starts at once. */
+    suspend fun setEnabled(context: Context, on: Boolean) {
+        AppGraph.settings.setUnderstandNotifications(on)
+        if (on) kick(context) else cancel(context)
+    }
+
     /** Settings switched analysis off: nothing booked may send anything. */
     fun cancel(context: Context) {
         WorkManager.getInstance(context).apply {

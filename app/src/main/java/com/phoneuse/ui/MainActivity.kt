@@ -1,5 +1,7 @@
 package com.phoneuse.ui
 
+import com.phoneuse.understand.UnderstandScheduler
+import com.phoneuse.understand.UnderstandText
 import com.phoneuse.i18n.tr
 import android.Manifest
 import android.content.Context
@@ -494,6 +496,29 @@ private fun AppRoot(
             settings.markNotificationsAsked()
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    // Notification analysis is on by default; the first time notification access is on, say what it sends.
+    var understandNotice by remember { mutableStateOf(false) }
+    LaunchedEffect(resumeTick) {
+        understandNotice = UnderstandText.showNotice(com.phoneuse.phone.PhoneUseNotificationListener.enabled(context), settings.understandNoticeShown.first())
+    }
+    if (understandNotice) {
+        val done = { off: Boolean ->
+            understandNotice = false
+            scope.launch {
+                settings.markUnderstandNoticeShown()
+                if (off) UnderstandScheduler.setEnabled(context, false)
+            }
+        }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { done(false) },
+            containerColor = pu.surface,
+            title = { androidx.compose.material3.Text(UnderstandText.NOTICE_TITLE, color = pu.text) },
+            text = { androidx.compose.material3.Text(UnderstandText.subtitle(authMode ?: com.phoneuse.app.AuthMode.CHATGPT), color = pu.text2) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { done(false) }) { androidx.compose.material3.Text(UnderstandText.KEEP, color = pu.text) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { done(true) }) { androidx.compose.material3.Text(UnderstandText.TURN_OFF, color = pu.textSub) } },
+        )
     }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)

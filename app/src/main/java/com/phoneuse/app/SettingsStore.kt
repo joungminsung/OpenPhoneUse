@@ -316,6 +316,13 @@ class SettingsStore internal constructor(
         store.edit { it[HELPER] = v }
     }
 
+    /** Whether the one-time notice about notification analysis was shown. */
+    val understandNoticeShown: Flow<Boolean> = store.data.map { it[UNDERSTAND_NOTICE] ?: false }
+
+    suspend fun markUnderstandNoticeShown() {
+        store.edit { it[UNDERSTAND_NOTICE] = true }
+    }
+
     suspend fun setUnderstandNotifications(v: Boolean) {
         store.edit { it[UNDERSTAND_NOTIFICATIONS] = v }
     }
@@ -457,6 +464,7 @@ class SettingsStore internal constructor(
         private val CONFIRM_SEND = booleanPreferencesKey("confirm_send")
         private val RISK_JUDGE = booleanPreferencesKey("risk_judge")
         private val UNDERSTAND_NOTIFICATIONS = booleanPreferencesKey("understand_notifications")
+        private val UNDERSTAND_NOTICE = booleanPreferencesKey("understand_notice_shown")
         private val ASSIST_ACTION = stringPreferencesKey("assist_action")
         private val CONTROL_SPEED = stringPreferencesKey("control_speed")
         private val SUMMARY_MINUTE = intPreferencesKey("summary_minute")
