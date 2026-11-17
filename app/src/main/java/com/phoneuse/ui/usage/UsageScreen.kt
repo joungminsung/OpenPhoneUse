@@ -89,7 +89,16 @@ object UsageText {
         RequestKind.CHAT to tr("Chat", "대화"),
         RequestKind.SEARCH to tr("Search", "검색"),
         RequestKind.ROUTINE to tr("Routines", "루틴"),
+        RequestKind.UNDERSTAND to tr("Notification analysis", "알림 분석"),
     )
+
+    /** "입력 5,000 · 출력 900 토큰" for the week, or null when nothing reported tokens. */
+    fun tokens(days: List<DayUsage>): String? {
+        val input = days.sumOf { it.inputTokens }
+        val output = days.sumOf { it.outputTokens }
+        if (input == 0 && output == 0) return null
+        return tr("%,d tokens in, %,d out".format(input, output), "입력 %,d · 출력 %,d 토큰".format(input, output))
+    }
 }
 
 /** Board Usage: the way to the ChatGPT plan's usage, the last 7 days of requests, and the usage switches. */
@@ -186,6 +195,7 @@ private fun RequestsCard(days: List<DayUsage>) {
         RequestKind.CHAT to c.radioOff,
         RequestKind.SEARCH to c.accent,
         RequestKind.ROUTINE to c.inputBorder,
+        RequestKind.UNDERSTAND to c.textSub,
     )
     CardColumn(tr("Last 7 days", "최근 7일")) {
         Row(verticalAlignment = Alignment.Bottom) {
@@ -232,6 +242,7 @@ private fun RequestsCard(days: List<DayUsage>) {
                 }
             }
         }
+        UsageText.tokens(days)?.let { Text(it, fontSize = 12.sp, color = c.textSub) }
     }
 }
 

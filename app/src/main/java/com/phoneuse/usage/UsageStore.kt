@@ -20,20 +20,24 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /** What a model request was for (board Usage's breakdown). */
-enum class RequestKind { CHAT, DEVICE, SEARCH, ROUTINE }
+enum class RequestKind { CHAT, DEVICE, SEARCH, ROUTINE, UNDERSTAND }
 
-/** Requests made on one day, by kind. */
-data class DayUsage(val date: LocalDate, val counts: Map<RequestKind, Int>) {
+/** One stored row: requests of one kind on one day, and the tokens they used (0 when the backend did not say). */
+data class UsageRow(val date: LocalDate, val kind: RequestKind, val count: Int, val inputTokens: Int = 0, val outputTokens: Int = 0)
+
+/** Requests made on one day, by kind, and the tokens they used. */
+data class DayUsage(val date: LocalDate, val counts: Map<RequestKind, Int>, val inputTokens: Int = 0, val outputTokens: Int = 0) {
     val total: Int get() = counts.values.sum()
 }
 
 object UsageDays {
     /** One entry per day for the [days] days ending [today], oldest first; days without rows count zero. */
-    fun fill(today: LocalDate, days: Int, rows: List<Triple<LocalDate, RequestKind, Int>>): List<DayUsage> =
+    fun fill(today: LocalDate, days: Int, rows: List<UsageRow>): List<DayUsage> =
         (days - 1 downTo 0).map { back ->
             val date = today.minusDays(back.toLong())
-            val counts = rows.filter { it.first == date }.groupBy { it.second }.mapValues { (_, r) -> r.sumOf { it.third } }
-            DayUsage(date, counts)
+            val day = rows.filter { it.date == date }
+            val counts = day.groupBy { it.kind }.mapValues { (_, r) -> r.sumOf { it.count } }
+            DayUsage(date, counts, day.sumOf { it.inputTokens }, day.sumOf { it.outputTokens })
         }
 }
 
@@ -63,7 +67,7 @@ class UsageStore(context: Context, private val zone: () -> ZoneId = { ZoneId.sys
         }
     }
 
-    suspend fun record(kind: RequestKind, at: Long = System.currentTimeMillis(), count: Int = 1) {
+    suspend fun record(kind: RequestKind, at: Long = System.currentTimeMillis(), count: Int = 1, inputTokens: Int = 0, outputTokens: Int = 0) {
         if (count <= 0) return
         withContext(Dispatchers.IO) {
             writeLock.withLock {
@@ -73,8 +77,9 @@ class UsageStore(context: Context, private val zone: () -> ZoneId = { ZoneId.sys
                     db.beginTransaction()
                     try {
                         db.execSQL(
-                            "INSERT INTO daily(day, kind, n) VALUES(?, ?, ?) ON CONFLICT(day, kind) DO UPDATE SET n = n + excluded.n",
-                            arrayOf<Any>(day.toString(), kind.name, count),
+                            "INSERT INTO daily(day, kind, n, in_tokens, out_tokens) VALUES(?, ?, ?, ?, ?) ON CONFLICT(day, kind) " +
+                                "DO UPDATE SET n = n + excluded.n, in_tokens = in_tokens + excluded.in_tokens, out_tokens = out_tokens + excluded.out_tokens",
+                            arrayOf<Any>(day.toString(), kind.name, count, inputTokens, outputTokens),
                         )
                         db.delete("daily", "day < ?", arrayOf(day.minusDays(KEEP_DAYS).toString()))
                         db.setTransactionSuccessful()
@@ -102,14 +107,14 @@ class UsageStore(context: Context, private val zone: () -> ZoneId = { ZoneId.sys
         val today = LocalDate.now(zone())
         val rows = guarded {
             helper.readableDatabase.query(
-                "daily", arrayOf("day", "kind", "n"), "day >= ?", arrayOf(today.minusDays(days - 1L).toString()),
+                "daily", arrayOf("day", "kind", "n", "in_tokens", "out_tokens"), "day >= ?", arrayOf(today.minusDays(days - 1L).toString()),
                 null, null, null,
             ).use { c ->
                 buildList {
                     while (c.moveToNext()) {
                         val kind = RequestKind.entries.firstOrNull { it.name == c.getString(1) }
                         val date = runCatching { LocalDate.parse(c.getString(0)) }.getOrNull()
-                        if (kind != null && date != null) add(Triple(date, kind, c.getInt(2)))
+                        if (kind != null && date != null) add(UsageRow(date, kind, c.getInt(2), c.getInt(3), c.getInt(4)))
                     }
                 }
             }
@@ -124,14 +129,23 @@ class UsageStore(context: Context, private val zone: () -> ZoneId = { ZoneId.sys
         null
     }
 
-    private class Helper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, 1) {
+    private class Helper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, 2) {
         override fun onCreate(db: SQLiteDatabase) {
-            db.execSQL("CREATE TABLE daily (day TEXT NOT NULL, kind TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY(day, kind))")
+            db.execSQL(
+                "CREATE TABLE daily (day TEXT NOT NULL, kind TEXT NOT NULL, n INTEGER NOT NULL, " +
+                    "in_tokens INTEGER NOT NULL DEFAULT 0, out_tokens INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(day, kind))",
+            )
             // Empty now; kept so every install has the same schema and the start-up cleanup always finds it.
             db.execSQL("CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         }
 
-        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+            // v2: tokens per day and kind (notification analysis reports them).
+            if (oldVersion < 2) {
+                db.execSQL("ALTER TABLE daily ADD COLUMN in_tokens INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE daily ADD COLUMN out_tokens INTEGER NOT NULL DEFAULT 0")
+            }
+        }
     }
 
     private companion object {
