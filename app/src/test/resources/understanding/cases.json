@@ -1,0 +1,135 @@
+[
+  {
+    "id": "toss-step-reward",
+    "notifications": [{"pkg": "viva.republica.toss", "app": "토스", "title": "토스", "text": "만보기 5,000걸음 달성! 10원 받기", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "reward", "amount": "10", "currency": "KRW", "merchant": "토스", "sender": "business", "needs_reply": false, "summary": "만보기 10원"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "toss-quiz-promo",
+    "notifications": [{"pkg": "viva.republica.toss", "app": "토스", "title": "토스", "text": "행운퀴즈 정답을 맞히면 최대 1,000원", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "promo", "sender": "business", "needs_reply": false, "summary": "행운퀴즈"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "toss-money-received",
+    "notifications": [{"pkg": "viva.republica.toss", "app": "토스", "title": "토스", "text": "홍길동님이 50,000원을 보냈어요", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "income", "amount": "50,000", "currency": "KRW", "merchant": "홍길동", "sender": "business", "needs_reply": false, "summary": "홍길동님에게 5만원 받음"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "bank-deposit",
+    "notifications": [{"pkg": "com.kbstar.kbbank", "app": "KB스타뱅킹", "title": "KB스타뱅킹", "text": "입금 50,000원 홍길동", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "income", "amount": "50,000", "currency": "KRW", "merchant": "홍길동", "sender": "business", "needs_reply": false, "summary": "입금 5만원"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "bank-otp",
+    "notifications": [{"pkg": "com.shinhan.sbanking", "app": "신한 SOL", "title": "신한 SOL", "text": "인증번호 [●●●●●●]를 입력해주세요", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "service", "sender": "business", "needs_reply": false, "summary": "인증번호"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "point-credit-is-not-a-payment",
+    "notifications": [{"pkg": "com.kakaopay.app", "app": "카카오페이", "title": "카카오페이", "text": "포인트 100원 적립 완료! 결제하고 더 받기", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "reward", "amount": "100", "currency": "KRW", "merchant": "카카오페이", "sender": "business", "needs_reply": false, "summary": "포인트 100원 적립"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "own-transfer",
+    "notifications": [{"pkg": "viva.republica.toss", "app": "토스", "title": "토스", "text": "내 계좌로 50,000원 이체 완료\n토스뱅크 → 국민 출금", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "own_transfer", "amount": "50,000", "currency": "KRW", "sender": "business", "needs_reply": false, "summary": "내 계좌로 5만원"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "card-bill-withdrawal",
+    "notifications": [{"pkg": "com.kbstar.kbbank", "app": "KB스타뱅킹", "title": "KB스타뱅킹", "text": "출금 1,230,000원 삼성카드대금", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "bill_payment", "amount": "1,230,000", "currency": "KRW", "merchant": "삼성카드", "sender": "business", "needs_reply": false, "summary": "카드대금 출금"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "one-purchase-four-notices",
+    "notifications": [
+      {"pkg": "com.samsung.android.messaging", "app": "메시지", "title": "15888900", "text": "[Web발신]\n삼성카드 승인\n4,500원 일시불\n11/17 10:00 스타벅스강남", "offsetSec": 0},
+      {"pkg": "kr.co.samsungcard.mpocket", "app": "삼성카드", "title": "삼성카드", "text": "승인 4,500원 스타벅스 강남점", "offsetSec": 5},
+      {"pkg": "viva.republica.toss", "app": "토스", "title": "토스페이", "text": "결제 완료 | 스타벅스 4,500원", "offsetSec": 10},
+      {"pkg": "com.kbstar.kbbank", "app": "KB스타뱅킹", "title": "KB스타뱅킹", "text": "출금 4,500원 토스페이", "offsetSec": 15}
+    ],
+    "expected": [
+      {"i": 0, "kind": "spend", "amount": "4,500", "currency": "KRW", "merchant": "스타벅스", "instrument": "삼성카드", "sender": "business", "needs_reply": false, "summary": "스타벅스 4,500원"},
+      {"i": 1, "kind": "spend", "amount": "4,500", "currency": "KRW", "merchant": "스타벅스", "instrument": "삼성카드", "same_as": {"item": 0}, "sender": "business", "needs_reply": false, "summary": "스타벅스 4,500원"},
+      {"i": 2, "kind": "spend", "amount": "4,500", "currency": "KRW", "merchant": "스타벅스", "instrument": "토스페이", "same_as": {"item": 0}, "sender": "business", "needs_reply": false, "summary": "스타벅스 4,500원"},
+      {"i": 3, "kind": "spend", "amount": "4,500", "currency": "KRW", "merchant": "스타벅스", "instrument": "KB 계좌", "same_as": {"item": 2}, "sender": "business", "needs_reply": false, "summary": "스타벅스 4,500원"}
+    ],
+    "expect": {"spendTotal": 4500, "spendEvents": 1, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "friend-mentions-a-payment",
+    "notifications": [{"pkg": "com.kakao.talk", "app": "카카오톡", "title": "민수", "text": "우리 아까 결제 완료 됐는데 12,000원 나왔어", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "message", "sender": "person", "needs_reply": true, "summary": "민수: 결제 12,000원 나왔대"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 1}
+  },
+  {
+    "id": "card-approval-naming-a-courier",
+    "notifications": [{"pkg": "com.samsung.android.messaging", "app": "메시지", "title": "롯데카드", "text": "[롯데카드] 고객님 롯데택배 12,000원 승인", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "spend", "amount": "12,000", "currency": "KRW", "merchant": "롯데택배", "instrument": "롯데카드", "sender": "business", "needs_reply": false, "summary": "롯데택배 12,000원"}],
+    "expect": {"spendTotal": 12000, "spendEvents": 1, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "food-delivery-is-no-parcel",
+    "notifications": [{"pkg": "com.coupang.eats", "app": "쿠팡이츠", "title": "쿠팡이츠", "text": "[쿠팡이츠] 고객님 주문하신 음식이 배달 완료되었습니다", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "food_delivery", "sender": "business", "needs_reply": false, "summary": "음식 배달 완료"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "alimtalk-is-no-reply",
+    "notifications": [{"pkg": "com.kakao.talk", "app": "카카오톡", "title": "CGV", "text": "[CGV] 예매가 완료되었습니다. 2/3 영화 좌석 H12", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "service", "sender": "business", "needs_reply": false, "summary": "CGV 예매 완료"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "like-is-no-reply",
+    "notifications": [{"pkg": "com.instagram.android", "app": "Instagram", "title": "Instagram", "text": "jisoo님이 회원님의 게시물을 좋아합니다", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "other", "sender": "system", "needs_reply": false, "summary": "좋아요"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "ok-is-no-reply",
+    "notifications": [{"pkg": "com.kakao.talk", "app": "카카오톡", "title": "김민수", "text": "ㅇㅋ", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "message", "sender": "person", "needs_reply": false, "summary": "김민수: ㅇㅋ"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "one-parcel-three-channels",
+    "notifications": [
+      {"pkg": "com.samsung.android.messaging", "app": "메시지", "title": "CJ대한통운", "text": "[CJ대한통운] 고객님의 상품이 배송 출발했습니다. 운송장번호 123456789012", "offsetSec": 0},
+      {"pkg": "com.cjlogistics.app", "app": "CJ대한통운", "title": "CJ대한통운", "text": "오늘 배송 예정 · 운송장 1234-5678-9012", "offsetSec": 6},
+      {"pkg": "com.kakao.talk", "app": "카카오톡", "title": "CJ대한통운", "text": "고객님의 택배(123456789012)가 오늘 도착 예정입니다", "offsetSec": 12}
+    ],
+    "expected": [
+      {"i": 0, "kind": "parcel", "parcel": {"carrier": "CJ대한통운", "tracking": "123456789012", "stage": "out_for_delivery"}, "sender": "business", "needs_reply": false, "summary": "CJ대한통운 배송 출발"},
+      {"i": 1, "kind": "parcel", "parcel": {"carrier": "CJ대한통운", "tracking": "1234-5678-9012", "stage": "out_for_delivery"}, "sender": "business", "needs_reply": false, "summary": "오늘 도착 예정"},
+      {"i": 2, "kind": "parcel", "parcel": {"carrier": "CJ대한통운", "tracking": "123456789012", "stage": "out_for_delivery"}, "sender": "business", "needs_reply": false, "summary": "오늘 도착 예정"}
+    ],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 1, "replies": 0}
+  },
+  {
+    "id": "purchase-confirmation-reminder-is-no-parcel",
+    "notifications": [{"pkg": "com.coupang.mobile", "app": "쿠팡", "title": "쿠팡", "text": "[쿠팡] 고객님, 배송 완료된 상품 구매확정을 해주세요", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "promo", "sender": "business", "needs_reply": false, "summary": "구매확정 요청"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "taxi-arrival-is-no-parcel",
+    "notifications": [{"pkg": "com.kakao.taxi", "app": "카카오T", "title": "카카오T", "text": "택시가 도착했어요. 3456 흰색 K5", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "service", "sender": "business", "needs_reply": false, "summary": "택시 도착"}],
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  },
+  {
+    "id": "invented-amount-is-dropped",
+    "notifications": [{"pkg": "viva.republica.toss", "app": "토스", "title": "토스", "text": "만보기 5,000걸음 달성! 10원 받기", "offsetSec": 0}],
+    "expected": [{"i": 0, "kind": "spend", "amount": "4,500", "currency": "KRW", "merchant": "토스", "sender": "business", "needs_reply": false, "summary": "x"}],
+    "liveSkip": true,
+    "expect": {"spendTotal": 0, "spendEvents": 0, "parcels": 0, "replies": 0}
+  }
+]
