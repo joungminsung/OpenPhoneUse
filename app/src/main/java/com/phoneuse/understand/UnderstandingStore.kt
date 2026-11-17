@@ -102,6 +102,81 @@ class UnderstandingStore(private val sql: SqlPort, private val clock: () -> Long
         return money + parcels
     }
 
+    /**
+     * Stores one analysed batch in one transaction. A fact whose notification changed again while it was analysed
+     * (its ready_at moved past [now]) keeps waiting and is not overwritten. A parcel's stage only moves forward.
+     */
+    fun apply(plan: MergePlan, model: String, now: Long) = sql.transaction {
+        val moneyIds = HashMap<Int, Long>()
+        for (e in plan.newEvents) {
+            moneyIds[e.slot] = sql.insert(
+                "INSERT INTO money_events (kind, amount, currency, merchant, instrument, first_at, last_at, source_count, refund_of) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
+                listOf(e.kind.wire, e.amountMinor, e.currency, e.merchant, e.instrument, e.at, e.at, e.refundOf),
+            )
+        }
+        for (j in plan.joins) {
+            sql.exec(
+                "UPDATE money_events SET source_count = source_count + 1, last_at = MAX(last_at, ?), " +
+                    "merchant = COALESCE(merchant, ?), instrument = COALESCE(instrument, ?) WHERE id = ?",
+                listOf(j.at, j.merchant, j.instrument, j.id),
+            )
+        }
+        for (c in plan.cancels) {
+            sql.exec("UPDATE money_events SET cancelled_amount = MIN(amount, cancelled_amount + ?) WHERE id = ?", listOf(c.amountMinor, c.eventId))
+        }
+        val parcelIds = HashMap<Int, Long>()
+        for (u in plan.parcels) {
+            val id = when (val t = u.target) {
+                is ParcelTarget.Existing -> t.id
+                is ParcelTarget.New -> parcelIds[t.slot]
+            }
+            if (id == null) {
+                val slot = (u.target as ParcelTarget.New).slot
+                parcelIds[slot] = sql.insert(
+                    "INSERT INTO parcels (carrier, tracking, item_hint, stage, first_at, updated_at, delivered_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    listOf(u.info.carrier, u.info.tracking, u.info.itemHint, u.info.stage.wire, u.at, u.at, u.at.takeIf { u.info.stage == ParcelStage.DELIVERED }),
+                )
+                continue
+            }
+            val current = sql.query("SELECT stage FROM parcels WHERE id = ?", listOf(id)) { ParcelStage.of(it.string(0)) }.firstOrNull() ?: continue
+            val stage = if (u.info.stage.rank > current.rank) u.info.stage else current
+            sql.exec(
+                "UPDATE parcels SET stage = ?, carrier = COALESCE(carrier, ?), tracking = COALESCE(tracking, ?), " +
+                    "item_hint = COALESCE(item_hint, ?), updated_at = MAX(updated_at, ?), " +
+                    "delivered_at = COALESCE(delivered_at, ?) WHERE id = ?",
+                listOf(stage.wire, u.info.carrier, u.info.tracking, u.info.itemHint, u.at, u.at.takeIf { stage == ParcelStage.DELIVERED }, id),
+            )
+        }
+        for (f in plan.facts) {
+            val money = when (val t = f.moneyEvent) {
+                is EventTarget.Existing -> t.id
+                is EventTarget.New -> moneyIds[t.slot]
+                null -> null
+            }
+            val parcel = when (val t = f.parcel) {
+                is ParcelTarget.Existing -> t.id
+                is ParcelTarget.New -> parcelIds[t.slot]
+                null -> null
+            }
+            val j = f.j
+            sql.exec(
+                "UPDATE notification_facts SET status = '$DONE', kind = ?, amount = ?, currency = ?, merchant = ?, instrument = ?, " +
+                    "sender = ?, needs_reply = ?, summary = ?, money_event = ?, parcel_id = ?, model = ?, analyzed_at = ? " +
+                    "WHERE key = ? AND status = '$PENDING' AND ready_at <= ?",
+                listOf(
+                    j.kind.wire, j.amountMinor, j.currency, j.merchant, j.instrument, j.sender.wire, if (j.needsReply) 1L else 0L,
+                    j.summary, money, parcel, model, now, f.key, now,
+                ),
+            )
+        }
+        // A new event counts its notices as they are linked above.
+        for (e in plan.newEvents) {
+            val id = moneyIds[e.slot]!!
+            sql.exec("UPDATE money_events SET source_count = (SELECT COUNT(*) FROM notification_facts WHERE money_event = ?) WHERE id = ?", listOf(id, id))
+        }
+    }
+
     /** Drops what is past its retention, and facts whose notification is gone. */
     fun prune(now: Long) = sql.transaction {
         dropOrphans()
