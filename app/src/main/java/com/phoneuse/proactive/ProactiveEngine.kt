@@ -3,10 +3,9 @@ package com.phoneuse.proactive
 import com.phoneuse.i18n.Lang
 import com.phoneuse.i18n.tr
 import com.phoneuse.memory.MemoryKind
-import com.phoneuse.phone.DigestBucket
-import com.phoneuse.phone.DigestClassifier
 import com.phoneuse.phone.StoredNotification
 import com.phoneuse.routine.UpcomingEvent
+import com.phoneuse.understand.DigestGroups
 import com.phoneuse.understand.Money
 import com.phoneuse.understand.ParcelRecord
 import com.phoneuse.understand.ParcelStage
@@ -166,7 +165,7 @@ object ProactiveEngine {
             .sortedBy { it.startsAt }
         val parcels = UnderstoodData.parcelsToday(s.parcels, now).size
         val overnightFrom = ms(day.minusDays(1).atTime(settings.quietStart), now.zone)
-        val replies = s.notifications.count { it.postedAt >= overnightFrom && needsReply(it) }
+        val replies = s.notifications.count { it.postedAt >= overnightFrom && s.needsReply(it) }
         val body = BriefingText.body(todayEvents, parcels, replies, now.zone)
         val actions = buildList {
             add(NudgeAction.prompt(tr("Today at a glance", "오늘 한눈에"), BriefingText.TODAY_PROMPT))
@@ -203,7 +202,7 @@ object ProactiveEngine {
 
     private fun reply(now: ZonedDateTime, s: NudgeSources): List<Nudge> {
         val nowMs = ms(now)
-        return s.notifications.filter { needsReply(it) && nowMs - it.postedAt < DAY_MS }.map { n ->
+        return s.notifications.filter { s.needsReply(it) && nowMs - it.postedAt < DAY_MS }.map { n ->
             val who = n.title.trim().ifBlank { n.appLabel }.take(20)
             val at = hm(n.postedAt, now.zone)
             Nudge(
@@ -356,7 +355,7 @@ object ProactiveEngine {
     // ---- helpers ---------------------------------------------------------------------------------
 
     /** A 1:1 message still in the shade: one that was read, answered or swiped away (removedAt) needs no nudge. */
-    private fun needsReply(n: StoredNotification) = n.removedAt == null && DigestClassifier.classify(n) == DigestBucket.REPLY
+    private fun NudgeSources.needsReply(n: StoredNotification) = DigestGroups.needsReply(n, facts[n.key])
 
     const val PARCEL_PROMPT_KO = "오늘 오는 택배 어디쯤 왔어?"
     const val PARCEL_PROMPT_EN = "Where are the parcels arriving today?"

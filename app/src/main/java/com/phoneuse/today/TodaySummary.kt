@@ -2,11 +2,11 @@ package com.phoneuse.today
 
 import com.phoneuse.i18n.Lang
 import com.phoneuse.i18n.tr
-import com.phoneuse.phone.DigestBucket
-import com.phoneuse.phone.DigestClassifier
 import com.phoneuse.phone.StoredNotification
 import com.phoneuse.proactive.ProactiveEngine
+import com.phoneuse.understand.DigestGroups
 import com.phoneuse.understand.Money
+import com.phoneuse.understand.NoticeFact
 import com.phoneuse.understand.ParcelRecord
 import com.phoneuse.understand.ParcelStage
 import com.phoneuse.understand.PaymentRecord
@@ -30,6 +30,8 @@ data class TodaySources(
     val pending: Int = 0,
     /** When the payment history starts (null: none yet); a month that starts later is said to be partial. */
     val coverageStart: Long? = null,
+    /** What the analysis understood of [notifications], by key. */
+    val facts: Map<String, NoticeFact> = emptyMap(),
 )
 
 /** One tile of boards Main and UnfoldedHome. Text is our parsed fields; event titles are shown, never sent anywhere. */
@@ -121,7 +123,7 @@ object TodaySummary {
     private fun notifications(now: ZonedDateTime, s: TodaySources): TodayTile.Notifications? {
         val today = s.notifications.filter { day(it.postedAt, now) == now.toLocalDate() }
         val unread = today.count { it.removedAt == null }
-        val reply = DigestClassifier.group(today)[DigestBucket.REPLY]?.size ?: 0
+        val reply = today.count { DigestGroups.needsReply(it, s.facts[it.key]) }
         if (unread == 0 && reply == 0) return null
         return TodayTile.Notifications(unread, reply)
     }

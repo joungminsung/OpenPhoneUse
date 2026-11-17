@@ -243,6 +243,7 @@ class ProactiveSystem private constructor(private val app: Context) {
             // A month back, for "larger than usual" at the same place.
             payments = safe { understood.payments(nowMs - PAYMENT_DAYS * DAY_MS) }.orEmpty(),
             parcels = safe { understood.parcels(nowMs) }.orEmpty(),
+            facts = safe { understood.facts(notifications.map { it.key }) }.orEmpty(),
             events = events,
             memories = current.memories,
             asks = if (NudgeKind.ROUTINE in settings.enabled) current.asks else emptyList(),

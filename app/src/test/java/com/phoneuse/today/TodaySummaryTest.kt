@@ -1,7 +1,11 @@
 package com.phoneuse.today
 
 import com.phoneuse.phone.StoredNotification
+import com.phoneuse.understand.NoticeFact
+import com.phoneuse.understand.NoticeJudgment
+import com.phoneuse.understand.NoticeKind
 import com.phoneuse.understand.ParcelRecord
+import com.phoneuse.understand.Sender
 import com.phoneuse.understand.ParcelStage
 import com.phoneuse.understand.PaymentRecord
 import com.phoneuse.understand.RefundRecord
@@ -51,7 +55,8 @@ class TodaySummaryTest {
             UpcomingEvent("늦은 일정", now.withHour(23).withMinute(0).toInstant().toEpochMilli(), null),
         )
         val parcels = listOf(ParcelRecord(1, "CJ대한통운", "123456789012", null, ParcelStage.OUT_FOR_DELIVERY, ago(0, 9), null))
-        val tiles = TodaySummary.build(now, TodaySources(notifications, parcels, events = events))
+        val mom = NoticeFact(NoticeJudgment(0, NoticeKind.MESSAGE, null, null, null, null, null, null, null, Sender.PERSON, true, ""), null, null)
+        val tiles = TodaySummary.build(now, TodaySources(notifications, parcels, events = events, facts = mapOf("1" to mom, "4" to mom)))
         assertEquals(TodayTile.Parcels(1, "CJ대한통운 · 배송 출발", ParcelStage.OUT_FOR_DELIVERY), tiles[0])
         // The read message is no longer unread and needs no reply.
         assertEquals(TodayTile.Notifications(unread = 2, reply = 1), tiles[1])

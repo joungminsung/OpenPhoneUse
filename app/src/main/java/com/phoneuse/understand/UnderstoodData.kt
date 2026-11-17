@@ -11,6 +11,9 @@ data class PaymentRecord(val id: Long, val merchant: String?, val amountMinor: L
 /** A refund whose original payment was not found; shown apart, never taken off the spending. */
 data class RefundRecord(val amountMinor: Long, val currency: String, val at: Long)
 
+/** What the analysis stored for one notification: its judgment, and the payment or parcel it belongs to. */
+data class NoticeFact(val j: NoticeJudgment, val moneyEvent: Long?, val parcelId: Long?)
+
 /** A parcel and the furthest stage its notices reported; [at] is its latest notice. */
 data class ParcelRecord(
     val id: Long,
@@ -46,17 +49,18 @@ class UnderstoodData(private val sql: SqlPort) {
     }.filterNotNull()
 
     /** The judgments of the analysed notifications among [keys]. */
-    fun facts(keys: Collection<String>): Map<String, NoticeJudgment> {
+    fun facts(keys: Collection<String>): Map<String, NoticeFact> {
         if (keys.isEmpty()) return emptyMap()
         return keys.distinct().chunked(MAX_ARGS).flatMap { chunk ->
             sql.query(
-                "SELECT key, kind, amount, currency, merchant, instrument, sender, needs_reply, summary FROM notification_facts " +
+                "SELECT key, kind, amount, currency, merchant, instrument, sender, needs_reply, summary, money_event, parcel_id FROM notification_facts " +
                     "WHERE status = 'done' AND key IN (${chunk.joinToString(",") { "?" }})",
                 chunk,
             ) { r ->
                 val kind = NoticeKind.of(r.string(1)) ?: return@query null
                 val sender = Sender.of(r.string(6)) ?: Sender.SYSTEM
-                r.string(0)!! to NoticeJudgment(0, kind, r.long(2), r.string(3), r.string(4), r.string(5), null, null, null, sender, r.long(7) == 1L, r.string(8).orEmpty())
+                val j = NoticeJudgment(0, kind, r.long(2), r.string(3), r.string(4), r.string(5), null, null, null, sender, r.long(7) == 1L, r.string(8).orEmpty())
+                r.string(0)!! to NoticeFact(j, r.long(9), r.long(10))
             }.filterNotNull()
         }.toMap()
     }

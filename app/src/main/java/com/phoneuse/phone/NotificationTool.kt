@@ -2,6 +2,10 @@ package com.phoneuse.phone
 
 import com.phoneuse.i18n.tr
 import com.phoneuse.cards.PermissionCard
+import com.phoneuse.understand.DigestBucket
+import com.phoneuse.understand.DigestGroups
+import com.phoneuse.understand.Money
+import com.phoneuse.understand.NoticeFact
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -44,11 +48,17 @@ interface NotificationSource {
 
     /** Removes [keys] from the history and, while the listener is connected, from the notification shade. */
     suspend fun dismiss(keys: List<String>)
+
+    /** What the analysis understood of [keys]; a key not analysed yet is missing. */
+    suspend fun facts(keys: Collection<String>): Map<String, NoticeFact> = emptyMap()
+
+    /** Settings "알림 내용 분석". */
+    suspend fun analysisOn(): Boolean = true
 }
 
 /**
- * notifications_recent and dismiss_notifications. Grouping is [DigestClassifier]'s fixed rules; payments and
- * parcels carry what [SmsParsers] read. All of it is third-party text (the run is marked so by the executor).
+ * notifications_recent and dismiss_notifications. Grouping and judgments are what the background analysis understood
+ * ([DigestGroups]). All of it is third-party text (the run is marked so by the executor).
  */
 class NotificationTool(private val source: NotificationSource, private val now: () -> ZonedDateTime = ZonedDateTime::now) {
     suspend fun recent(hours: Int): MessagingReply {
@@ -57,7 +67,8 @@ class NotificationTool(private val source: NotificationSource, private val now: 
         val list = source.recent(h)
         if (list.isEmpty()) return MessagingReply.Ok("최근 ${h}시간 동안 받은 알림이 없어요.")
         val clock = now()
-        val groups = DigestClassifier.group(list)
+        val facts = source.facts(list.map { it.key })
+        val groups = DigestGroups.group(list, facts, source.analysisOn())
         return MessagingReply.Ok(
             buildJsonObject {
                 put("hours", h)
@@ -68,14 +79,15 @@ class NotificationTool(private val source: NotificationSource, private val now: 
                         for ((bucket, items) in groups) {
                             add(
                                 buildJsonObject {
-                                    put("label", bucket.label)
+                                    put("label", bucket.label())
+                                    put("id", bucket.id)
                                     put("tone", bucket.tone)
                                     put("count", items.size)
                                     // The rest (ads, updates, codes) goes as counts per app and keys only, no text.
                                     if (bucket == DigestBucket.OTHER) {
                                         put("by_app", buildJsonObject { items.groupingBy { it.appLabel }.eachCount().forEach { (app, n) -> put(app, n) } })
                                     }
-                                    put("items", buildJsonArray { items.take(MAX_PER_GROUP).forEach { add(item(it, clock, withText = bucket != DigestBucket.OTHER)) } })
+                                    put("items", buildJsonArray { items.take(MAX_PER_GROUP).forEach { add(item(it, facts[it.key], clock, withText = bucket != DigestBucket.OTHER)) } })
                                 },
                             )
                         }
@@ -100,7 +112,7 @@ class NotificationTool(private val source: NotificationSource, private val now: 
         return MessagingReply.Ok("OK: 알림 ${targets.size}개를 지웠어요.")
     }
 
-    private fun item(n: StoredNotification, clock: ZonedDateTime, withText: Boolean): JsonObject = buildJsonObject {
+    private fun item(n: StoredNotification, f: NoticeFact?, clock: ZonedDateTime, withText: Boolean): JsonObject = buildJsonObject {
         put("key", n.key)
         put("app", n.appLabel)
         put("at", clockText(n.postedAt, clock))
@@ -109,20 +121,23 @@ class NotificationTool(private val source: NotificationSource, private val now: 
         val both = n.title + "\n" + n.text
         put("title", SmsParsers.maskCodes(n.title, both))
         put("text", SmsParsers.maskCodes(n.text, both))
-        SmsParsers.payment(n.text)?.let { p ->
-            put("payment", buildJsonObject {
-                put("merchant", p.merchant)
-                put("amount", p.amount)
-                p.at?.let { put("at", it) }
-            })
+        if (f == null) {
+            put("analysis", "pending")
+            return@buildJsonObject
         }
-        SmsParsers.parcel(n.text)?.let { p ->
-            put("parcel", buildJsonObject {
-                put("carrier", p.carrier)
-                p.tracking?.let { put("tracking", it) }
-                put("status", p.status)
-            })
-        }
+        val j = f.j
+        put("judgment", buildJsonObject {
+            put("kind", j.kind.wire)
+            j.amountMinor?.let { a ->
+                val currency = j.currency ?: "KRW"
+                put("amount", java.math.BigDecimal.valueOf(a, Money.minorDigits(currency)).toPlainString())
+                put("currency", currency)
+            }
+            j.merchant?.let { put("merchant", it) }
+            put("sender", j.sender.wire)
+            put("needs_reply", j.needsReply)
+            if (j.summary.isNotEmpty()) put("summary", j.summary)
+        })
     }
 
     companion object {

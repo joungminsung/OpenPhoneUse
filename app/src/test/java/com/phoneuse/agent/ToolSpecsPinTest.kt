@@ -112,6 +112,6 @@ class ToolSpecsPinTest {
             "mcp__notion__search",
         )
         const val BARE_HASH = "14ddf062771a5913479a589eb2a5457c9b895708b674fa45ead4c7734cf2af23"
-        const val FULL_HASH = "82ca87b9ee3c8ad01b6fb0645704965ef9e37b3a479a60b9e3e360a6d6be4741"
+        const val FULL_HASH = "fce139c43421f632e2c11b2b41ff5fa6142669f22984331366eb0efb3fb7690d"
     }
 }

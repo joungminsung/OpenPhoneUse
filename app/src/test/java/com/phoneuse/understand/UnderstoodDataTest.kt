@@ -67,8 +67,8 @@ class UnderstoodDataTest {
         sql.exec("INSERT INTO notification_facts (key, posted_at, status, ready_at) VALUES ('b', ?, 'pending', 0)", listOf(now))
         val f = data.facts(listOf("a", "b", "c"))
         assertEquals(setOf("a"), f.keys)
-        assertEquals(NoticeKind.SPEND, f.getValue("a").kind)
-        assertEquals(4500L, f.getValue("a").amountMinor)
+        assertEquals(NoticeKind.SPEND, f.getValue("a").j.kind)
+        assertEquals(4500L, f.getValue("a").j.amountMinor)
         assertEquals(1, data.pendingCount())
     }
 

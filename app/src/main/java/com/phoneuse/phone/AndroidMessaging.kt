@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import com.phoneuse.agent.MessagingAccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
@@ -45,6 +46,11 @@ class AndroidNotificationSource(private val context: Context, private val store:
         store.remove(keys)
         PhoneUseNotificationListener.cancel(keys)
     }
+
+    override suspend fun facts(keys: Collection<String>) =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.phoneuse.understand.UnderstoodData.of(context).facts(keys) }
+
+    override suspend fun analysisOn() = com.phoneuse.app.AppGraph.settings.understandNotifications.first()
 }
 
 /** Telephony's SMS and MMS providers (inbox and sent) and [SmsManager]. */

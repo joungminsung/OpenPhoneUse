@@ -4,6 +4,7 @@ import com.phoneuse.memory.Confidence
 import com.phoneuse.memory.Memory
 import com.phoneuse.phone.StoredNotification
 import com.phoneuse.routine.UpcomingEvent
+import com.phoneuse.understand.NoticeFact
 import com.phoneuse.understand.ParcelRecord
 import com.phoneuse.understand.PaymentRecord
 import java.time.LocalDate
@@ -31,6 +32,8 @@ data class NudgeSources(
     val asks: List<AskRecord> = emptyList(),
     val travel: Map<String, TravelEstimate> = emptyMap(),
     val nextAlarm: Long? = null,
+    /** What the analysis understood of [notifications], by key; one not analysed yet is missing. */
+    val facts: Map<String, NoticeFact> = emptyMap(),
 ) {
     companion object {
         /** The travel map's key of an event. */

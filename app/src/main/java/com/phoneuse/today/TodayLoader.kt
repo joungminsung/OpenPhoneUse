@@ -40,6 +40,7 @@ object TodayLoader {
             refunds = safe { understood.refunds(since) }.orEmpty(),
             pending = safe { understood.pendingCount() } ?: 0,
             coverageStart = safe { understood.coverageStart() },
+            facts = safe { understood.facts(notifications.map { it.key }) }.orEmpty(),
             events = events,
             nextAlarm = safe { AndroidAlarmSource(app).next()?.toInstant()?.toEpochMilli() },
         )

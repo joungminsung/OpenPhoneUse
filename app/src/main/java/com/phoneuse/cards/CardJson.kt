@@ -1,5 +1,6 @@
 package com.phoneuse.cards
 
+import com.phoneuse.understand.DigestBucket
 import kotlinx.serialization.MissingFieldException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
@@ -118,7 +119,7 @@ object CardJson {
             card.items.mapIndexed { i, r -> "${i + 1}." + (r.url?.let { domain(it) }?.let { " $it" } ?: "") }.joinToString("; ")
         is DraftCard -> "초안(${card.channel}${card.to?.let { " → $it" } ?: ""}): ${card.body}"
         is DigestCard -> "알림 요약: " + card.groups.withIndex().joinToString(" / ") { (gi, g) ->
-            val label = g.label.takeIf { it in DIGEST_LABELS } ?: "그룹 ${gi + 1}"
+            val label = (DigestBucket.of(g.label) ?: DigestBucket.entries.firstOrNull { it.label() == g.label })?.label() ?: "그룹 ${gi + 1}"
             "'$label' ${g.items.size}개" + g.items.mapIndexed { i, it ->
                 " ${i + 1}." + (it.at?.takeIf { a -> CLOCK.matches(a) }?.let { a -> " $a" } ?: "")
             }.joinToString(";", prefix = ":")
@@ -135,8 +136,6 @@ object CardJson {
         } ?: "루틴 미리보기"
     }
 
-    /** The digest card's group labels we assign (DigestBucket); anything else is "그룹 n". */
-    private val DIGEST_LABELS = setOf("답장 필요", "돈 나간 것", "오늘 도착", "나머지")
 
     /** Carrier names the SMS parser assigns (SmsParsers). */
     private val CARRIERS = setOf(

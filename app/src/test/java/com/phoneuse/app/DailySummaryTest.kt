@@ -1,6 +1,6 @@
 package com.phoneuse.app
 
-import com.phoneuse.phone.DigestBucket
+import com.phoneuse.understand.DigestBucket
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

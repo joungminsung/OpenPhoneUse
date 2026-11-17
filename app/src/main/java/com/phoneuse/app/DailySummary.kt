@@ -13,8 +13,8 @@ import android.graphics.drawable.Icon
 import android.util.Log
 import com.phoneuse.notify.Notifier
 import com.phoneuse.notify.Taps
-import com.phoneuse.phone.DigestBucket
-import com.phoneuse.phone.DigestClassifier
+import com.phoneuse.understand.DigestBucket
+import com.phoneuse.understand.DigestGroups
 import com.phoneuse.phone.NotificationStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +45,7 @@ object DailySummary {
 
     /** The notification text: each non-empty group with its count, "나머지" last; null when there is nothing. */
     fun text(groups: Map<DigestBucket, List<*>>): String? =
-        DigestBucket.entries.mapNotNull { b -> groups[b]?.size?.takeIf { it > 0 }?.let { "${b.label} $it" } }
+        DigestBucket.entries.mapNotNull { b -> groups[b]?.size?.takeIf { it > 0 }?.let { "${b.label()} $it" } }
             .takeIf { it.isNotEmpty() }?.joinToString(" · ")
 
     /** Sets (or with a negative [minute] cancels) the daily alarm. */
@@ -72,7 +72,9 @@ object DailySummary {
     suspend fun post(context: Context, settings: SettingsStore) {
         val app = context.applicationContext
         if (!Notifier.canPost(app)) return
-        val text = text(DigestClassifier.group(NotificationStore.get(app).recent(24))) ?: return
+        val list = NotificationStore.get(app).recent(24)
+        val facts = com.phoneuse.understand.UnderstoodData.of(app).facts(list.map { it.key })
+        val text = text(DigestGroups.group(list, facts, settings.understandNotifications.first())) ?: return
         val now = LocalTime.now()
         val quiet = settings.quietHours.first().contains(now.hour * 60 + now.minute)
         val n = Notifier.builder(app, Notifier.Channel.DAILY_SUMMARY, quiet)
