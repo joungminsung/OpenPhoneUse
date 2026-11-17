@@ -164,6 +164,9 @@ class SettingsStore internal constructor(
      */
     val riskJudge: Flow<Boolean> = store.data.map { it[RISK_JUDGE] ?: true }
 
+    /** Settings "알림 내용 분석": notification text goes to the model to sort payments, parcels and replies (on by default). */
+    val understandNotifications: Flow<Boolean> = store.data.map { it[UNDERSTAND_NOTIFICATIONS] ?: true }
+
     val assistAction: Flow<AssistAction> = store.data.map { prefs -> enumOf(prefs[ASSIST_ACTION], AssistAction.SUGGEST) }
     val controlSpeed: Flow<ControlSpeed> = store.data.map { prefs -> enumOf(prefs[CONTROL_SPEED], ControlSpeed.NORMAL) }
 
@@ -313,6 +316,10 @@ class SettingsStore internal constructor(
         store.edit { it[HELPER] = v }
     }
 
+    suspend fun setUnderstandNotifications(v: Boolean) {
+        store.edit { it[UNDERSTAND_NOTIFICATIONS] = v }
+    }
+
     suspend fun setRiskJudge(v: Boolean) {
         store.edit { it[RISK_JUDGE] = v }
     }
@@ -449,6 +456,7 @@ class SettingsStore internal constructor(
         private val RETENTION = intPreferencesKey("retention_days")
         private val CONFIRM_SEND = booleanPreferencesKey("confirm_send")
         private val RISK_JUDGE = booleanPreferencesKey("risk_judge")
+        private val UNDERSTAND_NOTIFICATIONS = booleanPreferencesKey("understand_notifications")
         private val ASSIST_ACTION = stringPreferencesKey("assist_action")
         private val CONTROL_SPEED = stringPreferencesKey("control_speed")
         private val SUMMARY_MINUTE = intPreferencesKey("summary_minute")

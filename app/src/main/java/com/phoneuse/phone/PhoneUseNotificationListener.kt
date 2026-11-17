@@ -73,6 +73,7 @@ class PhoneUseNotificationListener : NotificationListenerService() {
         scope.launch {
             try {
                 NotificationStore.get(applicationContext).add(n)
+                com.phoneuse.understand.UnderstandScheduler.kick(applicationContext)
             } catch (e: Exception) {
                 Log.w(TAG, "storing a notification failed", e)
             }

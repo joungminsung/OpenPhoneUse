@@ -17,6 +17,7 @@ class PhoneUseApp : Application() {
             osmdroidTileCache = File(cacheDir, "osmdroid/tiles")
         }
         AppGraph.init(this)
+        com.phoneuse.understand.UnderstandScheduler.ensureSweep(this)
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {

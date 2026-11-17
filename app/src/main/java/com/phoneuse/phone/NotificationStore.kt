@@ -39,6 +39,12 @@ object NotificationSql {
     /** Read columns: [COLUMNS] and removed_at (v6). */
     const val READ_COLUMNS = "$COLUMNS, removed_at"
 
+    /** Args: [count] keys. */
+    fun byKeys(count: Int): String {
+        require(count > 0)
+        return "SELECT $READ_COLUMNS FROM notifications WHERE key IN (${List(count) { "?" }.joinToString(", ")})"
+    }
+
     /** Args: since (epoch ms), limit. Newest first. */
     const val SINCE = "SELECT $READ_COLUMNS FROM notifications WHERE posted_at >= ? ORDER BY posted_at DESC, key LIMIT ?"
 
@@ -113,6 +119,19 @@ class NotificationStore(private val db: ChatDb, private val clock: () -> Long = 
             buildList {
                 while (c.moveToNext()) {
                     add(StoredNotification(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getLong(5), c.getInt(6) != 0, if (c.isNull(7)) null else c.getLong(7)))
+                }
+            }
+        }
+    }
+
+    /** The stored rows of [keys]; keys no longer stored are left out. */
+    suspend fun byKeys(keys: Collection<String>): List<StoredNotification> = withContext(Dispatchers.IO) {
+        keys.distinct().chunked(MAX_ARGS).flatMap { chunk ->
+            db.readable.rawQuery(NotificationSql.byKeys(chunk.size), chunk.toTypedArray()).use { c ->
+                buildList {
+                    while (c.moveToNext()) {
+                        add(StoredNotification(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getLong(5), c.getInt(6) != 0, if (c.isNull(7)) null else c.getLong(7)))
+                    }
                 }
             }
         }
