@@ -125,8 +125,8 @@ object CardJson {
             }.joinToString(";", prefix = ":")
         }
         is StatCard -> "${card.label}: ${card.value}" + (card.delta?.let { " ($it)" } ?: "")
-        is ParcelCard -> "택배: ${card.status.takeIf { it in ParcelCard.STAGES } ?: "?"}" +
-            (card.carrier?.takeIf { it in CARRIERS }?.let { " · $it" } ?: "") +
+        // The carrier is the model's copy of third-party text: it stays out of the history (only the stage and digits).
+        is ParcelCard -> "택배: ${card.stage()?.wire ?: "?"}" +
             (card.tracking?.takeIf { TRACKING.matches(it) }?.let { " $it" } ?: "") +
             (if (card.events.isEmpty()) "" else ", 단계 ${card.events.size}개 " + card.events.mapNotNull { it.at.takeIf { a -> CLOCK.matches(a) } }.joinToString(" "))
         is PermissionCard -> "권한 요청 카드: ${card.label} [권한 허용]"
@@ -137,10 +137,6 @@ object CardJson {
     }
 
 
-    /** Carrier names the SMS parser assigns (SmsParsers). */
-    private val CARRIERS = setOf(
-        "CJ대한통운", "한진택배", "롯데택배", "우체국택배", "로젠택배", "경동택배", "CU 편의점택배", "GS 편의점택배", "쿠팡",
-    )
     private val CLOCK = Regex("""(\d{2}/\d{2} )?\d{1,2}:\d{2}""")
     private val TRACKING = Regex("""[\d-]{6,20}""")
     private val HOST = Regex("""^[a-z][a-z0-9+.-]*://([^/?#:@\s]+)""", RegexOption.IGNORE_CASE)

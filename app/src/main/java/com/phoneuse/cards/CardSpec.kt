@@ -1,5 +1,6 @@
 package com.phoneuse.cards
 
+import com.phoneuse.understand.ParcelStage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
@@ -277,14 +278,22 @@ data class ParcelCard(
 ) : CardSpec {
     override fun validate(): String? {
         if (title.isBlank()) return "title이 비었어요"
-        if (status !in STAGES) return "status는 ${STAGES.joinToString("|")} 중 하나여야 해요 ($status)"
+        if (ParcelStage.of(status) == null) return "status must be one of ${ParcelStage.entries.joinToString("|") { it.wire }} ($status)"
         capError("events", events.size)?.let { return it }
         events.forEachIndexed { i, e -> if (e.text.isBlank()) return "events[$i].text가 비었어요" }
         return null
     }
 
-    companion object {
-        val STAGES = listOf("접수", "이동 중", "배송 출발", "도착")
+    /** The stage; cards saved before stage ids carry the Korean stage name instead. */
+    fun stage(): ParcelStage? = ParcelStage.of(status) ?: LEGACY[status]
+
+    private companion object {
+        val LEGACY = mapOf(
+            "접수" to ParcelStage.RECEIVED,
+            "이동 중" to ParcelStage.IN_TRANSIT,
+            "배송 출발" to ParcelStage.OUT_FOR_DELIVERY,
+            "도착" to ParcelStage.DELIVERED,
+        )
     }
 }
 

@@ -122,7 +122,7 @@ private val cardSchema = buildJsonObject {
             "draft: channel: sms|email|note, to?, subject?, body. " +
             "digest: groups[{label, tone: urgent|money|info|muted, items[{who?, text, at?, action?}]}]. " +
             "stat: label, value, delta?, bars?[{label, value (number)}]. " +
-            "parcel: title (the item), status: 접수|이동 중|배송 출발|도착, carrier?, tracking?, source? (e.g. 문자에서 송장 찾음), " +
+            "parcel: title (the item), status: received|in_transit|action_needed|out_for_delivery|pickup_ready|delivered|returning, carrier?, tracking?, source? (where you found it), " +
             "events?[{at, text}] (newest first).",
     )
     putJsonObject("properties") {
@@ -179,7 +179,7 @@ private val cardSchema = buildJsonObject {
         put("value", str())
         put("delta", str())
         put("bars", arr(obj("label" to str(), "value" to num())))
-        put("status", enumProp("Parcel stage.", listOf("접수", "이동 중", "배송 출발", "도착")))
+        put("status", enumProp("Parcel stage.", com.phoneuse.understand.ParcelStage.entries.map { it.wire }))
         put("carrier", str())
         put("tracking", str())
         put("source", str())

@@ -53,20 +53,6 @@ class SmsTool(
                             put(if (m.incoming) "from" else "to", m.address)
                             put("at", NotificationTool.clockText(m.at, clock))
                             put("text", SmsParsers.maskCodes(m.body).take(MAX_BODY))
-                            SmsParsers.payment(m.body)?.let { p ->
-                                put("payment", buildJsonObject {
-                                    put("merchant", p.merchant)
-                                    put("amount", p.amount)
-                                    p.at?.let { put("at", it) }
-                                })
-                            }
-                            SmsParsers.parcel(m.body)?.let { p ->
-                                put("parcel", buildJsonObject {
-                                    put("carrier", p.carrier)
-                                    p.tracking?.let { put("tracking", it) }
-                                    put("status", p.status)
-                                })
-                            }
                         },
                     )
                 }

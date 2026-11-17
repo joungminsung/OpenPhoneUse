@@ -111,7 +111,7 @@ class ToolSpecsPinTest {
             "flashlight", "set_volume", "media_control", "device_status", "recent_calls", "add_contact",
             "mcp__notion__search",
         )
-        const val BARE_HASH = "14ddf062771a5913479a589eb2a5457c9b895708b674fa45ead4c7734cf2af23"
-        const val FULL_HASH = "fce139c43421f632e2c11b2b41ff5fa6142669f22984331366eb0efb3fb7690d"
+        const val BARE_HASH = "95843fa10990c4ae4a8e20ab0d6796416a6faa4acaa0b3a9154adb73382e6e56"
+        const val FULL_HASH = "3813ed1a44408792e0a24e9c1665ee354c561415e93d81e206137a771a299929"
     }
 }

@@ -425,14 +425,14 @@ class MessagingToolsTest {
         assertEquals(RiskCategory.DELETE, gate.confirms.single().first)
     }
 
-    @Test fun smsSearchReturnsNewestWithParsedPayments() {
+    @Test fun smsSearchReturnsNewest() {
         val r = run("sms_search", """{"query":"승인","days":7}""")
         val (since, query, _) = sms.lastQuery!!
         assertEquals("승인", query)
         assertEquals(now.minusDays(7).toInstant().toEpochMilli(), since)
         val hit = (Json.parseToJsonElement(r.output) as JsonArray).single().jsonObject
         assertEquals("15447200", hit["from"]!!.jsonPrimitive.content)
-        assertEquals("스타벅스강남", (hit["payment"] as JsonObject)["merchant"]!!.jsonPrimitive.content)
+        assertFalse("payment" in hit)
         assertFalse("to" in hit)
     }
 
