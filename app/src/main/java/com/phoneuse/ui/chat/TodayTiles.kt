@@ -26,7 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phoneuse.phone.SmsParsers
+import com.phoneuse.understand.Money
+import com.phoneuse.understand.ParcelStage
 import com.phoneuse.today.TodaySummary
 import com.phoneuse.today.TodayTile
 import com.phoneuse.ui.theme.MonoStyle
@@ -97,13 +98,13 @@ private fun ParcelTile(t: TodayTile.Parcels, onClick: () -> Unit, modifier: Modi
             Text(tr("${t.count}", "${t.count}개"), style = MonoStyle, fontSize = 12.5.sp, color = c.textSub)
         }
         Text(t.line, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        val current = SmsParsers.PARCEL_STAGES.indexOf(t.stage)
+        val current = BAR_STAGES.indexOf(t.stage).takeIf { it >= 0 } ?: if (t.stage == ParcelStage.PICKUP_READY) BAR_STAGES.lastIndex else -1
         if (current >= 0) {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                SmsParsers.PARCEL_STAGES.indices.forEach { i ->
+                BAR_STAGES.indices.forEach { i ->
                     val color = when {
                         i < current -> c.primary
-                        i == current -> if (i == SmsParsers.PARCEL_STAGES.lastIndex) c.primary else c.accent
+                        i == current -> if (i == BAR_STAGES.lastIndex) c.primary else c.accent
                         else -> c.line
                     }
                     Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(color))
@@ -170,17 +171,26 @@ private fun SpendingTile(t: TodayTile.Spending, modifier: Modifier) {
     val c = pu
     Tile(modifier, gap = 4) {
         Text(t.label, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = c.textSub)
-        Text(TodaySummary.won(t.total), style = MonoStyle, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp, color = c.text)
+        Text(Money.format(t.total, t.currency), style = MonoStyle, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp, color = c.text)
         t.diff?.let { diff ->
             Text(
-                tr("${TodaySummary.signedWon(diff)} vs last month", "지난달보다 ${TodaySummary.signedWon(diff)}"),
+                tr("${TodaySummary.signed(diff, t.currency)} vs last month", "지난달보다 ${TodaySummary.signed(diff, t.currency)}"),
                 fontSize = 12.5.sp,
                 fontWeight = if (diff > 0) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (diff > 0) c.accentText else c.textSub,
             )
         }
+        t.since?.let { since ->
+            val d = java.time.Instant.ofEpochMilli(since).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            Text(tr("Since %d/%d".format(d.monthValue, d.dayOfMonth), "%d월 %d일부터".format(d.monthValue, d.dayOfMonth)), fontSize = 12.sp, color = c.textSub)
+        }
+        if (t.refunds > 0) Text(tr("Refunds ${Money.format(t.refunds, t.currency)}", "환불 ${Money.format(t.refunds, t.currency)}"), fontSize = 12.sp, color = c.textSub)
+        if (t.pending > 0) Text(tr("Sorting ${t.pending}", "${t.pending}개 정리 중"), fontSize = 12.sp, color = c.textSub)
     }
 }
+
+/** The stage bar: received, on the way, out for delivery, delivered. */
+private val BAR_STAGES = listOf(ParcelStage.RECEIVED, ParcelStage.IN_TRANSIT, ParcelStage.OUT_FOR_DELIVERY, ParcelStage.DELIVERED)
 
 @Composable
 private fun BigNumber(text: String, accent: Boolean = false) {

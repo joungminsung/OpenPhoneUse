@@ -5,6 +5,9 @@ import com.phoneuse.memory.Memory
 import com.phoneuse.memory.MemoryKind
 import com.phoneuse.phone.StoredNotification
 import com.phoneuse.routine.UpcomingEvent
+import com.phoneuse.understand.ParcelRecord
+import com.phoneuse.understand.ParcelStage
+import com.phoneuse.understand.PaymentRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -28,6 +31,9 @@ class ProactiveEngineTest {
 
     private fun filler(i: Int, kind: NudgeKind = NudgeKind.DELIVERY) =
         Nudge(kind, "t$i", "b", emptyList(), 0, Long.MAX_VALUE, "filler:$i")
+
+    private var nextId = 1L
+    private fun PaymentRecord(merchant: String, amount: Long, at: Long) = PaymentRecord(nextId++, merchant, amount, "KRW", at)
 
     /** A payment at 3x+ the usual for that merchant, 10 minutes before [now]. */
     private fun unusual(now: ZonedDateTime) = NudgeSources(
@@ -74,10 +80,36 @@ class ProactiveEngineTest {
         assertEquals(1, first.size)
         val log = first.map { sent(it, now) }
         assertTrue(ProactiveEngine.plan(now.plusMinutes(15), sources, settings, log).isEmpty())
-        // The same parcel text seen twice (notification and SMS) is one nudge.
-        val parcel = ParcelRecord("n1", "CJ대한통운", "123456789012", "배송 출발", ms(now.minusMinutes(5)))
-        val twice = NudgeSources(parcels = listOf(parcel, parcel.copy(key = "sms:1")))
-        assertEquals(1, ProactiveEngine.plan(now, twice, settings, emptyList()).count { it.kind == NudgeKind.DELIVERY })
+    }
+
+    @Test
+    fun parcelNudgeOncePerStage() {
+        val now = at(2, 14)
+        val out = ParcelRecord(7, "CJ대한통운", "123456789012", null, ParcelStage.OUT_FOR_DELIVERY, ms(now.minusMinutes(5)), null)
+        val first = ProactiveEngine.plan(now, NudgeSources(parcels = listOf(out)), settings, emptyList()).single()
+        assertEquals("parcel:7:out_for_delivery", first.dedupeKey)
+        assertEquals("CJ대한통운 · 배송 출발", first.body)
+        val log = listOf(sent(first, now))
+        assertTrue(ProactiveEngine.plan(now.plusMinutes(15), NudgeSources(parcels = listOf(out)), settings, log).isEmpty())
+        // The same parcel delivered later is one more nudge.
+        val delivered = out.copy(stage = ParcelStage.DELIVERED, at = ms(now.plusMinutes(30)), deliveredAt = ms(now.plusMinutes(30)))
+        val next = ProactiveEngine.plan(now.plusMinutes(31), NudgeSources(parcels = listOf(delivered)), settings, log).single()
+        assertEquals("parcel:7:delivered", next.dedupeKey)
+        // Moving between hubs is no nudge.
+        val moving = out.copy(id = 8, stage = ParcelStage.IN_TRANSIT)
+        assertTrue(ProactiveEngine.plan(now, NudgeSources(parcels = listOf(moving)), settings, emptyList()).isEmpty())
+    }
+
+    @Test
+    fun briefingCountsOneParcelOnce() {
+        val now = at(2, 7, 31)
+        val parcel = ParcelRecord(7, "CJ대한통운", null, null, ParcelStage.OUT_FOR_DELIVERY, ms(at(2, 7, 0)), null)
+        val brief = ProactiveEngine.plan(now, NudgeSources(parcels = listOf(parcel)), settings.copy(enabled = setOf(NudgeKind.BRIEFING)), emptyList()).single()
+        assertTrue(brief.body, brief.body.contains("택배 1개"))
+        // A parcel delivered yesterday is not today's.
+        val old = parcel.copy(stage = ParcelStage.DELIVERED, at = ms(at(1, 14)), deliveredAt = ms(at(1, 14)))
+        val none = ProactiveEngine.plan(now, NudgeSources(parcels = listOf(old)), settings.copy(enabled = setOf(NudgeKind.BRIEFING)), emptyList()).single()
+        assertFalse(none.body, none.body.contains("택배"))
     }
 
     @Test

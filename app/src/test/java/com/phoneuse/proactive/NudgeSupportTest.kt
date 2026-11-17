@@ -69,18 +69,6 @@ class NudgeSupportTest {
     }
 
     @Test
-    fun paymentsReadOnceFromNotificationAndText() {
-        val text = "[Web발신]\n신한카드(1234)승인 홍*동 12,500원(일시불)11/02 12:30 스타벅스 누적1,234,000원"
-        val n = StoredNotification("k", "com.samsung.android.messaging", "메시지", "15447200", text, 1_000_000)
-        val sms = SmsMessage("15447200", text, 1_030_000, incoming = true)
-        val got = NudgeReaders.payments(listOf(n), listOf(sms))
-        assertEquals(1, got.size)
-        assertEquals(12_500L, got.single().amount)
-        // A text the user sent is never a payment to them.
-        assertTrue(NudgeReaders.payments(emptyList(), listOf(sms.copy(incoming = false))).isEmpty())
-    }
-
-    @Test
     fun quietHoursComeFromTheAppSetting() {
         val night = java.time.LocalTime.of(23, 30)
         assertTrue(NudgeSettings().withQuiet(true, 23 * 60, 7 * 60).isQuiet(night))
@@ -126,16 +114,5 @@ class NudgeSupportTest {
         assertTrue(ProactiveEngine.plan(now, NudgeSources(asks = usable), NudgeSettings(), emptyList()).none { it.kind == NudgeKind.ROUTINE })
         log.clear()
         assertTrue(log.all().isEmpty())
-    }
-
-    @Test
-    fun parcelsApartWithoutTrackingNumbers() {
-        fun note(key: String, text: String, at: Long) = StoredNotification(key, "com.coupang.mobile", "쿠팡", "쿠팡", text, at)
-        val shoes = "[CJ대한통운] 운동화 상품이 배송 출발했습니다"
-        val book = "[CJ대한통운] 책 상품이 배송 출발했습니다"
-        val parcels = NudgeReaders.parcels(listOf(note("k", shoes, 1_000), note("k", book, 2_000)), emptyList())
-        assertEquals(2, parcels.map { it.key }.distinct().size)
-        // The same text again is the same parcel.
-        assertEquals(parcels[0].key, NudgeReaders.parcels(listOf(note("k2", shoes, 9_000)), emptyList()).single().key)
     }
 }

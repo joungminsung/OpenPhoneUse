@@ -49,7 +49,7 @@ class BriefPromptTest {
     @Test
     fun countsAndRoutinesAreFacts() {
         val lines = BriefPrompt.lines(
-            BriefFacts(now, parcels = TodayTile.Parcels(2, "CJ대한통운 · 배송 출발", "배송 출발"), unread = 5, replies = 2, routines = listOf("저녁 정리" to ms(21))),
+            BriefFacts(now, parcels = TodayTile.Parcels(2, "CJ대한통운 · 배송 출발", com.phoneuse.understand.ParcelStage.OUT_FOR_DELIVERY), unread = 5, replies = 2, routines = listOf("저녁 정리" to ms(21))),
         )
         assertTrue(lines.contains("오늘 택배: 2개 (CJ대한통운 · 배송 출발)"))
         assertTrue(lines.contains("답장 필요한 메시지: 2개"))

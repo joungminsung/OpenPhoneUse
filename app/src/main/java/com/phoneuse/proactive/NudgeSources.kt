@@ -2,24 +2,14 @@ package com.phoneuse.proactive
 
 import com.phoneuse.memory.Confidence
 import com.phoneuse.memory.Memory
-import com.phoneuse.phone.SmsMessage
-import com.phoneuse.phone.SmsParsers
 import com.phoneuse.phone.StoredNotification
 import com.phoneuse.routine.UpcomingEvent
+import com.phoneuse.understand.ParcelRecord
+import com.phoneuse.understand.PaymentRecord
 import java.time.LocalDate
 import java.time.MonthDay
 import java.time.ZoneId
-import kotlin.math.abs
 import kotlin.math.ceil
-
-/** A payment read from a card or bank text: our parsed merchant and amount, at the time it arrived. */
-data class PaymentRecord(val merchant: String, val amount: Long, val at: Long)
-
-/**
- * A courier text: one of SmsParsers.PARCEL_STAGES. [key] tells two parcels apart when there is no tracking number:
- * the carrier plus the text's letters without the stage (the item and sender), see [NudgeReaders.parcelKey].
- */
-data class ParcelRecord(val key: String, val carrier: String, val tracking: String?, val status: String, val at: Long)
 
 /** The first message the user typed in a new conversation (what they asked for), and when. */
 data class AskRecord(val text: String, val at: Long)
@@ -46,56 +36,6 @@ data class NudgeSources(
         /** The travel map's key of an event. */
         fun leaveKey(e: UpcomingEvent): String = "${e.startsAt}:${e.title.hashCode()}"
     }
-}
-
-/** Reads payments and parcels out of notifications and texts (both, de-duplicated: an SMS also posts a notification). */
-object NudgeReaders {
-    private const val SAME_PAYMENT_MS = 3 * 60_000L
-
-    fun payments(notifications: List<StoredNotification>, sms: List<SmsMessage>): List<PaymentRecord> {
-        val all = ArrayList<PaymentRecord>()
-        for (n in notifications) {
-            val p = SmsParsers.payment(n.text) ?: SmsParsers.payment("${n.title}\n${n.text}") ?: continue
-            all += PaymentRecord(p.merchant, p.amount, n.postedAt)
-        }
-        for (m in sms) {
-            if (!m.incoming) continue
-            val p = SmsParsers.payment(m.body) ?: continue
-            all += PaymentRecord(p.merchant, p.amount, m.at)
-        }
-        val out = ArrayList<PaymentRecord>()
-        for (p in all.sortedBy { it.at }) {
-            if (out.any { it.merchant == p.merchant && it.amount == p.amount && abs(it.at - p.at) <= SAME_PAYMENT_MS }) continue
-            out += p
-        }
-        return out
-    }
-
-    fun parcels(notifications: List<StoredNotification>, sms: List<SmsMessage>): List<ParcelRecord> {
-        val all = ArrayList<ParcelRecord>()
-        for (n in notifications) {
-            val p = SmsParsers.parcel(n.text) ?: continue
-            all += ParcelRecord(parcelKey(p.carrier, p.status, n.text), p.carrier, p.tracking, p.status, n.postedAt)
-        }
-        for (m in sms) {
-            if (!m.incoming) continue
-            val p = SmsParsers.parcel(m.body) ?: continue
-            all += ParcelRecord(parcelKey(p.carrier, p.status, m.body), p.carrier, p.tracking, p.status, m.at)
-        }
-        val out = ArrayList<ParcelRecord>()
-        for (p in all.sortedBy { it.at }) {
-            if (out.any { it.key == p.key && it.status == p.status && it.tracking == p.tracking && abs(it.at - p.at) <= SAME_PAYMENT_MS }) continue
-            out += p
-        }
-        return out
-    }
-
-    /**
-     * "CJ대한통운:…": the carrier and the text's letters with the stage, numbers, spacing and the SMS "[Web발신]" mark
-     * taken out, so a text and its notification share it while two parcels of one courier do not.
-     */
-    fun parcelKey(carrier: String, status: String, text: String): String =
-        carrier + ":" + text.replace("[Web발신]", "").replace(status, "").filter { it.isLetter() }.hashCode().toUInt().toString(16)
 }
 
 /** Dates the model wrote into memories ("11월 20일", "2026-11-15", "내일"). */

@@ -24,7 +24,6 @@ import com.phoneuse.model.OpenAiResponsesClient
 import com.phoneuse.phone.AndroidCalendarSource
 import com.phoneuse.phone.AndroidLocationSource
 import com.phoneuse.phone.AndroidPhone
-import com.phoneuse.phone.AndroidSmsSource
 import com.phoneuse.phone.NotificationStore
 import com.phoneuse.phone.PhoneUseNotificationListener
 import com.phoneuse.phone.PlacesDistance
@@ -231,7 +230,7 @@ class ProactiveSystem private constructor(private val app: Context) {
     private suspend fun gather(now: ZonedDateTime, settings: NudgeSettings, full: Boolean): NudgeSources = withContext(Dispatchers.IO) {
         val nowMs = now.toInstant().toEpochMilli()
         val notifications = if (PhoneUseNotificationListener.enabled(app)) NotificationStore.get(app).recent(WEEK_HOURS) else emptyList()
-        val sms = AndroidSmsSource(app).takeIf { it.canRead() }?.let { safe { it.query(nowMs - SMS_DAYS * DAY_MS, null, SMS_LIMIT) } }.orEmpty()
+        val understood = com.phoneuse.understand.UnderstoodData.of(app)
         val cached = slow
         val current = if (!full && cached != null && nowMs - cached.at < SLOW_MAX_AGE_MS) cached else readSlow(now, settings).also { slow = it }
         val events = current.events
@@ -241,8 +240,9 @@ class ProactiveSystem private constructor(private val app: Context) {
         travel.keys.removeAll { k -> events.none { NudgeSources.leaveKey(it) == k } }
         NudgeSources(
             notifications = notifications.filter { nowMs - it.postedAt < DAY_MS },
-            payments = NudgeReaders.payments(notifications, sms),
-            parcels = NudgeReaders.parcels(notifications, sms),
+            // A month back, for "larger than usual" at the same place.
+            payments = safe { understood.payments(nowMs - PAYMENT_DAYS * DAY_MS) }.orEmpty(),
+            parcels = safe { understood.parcels(nowMs) }.orEmpty(),
             events = events,
             memories = current.memories,
             asks = if (NudgeKind.ROUTINE in settings.enabled) current.asks else emptyList(),
@@ -402,8 +402,7 @@ class ProactiveSystem private constructor(private val app: Context) {
 
         private const val DAY_MS = 24 * 60 * 60_000L
         private const val WEEK_HOURS = 7 * 24
-        private const val SMS_DAYS = 62L
-        private const val SMS_LIMIT = 1000
+        private const val PAYMENT_DAYS = 31L
         private const val EVENT_HOURS = 36L
         private const val EVENT_SETTLE_MS = 5_000L
         private const val MIN_GAP_MS = 60_000L

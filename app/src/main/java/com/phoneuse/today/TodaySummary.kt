@@ -5,8 +5,13 @@ import com.phoneuse.i18n.tr
 import com.phoneuse.phone.DigestBucket
 import com.phoneuse.phone.DigestClassifier
 import com.phoneuse.phone.StoredNotification
-import com.phoneuse.proactive.ParcelRecord
-import com.phoneuse.proactive.PaymentRecord
+import com.phoneuse.proactive.ProactiveEngine
+import com.phoneuse.understand.Money
+import com.phoneuse.understand.ParcelRecord
+import com.phoneuse.understand.ParcelStage
+import com.phoneuse.understand.PaymentRecord
+import com.phoneuse.understand.RefundRecord
+import com.phoneuse.understand.UnderstoodData
 import com.phoneuse.routine.UpcomingEvent
 import java.time.Instant
 import java.time.ZonedDateTime
@@ -19,17 +24,18 @@ data class TodaySources(
     val payments: List<PaymentRecord> = emptyList(),
     val events: List<UpcomingEvent> = emptyList(),
     val nextAlarm: Long? = null,
-    /**
-     * Whether [payments] cover this month and last (card texts readable). Without, they are the notification
-     * history's last week only, and the spending tile says so.
-     */
-    val monthCovered: Boolean = true,
+    /** Refunds whose payment was not found: shown apart, never taken off the spending. */
+    val refunds: List<RefundRecord> = emptyList(),
+    /** Notifications still waiting for analysis. */
+    val pending: Int = 0,
+    /** When the payment history starts (null: none yet); a month that starts later is said to be partial. */
+    val coverageStart: Long? = null,
 )
 
 /** One tile of boards Main and UnfoldedHome. Text is our parsed fields; event titles are shown, never sent anywhere. */
 sealed interface TodayTile {
-    /** Parcels on their way today: the newest as "CJ대한통운 · 배송 출발" and its stage (SmsParsers.PARCEL_STAGES). */
-    data class Parcels(val count: Int, val line: String, val stage: String) : TodayTile
+    /** Parcels that are today's news: the newest as "CJ대한통운 · 배송 출발" and its stage. */
+    data class Parcels(val count: Int, val line: String, val stage: ParcelStage) : TodayTile
 
     /** The next alarm within a day: "내일 아침" and "07:00". */
     data class Alarm(val label: String, val time: String) : TodayTile
@@ -43,10 +49,19 @@ sealed interface TodayTile {
     }
 
     /**
-     * Delivery orders (or all spending when there are none) over the span [label] names: this month with the change
-     * since last month, or the last seven days from notifications ([diff] null) when the texts cannot be read.
+     * This month's spending in [currency] (minor units), the change since the same span of last month ([diff] null
+     * without last month's history), refunds shown apart, notifications still being sorted, and [since] when the
+     * history starts inside this month.
      */
-    data class Spending(val label: String, val total: Long, val diff: Long?) : TodayTile
+    data class Spending(
+        val label: String,
+        val total: Long,
+        val currency: String,
+        val diff: Long?,
+        val refunds: Long = 0,
+        val pending: Int = 0,
+        val since: Long? = null,
+    ) : TodayTile
 }
 
 /**
@@ -55,22 +70,11 @@ sealed interface TodayTile {
  * left out; with none at all the home stays plain.
  */
 object TodaySummary {
-    /** Food delivery apps and their payment names. */
-    private val DELIVERY = Regex("배달의민족|배민|우아한형제들|쿠팡이츠|요기요|땡겨요|위메프오")
     private const val DAY_MS = 24 * 60 * 60_000L
 
     const val PARCEL_PROMPT_KO = "택배 어디쯤 왔어?"
     const val PARCEL_PROMPT_EN = "Where is my parcel?"
     val PARCEL_PROMPT: String get() = tr(PARCEL_PROMPT_EN, PARCEL_PROMPT_KO)
-
-    /** A parcel stage (SmsParsers.PARCEL_STAGES, kept Korean in the data) as the user reads it. */
-    fun stageLabel(stage: String): String = if (Lang.korean) stage else when (stage) {
-        "접수" -> "Received"
-        "이동 중" -> "In transit"
-        "배송 출발" -> "Out for delivery"
-        "도착" -> "Delivered"
-        else -> stage
-    }
 
     fun build(now: ZonedDateTime, s: TodaySources): List<TodayTile> = listOfNotNull(
         parcels(now, s),
@@ -81,10 +85,10 @@ object TodaySummary {
     )
 
     private fun parcels(now: ZonedDateTime, s: TodaySources): TodayTile.Parcels? {
-        val today = s.parcels.filter { day(it.at, now) == now.toLocalDate() }.sortedByDescending { it.at }
+        val today = UnderstoodData.parcelsToday(s.parcels, now)
         if (today.isEmpty()) return null
         val newest = today.first()
-        return TodayTile.Parcels(today.distinctBy { it.tracking ?: it.key }.size, "${newest.carrier} · ${stageLabel(newest.status)}", newest.status)
+        return TodayTile.Parcels(today.size, "${ProactiveEngine.parcelName(newest)} · ${newest.stage.label()}", newest.stage)
     }
 
     private fun alarm(now: ZonedDateTime, s: TodaySources): TodayTile.Alarm? {
@@ -137,46 +141,36 @@ object TodaySummary {
 
     /**
      * This month so far against the same span of last month (1st up to the same day and time, shortened when last
-     * month is shorter). Delivery orders when there are any in either month, else all payments. No diff when last
-     * month has no payment at all (often just no history on the phone).
+     * month is shorter), in the currency most payments use. No diff when last month has no payment or the history
+     * starts this month ([TodayTile.Spending.since]).
      */
     private fun spending(now: ZonedDateTime, s: TodaySources): TodayTile.Spending? {
-        if (!s.monthCovered) return lastWeek(now, s)
         val thisStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(now.zone)
         val lastStart = thisStart.minusMonths(1)
         val lastEnd = lastStart.plus(ChronoUnit.MILLIS.between(thisStart, now), ChronoUnit.MILLIS).let { if (it > thisStart) thisStart else it }
-        fun inRange(p: PaymentRecord, from: ZonedDateTime, to: ZonedDateTime) = p.at >= ms(from) && p.at < ms(to)
-        val thisMonth = s.payments.filter { p -> p.at >= ms(thisStart) && p.at <= ms(now) }
-        val lastMonth = s.payments.filter { inRange(it, lastStart, lastEnd) }
-        val delivery = (thisMonth + lastMonth).any { DELIVERY.containsMatchIn(it.merchant) }
-        val pick: (List<PaymentRecord>) -> List<PaymentRecord> = { list -> if (delivery) list.filter { DELIVERY.containsMatchIn(it.merchant) } else list }
-        val current = pick(thisMonth)
-        if (current.isEmpty()) return null
-        val previous = pick(lastMonth)
-        val total = current.sumOf { it.amount }
+        val thisMonthAll = s.payments.filter { p -> p.at >= ms(thisStart) && p.at <= ms(now) }
+        val currency = ProactiveEngine.mainCurrency(thisMonthAll)
+        val thisMonth = thisMonthAll.filter { it.currency == currency }
+        val refunds = s.refunds.filter { it.currency == currency && it.at >= ms(thisStart) && it.at <= ms(now) }.sumOf { it.amountMinor }
+        if (thisMonth.isEmpty() && refunds == 0L) return null
+        val lastMonth = s.payments.filter { it.currency == currency && it.at >= ms(lastStart) && it.at < ms(lastEnd) }
+        val since = s.coverageStart?.takeIf { it > ms(thisStart) }
+        val total = thisMonth.sumOf { it.amountMinor }
         return TodayTile.Spending(
-            if (delivery) tr("Delivery this month", "이번 달 배달") else tr("Spending this month", "이번 달 지출"),
+            tr("Spending this month", "이번 달 지출"),
             total,
-            if (lastMonth.isEmpty()) null else total - previous.sumOf { it.amount },
+            currency,
+            if (since != null || lastMonth.isEmpty()) null else total - lastMonth.sumOf { it.amountMinor },
+            refunds,
+            s.pending,
+            since,
         )
-    }
-
-    /** Only a week of notifications to go on: "최근 7일 지출 (알림 기준)", no comparison. */
-    private fun lastWeek(now: ZonedDateTime, s: TodaySources): TodayTile.Spending? {
-        val nowMs = ms(now)
-        val week = s.payments.filter { nowMs - it.at in 0 until 7 * DAY_MS }
-        val delivery = week.filter { DELIVERY.containsMatchIn(it.merchant) }
-        val current = delivery.ifEmpty { week }
-        if (current.isEmpty()) return null
-        return TodayTile.Spending(if (delivery.isNotEmpty()) tr("Delivery, last 7 days (from notifications)", "최근 7일 배달 (알림 기준)") else tr("Spending, last 7 days (from notifications)", "최근 7일 지출 (알림 기준)"), current.sumOf { it.amount }, null)
     }
 
     private fun day(at: Long, now: ZonedDateTime) = Instant.ofEpochMilli(at).atZone(now.zone).toLocalDate()
 
     private fun ms(t: ZonedDateTime) = t.toInstant().toEpochMilli()
 
-    /** "₩186,400" and "+₩32,100" / "−₩5,000". */
-    fun won(amount: Long): String = "₩" + "%,d".format(java.util.Locale.US, amount)
-
-    fun signedWon(diff: Long): String = (if (diff >= 0) "+" else "−") + won(kotlin.math.abs(diff))
+    /** "+₩32,100" / "−₩5,000". */
+    fun signed(diff: Long, currency: String): String = (if (diff >= 0) "+" else "−") + Money.format(kotlin.math.abs(diff), currency)
 }

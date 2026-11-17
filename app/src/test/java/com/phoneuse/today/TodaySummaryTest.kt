@@ -1,8 +1,10 @@
 package com.phoneuse.today
 
 import com.phoneuse.phone.StoredNotification
-import com.phoneuse.proactive.NudgeReaders
-import com.phoneuse.proactive.PaymentRecord
+import com.phoneuse.understand.ParcelRecord
+import com.phoneuse.understand.ParcelStage
+import com.phoneuse.understand.PaymentRecord
+import com.phoneuse.understand.RefundRecord
 import com.phoneuse.routine.UpcomingEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -48,44 +50,82 @@ class TodaySummaryTest {
             UpcomingEvent("알림 요약 받기", now.withHour(20).withMinute(0).toInstant().toEpochMilli(), null),
             UpcomingEvent("늦은 일정", now.withHour(23).withMinute(0).toInstant().toEpochMilli(), null),
         )
-        val tiles = TodaySummary.build(now, TodaySources(notifications, NudgeReaders.parcels(notifications, emptyList()), events = events))
-        assertEquals(TodayTile.Parcels(1, "CJ대한통운 · 배송 출발", "배송 출발"), tiles[0])
+        val parcels = listOf(ParcelRecord(1, "CJ대한통운", "123456789012", null, ParcelStage.OUT_FOR_DELIVERY, ago(0, 9), null))
+        val tiles = TodaySummary.build(now, TodaySources(notifications, parcels, events = events))
+        assertEquals(TodayTile.Parcels(1, "CJ대한통운 · 배송 출발", ParcelStage.OUT_FOR_DELIVERY), tiles[0])
         // The read message is no longer unread and needs no reply.
         assertEquals(TodayTile.Notifications(unread = 2, reply = 1), tiles[1])
         assertEquals(listOf("20:00", "21:00"), (tiles[2] as TodayTile.Events).items.map { it.time })
     }
 
-    @Test
-    fun spendingWithoutTextsIsTheLastWeekFromNotifications() {
-        val payments = listOf(
-            PaymentRecord("배달의민족", 20_000, at(11, 13, 19)),
-            PaymentRecord("배달의민족", 15_000, at(11, 5, 19)),
-            PaymentRecord("스타벅스", 9_000, at(11, 14, 9)),
-        )
-        val tile = TodaySummary.build(now, TodaySources(payments = payments, monthCovered = false)).single() as TodayTile.Spending
-        assertEquals("최근 7일 배달 (알림 기준)", tile.label)
-        assertEquals(20_000L, tile.total)
-        assertEquals(null, tile.diff)
-    }
+    private var nextId = 1L
+    private fun pay(amount: Long, at: Long, merchant: String = "가게", currency: String = "KRW") = PaymentRecord(nextId++, merchant, amount, currency, at)
 
     @Test
     fun spendingComparesWithLastMonth() {
         val payments = listOf(
-            PaymentRecord("배달의민족", 120_000, at(11, 3)),
-            PaymentRecord("쿠팡이츠", 66_400, at(11, 14)),
-            PaymentRecord("스타벅스", 9_000, at(11, 14)),
+            pay(120_000, at(11, 3), "배달의민족"),
+            pay(66_400, at(11, 14), "쿠팡이츠"),
+            pay(9_000, at(11, 14), "스타벅스"),
             // Last month up to the same day counts; later in the month does not.
-            PaymentRecord("배달의민족", 154_300, at(10, 10)),
-            PaymentRecord("배달의민족", 50_000, at(10, 25)),
+            pay(154_300, at(10, 10), "배달의민족"),
+            pay(50_000, at(10, 25), "배달의민족"),
         )
-        val tile = TodaySummary.build(now, TodaySources(payments = payments)).single() as TodayTile.Spending
-        assertEquals("이번 달 배달", tile.label)
-        assertEquals(186_400L, tile.total)
-        assertEquals(32_100L, tile.diff)
-        assertEquals("+₩32,100", TodaySummary.signedWon(tile.diff!!))
-        // Without delivery orders it is all spending; without last month's history there is no comparison.
-        val plain = TodaySummary.build(now, TodaySources(payments = listOf(PaymentRecord("스타벅스", 9_000, at(11, 14))))).single() as TodayTile.Spending
-        assertEquals("이번 달 지출", plain.label)
-        assertNull(plain.diff)
+        val tile = TodaySummary.build(now, TodaySources(payments = payments, coverageStart = at(9, 1))).single() as TodayTile.Spending
+        assertEquals("이번 달 지출", tile.label)
+        assertEquals(195_400L, tile.total)
+        assertEquals("KRW", tile.currency)
+        assertEquals(41_100L, tile.diff)
+        assertEquals("+₩41,100", TodaySummary.signed(tile.diff!!, tile.currency))
+        assertNull(tile.since)
+    }
+
+    @Test
+    fun spendingShowsCoverageWhenHistoryStartsThisMonth() {
+        val tile = TodaySummary.build(now, TodaySources(payments = listOf(pay(9_000, at(11, 14))), coverageStart = at(11, 10))).single() as TodayTile.Spending
+        assertEquals(9_000L, tile.total)
+        assertNull(tile.diff)
+        assertEquals(at(11, 10), tile.since)
+    }
+
+    @Test
+    fun spendingWithoutLastMonthHasNoDiff() {
+        val tile = TodaySummary.build(now, TodaySources(payments = listOf(pay(9_000, at(11, 14))), coverageStart = at(9, 1))).single() as TodayTile.Spending
+        assertNull(tile.diff)
+    }
+
+    @Test
+    fun refundsAndPendingAreShownApart() {
+        val tile = TodaySummary.build(
+            now,
+            TodaySources(payments = listOf(pay(9_000, at(11, 14))), refunds = listOf(RefundRecord(12_000, "KRW", at(11, 13))), pending = 3, coverageStart = at(9, 1)),
+        ).single() as TodayTile.Spending
+        assertEquals(9_000L, tile.total)
+        assertEquals(12_000L, tile.refunds)
+        assertEquals(3, tile.pending)
+    }
+
+    @Test
+    fun spendingUsesTheMostCommonCurrency() {
+        val tile = TodaySummary.build(
+            now,
+            TodaySources(payments = listOf(pay(1250, at(11, 2), currency = "USD"), pay(9_000, at(11, 3)), pay(4_500, at(11, 4))), coverageStart = at(9, 1)),
+        ).single() as TodayTile.Spending
+        assertEquals("KRW", tile.currency)
+        assertEquals(13_500L, tile.total)
+    }
+
+    @Test
+    fun parcelCountUsesStages() {
+        val parcels = listOf(
+            ParcelRecord(1, "CJ대한통운", null, null, ParcelStage.OUT_FOR_DELIVERY, ago(0, 9), null),
+            ParcelRecord(2, null, null, "운동화", ParcelStage.DELIVERED, ago(0, 12), ago(0, 12)),
+            ParcelRecord(3, "한진택배", null, null, ParcelStage.IN_TRANSIT, ago(0, 13), null),
+            ParcelRecord(4, "한진택배", null, null, ParcelStage.DELIVERED, ago(1, 13), ago(1, 13)),
+        )
+        val tile = TodaySummary.build(now, TodaySources(parcels = parcels)).single() as TodayTile.Parcels
+        assertEquals(2, tile.count)
+        assertEquals("운동화 · 도착", tile.line)
+        assertEquals(ParcelStage.DELIVERED, tile.stage)
     }
 }
