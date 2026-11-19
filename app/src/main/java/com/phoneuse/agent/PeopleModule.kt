@@ -31,7 +31,7 @@ internal class PeopleModule(
 
     override val userText: Set<String> get() = OWN_DATA
 
-    /** Labels whose [권한 허용] card this run already showed; a second call does not add another. */
+    /** Labels whose permission card this run already showed; a second call does not add another. */
     private val asked = HashSet<String>()
 
     override suspend fun run(name: String, args: JsonObject, context: ToolContext): ToolResult {
@@ -62,7 +62,7 @@ internal class PeopleModule(
         return when (reply) {
             is PhoneReply.Ok -> ToolResult(reply.text, null, null, null, card = reply.card)
             is PhoneReply.PermissionNeeded -> ToolResult(
-                "${reply.text} — 채팅에 [권한 허용] 카드를 띄웠어요. 사용자에게 허용해 달라고 짧게 말하고 finish 하세요.",
+                PermissionNote.text(reply.text),
                 null, null, null,
                 card = if (asked.add(reply.label)) PermissionCard(reply.label, reply.permissions) else null,
             )

@@ -265,11 +265,11 @@ internal class PhoneModule(
         is PhoneReply.Failed, PhoneReply.Cancelled -> ToolResult(r.text, null, null, null)
     }
 
-    /** Labels whose [권한 허용] card this run already showed; a second call does not add another. */
+    /** Labels whose permission card this run already showed; a second call does not add another. */
     private val asked = HashSet<String>()
 
     private fun permissionNeeded(head: String, label: String, permissions: List<String>, settings: String? = null) = ToolResult(
-        "$head — 채팅에 [권한 허용] 카드를 띄웠어요. 사용자에게 허용해 달라고 짧게 말하고 finish 하세요.",
+        PermissionNote.text(head),
         null, null, null,
         card = if (asked.add(label)) PermissionCard(label, permissions, settings) else null,
     )

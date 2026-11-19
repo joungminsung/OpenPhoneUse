@@ -131,6 +131,8 @@ class MessagingToolsTest {
 
         val n = run("notifications_recent", "{}")
         assertTrue(n.output, n.output.startsWith("권한 필요: 알림 읽기"))
+        assertTrue(n.output, n.output.endsWith(PermissionNote.text("").substringAfter(".")))
+        assertFalse(n.output.contains("—"))
         val card = n.card as PermissionCard
         assertEquals(PermissionCard.SETTINGS_NOTIFICATION_LISTENER, card.settings)
         assertTrue(card.permissions.isEmpty())
