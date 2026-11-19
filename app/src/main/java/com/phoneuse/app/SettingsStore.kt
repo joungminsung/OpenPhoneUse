@@ -183,7 +183,7 @@ class SettingsStore internal constructor(
 
     val fontSize: Flow<FontSize> = store.data.map { prefs -> enumOf(prefs[FONT_SIZE], FontSize.DEFAULT) }
     val unfoldedLayout: Flow<UnfoldedLayout> = store.data.map { prefs -> enumOf(prefs[UNFOLDED], UnfoldedLayout.SIDE_BY_SIDE) }
-    val voiceLanguage: Flow<VoiceLanguage> = store.data.map { prefs -> enumOf(prefs[VOICE_LANG], VoiceLanguage.KOREAN) }
+    val voiceLanguage: Flow<VoiceLanguage> = store.data.map { prefs -> enumOf(prefs[VOICE_LANG], DEFAULT_VOICE_LANGUAGE) }
 
     /** Settings "답 소리 내어 읽기": replies are read aloud when a run ends; off by default. */
     val readAloud: Flow<Boolean> = store.data.map { it[READ_ALOUD] ?: false }
@@ -419,6 +419,8 @@ class SettingsStore internal constructor(
     companion object {
         const val DEFAULT_MODEL = "gpt-6.1-terra"
         const val DEFAULT_FAST_MODE = true
+        /** Dictation follows the device language until the user picks one. */
+        val DEFAULT_VOICE_LANGUAGE: VoiceLanguage = VoiceLanguage.SYSTEM
         /** The lighter preset routines use when "루틴은 가벼운 모델로" is on. */
         const val ROUTINE_LIGHT_MODEL = "gpt-6-luna"
         /** The fast helper's model: quick, with a large quota. */

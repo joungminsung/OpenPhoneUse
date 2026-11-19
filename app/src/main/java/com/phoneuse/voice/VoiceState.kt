@@ -1,6 +1,9 @@
 package com.phoneuse.voice
 
+import com.phoneuse.app.SettingsStore
 import com.phoneuse.app.VoiceLanguage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import com.phoneuse.i18n.tr
 import java.util.Locale
 
@@ -115,6 +118,28 @@ fun voiceErrorOf(code: Int): VoiceError = when (code) {
  * device language when it is set to follow the device.
  */
 fun speechLanguageTag(setting: VoiceLanguage, device: Locale): String = setting.tag ?: device.toLanguageTag()
+
+/** How long a start waits for the saved dictation language before it follows the device. */
+const val VOICE_READ_MS = 1_000L
+
+/**
+ * The dictation language to start with: [loaded] when the settings have been read, else the saved choice read
+ * now ([read]); the device language when that fails or takes longer than [timeoutMs].
+ */
+suspend fun voiceLanguageNow(
+    loaded: VoiceLanguage?,
+    read: suspend () -> VoiceLanguage,
+    timeoutMs: Long = VOICE_READ_MS,
+): VoiceLanguage {
+    if (loaded != null) return loaded
+    return try {
+        withTimeoutOrNull(timeoutMs) { read() } ?: SettingsStore.DEFAULT_VOICE_LANGUAGE
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        SettingsStore.DEFAULT_VOICE_LANGUAGE
+    }
+}
 
 /** Which recognizer runs the in-app mic. */
 sealed interface VoiceEngine {

@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.phoneuse.app.AppGraph
 import com.phoneuse.app.ThemeMode
+import com.phoneuse.app.VoiceLanguage
+import com.phoneuse.app.voiceLanguageNow
 import com.phoneuse.i18n.tr
 import com.phoneuse.memory.MemoryKind
 import com.phoneuse.memory.NewMemory
@@ -113,11 +115,15 @@ class QuickAskActivity : ComponentActivity() {
     }
 
     private fun listen() {
+        lifecycleScope.launch { launchSpeech(AppGraph.voiceLanguageNow()) }
+    }
+
+    private fun launchSpeech(language: VoiceLanguage) {
         val speech = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_PROMPT, tr("Speak now", "말해 주세요"))
             .apply {
-                AppGraph.voiceLanguage.value.tag?.let {
+                language.tag?.let {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, it)
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, it)
                 }

@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import com.phoneuse.chat.SqliteChatRepository
 import com.phoneuse.chat.SqliteConversationSearch
 import com.phoneuse.connectors.ConnectorStore
@@ -93,8 +94,8 @@ object AppGraph {
             theme.compareAndSet(null, ThemeMode.SYSTEM)
             size.compareAndSet(null, FontSize.DEFAULT)
         }
-        voiceLanguage = settings.voiceLanguage.catch { emit(VoiceLanguage.KOREAN) }
-            .stateIn(scope, SharingStarted.Eagerly, VoiceLanguage.KOREAN)
+        voiceLanguage = settings.voiceLanguage.catch { emit(SettingsStore.DEFAULT_VOICE_LANGUAGE) }
+            .stateIn(scope, SharingStarted.Eagerly, null)
         // Settings "조작 속도": every settle of the agent reads it.
         scope.launch {
             settings.controlSpeed.catch { emit(ControlSpeed.NORMAL) }.collect { SettleSpeed.scale = it.waitScale }
@@ -175,8 +176,8 @@ object AppGraph {
         }
     }
 
-    /** Settings "음성으로 말하기", read at once by the voice input buttons. */
-    lateinit var voiceLanguage: StateFlow<VoiceLanguage>
+    /** Settings "음성으로 말하기", read at once by the voice input buttons; null until the settings first load. */
+    lateinit var voiceLanguage: StateFlow<VoiceLanguage?>
         private set
 
     private const val THEME_WAIT_MS = 1_500L
@@ -216,3 +217,7 @@ object AppGraph {
         }
     }
 }
+
+/** The dictation language right now: the loaded choice, else the saved one read, else the device language. */
+suspend fun AppGraph.voiceLanguageNow(): VoiceLanguage =
+    com.phoneuse.voice.voiceLanguageNow(voiceLanguage.value, read = { settings.voiceLanguage.first() })

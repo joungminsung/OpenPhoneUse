@@ -194,7 +194,7 @@ private fun AnswerText(text: String) {
             })
             DropdownMenuItem(text = { Text(if (speaking) tr("Stop reading", "읽기 멈추기") else tr("Read aloud", "소리 내어 읽기"), color = c.text) }, onClick = {
                 menu = false
-                if (speaking) ReadAloud.stop() else ReadAloud.speak(context, text, AppGraph.voiceLanguage.value.tag)
+                if (speaking) ReadAloud.stop() else ReadAloud.speak(context, text, AppGraph.voiceLanguage.value?.tag)
             })
         }
     }

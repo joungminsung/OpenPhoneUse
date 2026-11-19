@@ -1,6 +1,8 @@
 package com.phoneuse.voice
 
 import com.phoneuse.app.VoiceLanguage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -128,5 +130,18 @@ class VoiceStateTest {
         assertEquals(VoiceEngine.OnDevice, pickVoiceEngine(listOf(own), "com.phoneuse", onDeviceAvailable = true))
         assertEquals(VoiceEngine.Dialog, pickVoiceEngine(listOf(own), "com.phoneuse", onDeviceAvailable = false))
         assertEquals(VoiceEngine.Dialog, pickVoiceEngine(emptyList(), "com.phoneuse", onDeviceAvailable = false))
+    }
+
+    @Test fun savedChoiceWinsBeforeSettingsLoad() = runTest {
+        assertEquals(VoiceLanguage.KOREAN, voiceLanguageNow(null, read = { VoiceLanguage.KOREAN }))
+    }
+
+    @Test fun loadedValueIsUsedWithoutReading() = runTest {
+        assertEquals(VoiceLanguage.ENGLISH, voiceLanguageNow(VoiceLanguage.ENGLISH, read = { error("not read") }))
+    }
+
+    @Test fun unreadableOrSlowSettingsFollowTheDevice() = runTest {
+        assertEquals(VoiceLanguage.SYSTEM, voiceLanguageNow(null, read = { throw java.io.IOException() }))
+        assertEquals(VoiceLanguage.SYSTEM, voiceLanguageNow(null, read = { delay(5_000); VoiceLanguage.KOREAN }, timeoutMs = 100))
     }
 }

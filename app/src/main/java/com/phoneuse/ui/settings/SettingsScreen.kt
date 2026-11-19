@@ -51,7 +51,6 @@ import com.phoneuse.app.FontSize
 import com.phoneuse.app.QuietHours
 import com.phoneuse.app.ScreenContent
 import com.phoneuse.app.UnfoldedLayout
-import com.phoneuse.app.VoiceLanguage
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -200,7 +199,7 @@ fun SettingsScreen(
     val quiet by settings.quietHours.collectAsState(QuietHours())
     val fontSize by settings.fontSize.collectAsState(FontSize.DEFAULT)
     val unfolded by settings.unfoldedLayout.collectAsState(UnfoldedLayout.SIDE_BY_SIDE)
-    val voice by settings.voiceLanguage.collectAsState(VoiceLanguage.KOREAN)
+    val voice by settings.voiceLanguage.collectAsState(SettingsStore.DEFAULT_VOICE_LANGUAGE)
     val readAloud by settings.readAloud.collectAsState(false)
     val screenContent by settings.screenContent.collectAsState(ScreenContent.ALL)
 
