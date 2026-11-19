@@ -199,7 +199,7 @@ class ChatCompletionsClient(
                     val text = try { response.body?.string().orEmpty() } catch (e: IOException) { "" }
                     throw ModelException(response.code, errorMessage(text))
                 }
-                val source = response.body?.source() ?: throw ModelException(null, "stream ended early")
+                val source = response.body?.source() ?: throw ModelException(null, "stream ended early", failure = ModelFailure.STREAM_ENDED)
                 val parser = SseParser()
                 var done = false
                 while (!done) {
@@ -209,12 +209,12 @@ class ChatCompletionsClient(
                     if (event != null) done = acc.chunk(event.data)
                     if (line == null) break
                 }
-                if (!acc.finished) throw ModelException(null, "stream ended early")
+                if (!acc.finished) throw ModelException(null, "stream ended early", failure = ModelFailure.STREAM_ENDED)
                 return acc.turn()
             }
         } catch (e: IOException) {
             currentCoroutineContext().ensureActive() // a cancelled call surfaces as IOException
-            throw ModelException(null, "Network error: ${e.message}")
+            throw ModelException(null, "Network error: ${e.message}", failure = ModelFailure.NETWORK)
         }
     }
 
@@ -345,7 +345,7 @@ class ChatCompletionsClient(
                         .distinct()
                 }
             } catch (e: IOException) {
-                throw ModelException(null, "Network error: ${e.message}")
+                throw ModelException(null, "Network error: ${e.message}", failure = ModelFailure.NETWORK)
             }
         }
     }

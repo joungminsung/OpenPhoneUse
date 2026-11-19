@@ -336,7 +336,7 @@ class ClaudeClient(
             val message = try {
                 accumulator.message()
             } catch (e: Exception) {
-                throw ModelException(null, "stream ended early")
+                throw ModelException(null, "stream ended early", failure = ModelFailure.STREAM_ENDED)
             }
             val content = json.parseToJsonElement(mapper.writeValueAsString(message.content().map { it.toParam() })) as JsonArray
             val parsed = parse(json.parseToJsonElement(mapper.writeValueAsString(message)).jsonObject)
@@ -399,7 +399,7 @@ class ClaudeClient(
                     ModelException(status, errorMessage(cause))
                 }
             }
-            is AnthropicIoException -> ModelException(null, "Network error: ${cause.message}")
+            is AnthropicIoException -> ModelException(null, "Network error: ${cause.message}", failure = ModelFailure.NETWORK)
             else -> ModelException(null, cause.message ?: cause.javaClass.simpleName)
         }
     }
@@ -475,7 +475,7 @@ class ClaudeClient(
             val status = e.statusCode()
             throw ModelException(status, if (status == 401 || status == 403) UNAUTHORIZED else (e.message ?: "HTTP $status").take(ERROR_BODY_LIMIT))
         } catch (e: AnthropicIoException) {
-            throw ModelException(null, "Network error: ${e.message}")
+            throw ModelException(null, "Network error: ${e.message}", failure = ModelFailure.NETWORK)
         }
     }
 }

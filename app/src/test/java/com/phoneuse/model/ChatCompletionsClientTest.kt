@@ -138,6 +138,16 @@ class ChatCompletionsClientTest {
         }
     }
 
+    @Test fun aStreamThatEndsUnfinishedIsMarkedAsEndedEarly() = runBlocking {
+        server.enqueue(MockResponse().setHeader("Content-Type", "text/event-stream").setBody("""data: {"choices":[{"delta":{"content":"x"}}]}""" + "\n\n"))
+        try {
+            client().next("i", listOf(InputItem.UserText("go")), emptyList()) {}
+            fail("expected ModelException")
+        } catch (e: ModelException) {
+            assertEquals(ModelFailure.STREAM_ENDED, e.failure)
+        }
+    }
+
     @Test fun listsModelsWithoutThePrefix() {
         server.enqueue(MockResponse().setBody("""{"data":[{"id":"models/gemini-x"},{"id":"grok-y"}]}"""))
         assertEquals(listOf("gemini-x", "grok-y"), ChatCompletionsClient.listModels(endpoint(), "test-key", http))

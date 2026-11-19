@@ -2,6 +2,7 @@ package com.phoneuse.agent
 
 import com.phoneuse.i18n.tr
 import com.phoneuse.model.ModelException
+import com.phoneuse.model.ModelFailure
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -75,6 +76,13 @@ internal object ModelRetry {
         )
         e.status == 429 -> tr("The model is busy (rate limited). Please try again in a moment.", "모델 요청이 너무 많아요(속도 제한). 잠시 후 다시 시도해 주세요.")
         contextOverflow(e) -> tr("This conversation got too long for the model. Please start a new chat.", "대화가 너무 길어져 모델이 처리할 수 없어요. 새 대화에서 다시 시도해 주세요.")
+        e.failure == ModelFailure.NETWORK -> tr("Couldn't reach the model. Check your internet connection and try again.", "모델에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.")
+        e.failure == ModelFailure.STREAM_ENDED -> tr("The model's answer was cut off. Please try again.", "모델 응답이 중간에 끊겼어요. 다시 시도해 주세요.")
+        e.failure == ModelFailure.STOPPED_EARLY -> {
+            val why = e.code?.removePrefix("incomplete:")?.let { " ($it)" }.orEmpty()
+            tr("The model stopped before finishing its answer$why. Please try again.", "모델이 답을 끝내기 전에 멈췄어요$why. 다시 시도해 주세요.")
+        }
+        e.failure == ModelFailure.BAD_RESPONSE -> tr("The model's answer couldn't be read. Please try again.", "모델 응답을 읽지 못했어요. 다시 시도해 주세요.")
         else -> tr("Model call failed: ${e.message}", "모델 호출 실패: ${e.message}")
     }
 

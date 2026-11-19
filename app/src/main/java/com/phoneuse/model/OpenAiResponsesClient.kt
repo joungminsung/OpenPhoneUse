@@ -254,7 +254,7 @@ class OpenAiResponsesClient(
                         retryAfterMs = retryAfterMs { response.header(it) }, code = code,
                     )
                 }
-                val source = response.body?.source() ?: throw ModelException(null, "stream ended early")
+                val source = response.body?.source() ?: throw ModelException(null, "stream ended early", failure = ModelFailure.STREAM_ENDED)
                 val parser = SseParser()
                 while (true) {
                     currentCoroutineContext().ensureActive()
@@ -263,11 +263,11 @@ class OpenAiResponsesClient(
                     handleEvent(event, listener)?.let { return timed(it, listener) }
                 }
                 parser.feed("")?.let { handleEvent(it, listener)?.let { turn -> return timed(turn, listener) } }
-                throw ModelException(null, "stream ended early", afterOutput = listener.firstOutputNs != 0L)
+                throw ModelException(null, "stream ended early", afterOutput = listener.firstOutputNs != 0L, failure = ModelFailure.STREAM_ENDED)
             }
         } catch (e: IOException) {
             currentCoroutineContext().ensureActive() // a cancelled call surfaces as IOException
-            throw ModelException(null, "Network error: ${e.message}", afterOutput = listener.firstOutputNs != 0L)
+            throw ModelException(null, "Network error: ${e.message}", afterOutput = listener.firstOutputNs != 0L, failure = ModelFailure.NETWORK)
         }
     }
 
@@ -330,7 +330,7 @@ class OpenAiResponsesClient(
             val turn = try { parse(data, streamed) } catch (e: ModelException) { null }
             if (turn != null && (turn.text != null || turn.calls.isNotEmpty())) return turn
         }
-        throw ModelException(200, "The model stopped early ($reason)", code = "incomplete:$reason", retryable = false)
+        throw ModelException(200, "The model stopped early ($reason)", code = "incomplete:$reason", retryable = false, failure = ModelFailure.STOPPED_EARLY)
     }
 
     /** [data] is the `response.completed` event payload; [streamed] stands in when its `output` is empty. */
@@ -370,7 +370,7 @@ class OpenAiResponsesClient(
             }
             return ModelTurn(if (hasText) text.toString() else null, calls, usage, WebSearch.citations(output), reasoning = reasoning)
         } catch (e: Exception) {
-            throw ModelException(200, "Failed to parse response: ${e.message}")
+            throw ModelException(200, "Failed to parse response: ${e.message}", failure = ModelFailure.BAD_RESPONSE)
         }
     }
 

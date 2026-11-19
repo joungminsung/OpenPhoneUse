@@ -30,6 +30,15 @@ class ClaudeClientTest {
     private val thinking = buildJsonObject { put("type", "thinking"); put("thinking", "plan"); put("signature", "SIG") }
     private fun toolUse(id: String) = buildJsonObject { put("type", "tool_use"); put("id", id); put("name", "tap"); put("input", buildJsonObject {}) }
 
+    @Test fun anUnreachableServerIsMarkedAsANetworkFailure() {
+        try {
+            kotlinx.coroutines.runBlocking { client.next("i", listOf(InputItem.UserText("go")), emptyList()) {} }
+            org.junit.Assert.fail("expected ModelException")
+        } catch (e: ModelException) {
+            assertEquals(ModelFailure.NETWORK, e.failure)
+        }
+    }
+
     @Test fun aTurnGoesBackWholeWithItsThinkingAndAllResultsInOneUserMessage() {
         val input = listOf(
             InputItem.UserText("go"),

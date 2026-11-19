@@ -218,6 +218,7 @@ class OpenAiResponsesClientTest {
         } catch (e: ModelException) {
             assertNull(e.status)
             assertTrue(e.message!!.contains("stream ended early"))
+            assertEquals(ModelFailure.STREAM_ENDED, e.failure)
         }
     }
 

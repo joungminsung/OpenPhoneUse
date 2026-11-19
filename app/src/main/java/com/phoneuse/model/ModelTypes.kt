@@ -55,6 +55,9 @@ data class ModelTurn(
     val reasoning: List<InputItem.Reasoning> = emptyList(),
 )
 
+/** What kind of failure the client itself made (its message is English detail); ModelRetry words it in the app language. */
+enum class ModelFailure { NETWORK, STREAM_ENDED, STOPPED_EARLY, BAD_RESPONSE }
+
 /**
  * [status] is the HTTP code, or null for an IO error. [retryAfterMs] is the wait the server asked for (Retry-After or
  * a rate-limit reset header), when it named one. [code] is the error's type or code from its JSON body, when known
@@ -68,6 +71,7 @@ class ModelException(
     val code: String? = null,
     val afterOutput: Boolean = false,
     val retryable: Boolean = true,
+    val failure: ModelFailure? = null,
 ) : Exception(message) {
     companion object {
         /** The ChatGPT plan's usage limit ([code]); the chat offers "Manage usage" on a reply that failed with it. */
