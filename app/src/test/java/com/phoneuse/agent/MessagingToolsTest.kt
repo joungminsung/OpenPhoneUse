@@ -1,6 +1,7 @@
 package com.phoneuse.agent
 
 import com.phoneuse.cards.PermissionCard
+import com.phoneuse.i18n.Lang
 import com.phoneuse.memory.Confidence
 import com.phoneuse.memory.InMemoryMemoryStore
 import com.phoneuse.model.InputItem
@@ -400,6 +401,21 @@ class MessagingToolsTest {
 
         val none = run("dismiss_notifications", """{"keys":["nope"]}""")
         assertTrue(none.output, none.output.startsWith("ERROR"))
+    }
+
+    @Test fun dismissSummaryIsEnglishUnderEnglish() {
+        val saved = Lang.korean
+        Lang.korean = false
+        try {
+            gate.confirmResult = false
+            for (n in 5..7) notifications.rows += StoredNotification("k$n", "com.some.app", "앱", "제목", "본문", at(7, n))
+            run("dismiss_notifications", """{"keys":["k1","k2","k3","k4","k5","k6","k7"]}""")
+            val summary = gate.confirms.last().second
+            assertTrue(summary, "(+2 more)" in summary)
+            assertFalse(summary, "외 " in summary)
+        } finally {
+            Lang.korean = saved
+        }
     }
 
     @Test fun dismissTheUserAskedForSkipsTheCardForAFew() {

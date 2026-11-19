@@ -1,6 +1,7 @@
 package com.phoneuse.agent
 
 import com.phoneuse.files.FileToolException
+import com.phoneuse.i18n.tr
 import com.phoneuse.files.FileTools
 import com.phoneuse.model.ToolSpec
 import com.phoneuse.risk.RiskCategory
@@ -55,25 +56,44 @@ internal class FileModule(private val files: FileTools?, private val gate: UserG
             ?.map { (it as? JsonPrimitive)?.takeIf { p -> p !is JsonNull }?.content ?: throw IllegalArgumentException("$key must be strings") }
             ?: throw IllegalArgumentException("$key required")
 
-    private fun trashSummary(paths: List<String>): String {
-        val shown = paths.take(MAX_SHOWN).joinToString(", ") { clip(it) }
-        val more = if (paths.size > MAX_SHOWN) "(외 ${paths.size - MAX_SHOWN}개)" else ""
-        return "휴지통으로 이동: $shown$more"
-    }
-
-    /** One line, at most [MAX_PATH_CHARS] code points; a longer path keeps its tail behind "…". */
-    private fun clip(path: String): String {
-        val t = path.replace(Regex("\\s+"), " ").trim()
-        val n = t.codePointCount(0, t.length)
-        return if (n <= MAX_PATH_CHARS) t else "…" + t.substring(t.offsetByCodePoints(0, n - (MAX_PATH_CHARS - 1)))
-    }
-
     private fun ok(output: String) = ToolResult(output, null, null, null)
 
     private fun fail(reason: String) = ToolResult("ERROR: $reason", null, null, null)
 
     companion object {
         const val MAX_SHOWN = 5
+
+        private const val TRASH_EN = "Move to trash: "
+        private const val TRASH_KO = "휴지통으로 이동: "
+        private val MORE_TAIL = Regex("""\s*(?:\(\+(\d+) more\)|\(외 (\d+)개\))$""")
+
+        /** The DELETE card's summary; [parseTrash] reads it back in either language. */
+        fun trashSummary(paths: List<String>): String {
+            val shown = paths.take(MAX_SHOWN).joinToString(", ") { clip(it) }
+            val extra = paths.size - MAX_SHOWN
+            val more = if (extra > 0) tr(" (+$extra more)", "(외 ${extra}개)") else ""
+            return tr(TRASH_EN, TRASH_KO) + shown + more
+        }
+
+        /** Paths and the count of paths not listed, or null when [summary] is not a trash summary. */
+        fun parseTrash(summary: String): Pair<List<String>, Int>? {
+            val list = when {
+                summary.startsWith(TRASH_KO) -> summary.removePrefix(TRASH_KO)
+                summary.startsWith(TRASH_EN) -> summary.removePrefix(TRASH_EN)
+                else -> return null
+            }
+            val more = MORE_TAIL.find(list)
+            val body = if (more != null) list.substring(0, more.range.first) else list
+            val extra = more?.let { (it.groups[1] ?: it.groups[2])?.value?.toInt() } ?: 0
+            return body.split(", ").map { it.trim() }.filter { it.isNotEmpty() } to extra
+        }
+
+        /** One line, at most [MAX_PATH_CHARS] code points; a longer path keeps its tail behind "…". */
+        private fun clip(path: String): String {
+            val t = path.replace(Regex("\\s+"), " ").trim()
+            val n = t.codePointCount(0, t.length)
+            return if (n <= MAX_PATH_CHARS) t else "…" + t.substring(t.offsetByCodePoints(0, n - (MAX_PATH_CHARS - 1)))
+        }
         const val MAX_PATH_CHARS = 60
         const val DEFAULT_LIST_LIMIT = 200
         const val DEFAULT_SEARCH_LIMIT = 100

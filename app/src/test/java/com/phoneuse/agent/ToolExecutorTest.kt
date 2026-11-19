@@ -20,6 +20,7 @@ import org.junit.rules.TemporaryFolder
 import com.phoneuse.files.ExifInfo
 import com.phoneuse.files.ExifReader
 import com.phoneuse.files.FileTools
+import com.phoneuse.i18n.Lang
 import java.io.File
 
 class ToolExecutorTest {
@@ -597,6 +598,20 @@ class ToolExecutorTest {
         val arr = names.joinToString(",") { "\"$it\"" }
         ex.execute(call("trash_files", """{"paths":[$arr]}"""), screenOf(base))
         assertEquals("휴지통으로 이동: f1.txt, f2.txt, f3.txt, f4.txt, f5.txt(외 2개)", gate.confirms[0].second)
+    }
+
+    @Test fun trashSummaryLimitsToFivePathsInEnglish() = runTest {
+        val saved = Lang.korean
+        Lang.korean = false
+        try {
+            val names = (1..7).map { "f$it.txt".also { n -> tmp.newFile(n) } }
+            val (_, gate, ex) = withFiles()
+            val arr = names.joinToString(",") { "\"$it\"" }
+            ex.execute(call("trash_files", """{"paths":[$arr]}"""), screenOf(base))
+            assertEquals("Move to trash: f1.txt, f2.txt, f3.txt, f4.txt, f5.txt (+2 more)", gate.confirms[0].second)
+        } finally {
+            Lang.korean = saved
+        }
     }
 
     @Test fun trashDeclinedDoesNothing() = runTest {

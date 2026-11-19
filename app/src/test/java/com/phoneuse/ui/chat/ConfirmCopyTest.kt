@@ -1,5 +1,6 @@
 package com.phoneuse.ui.chat
 
+import com.phoneuse.i18n.Lang
 import com.phoneuse.phone.AlarmTool
 import com.phoneuse.phone.CallTool
 import com.phoneuse.phone.ContactAdder
@@ -28,6 +29,30 @@ class ConfirmCopyTest {
         val copy = confirmCopy(RiskCategory.DELETE, "휴지통으로 이동: a, b(외 3개)")
         assertEquals("파일 5개를 휴지통으로 옮길까요?", copy.question)
         assertEquals(listOf("a", "b", "외 3개"), copy.details)
+    }
+
+    @Test
+    fun trashSummaryParsesInBothLanguages() {
+        for (s in listOf("휴지통으로 이동: a.txt, b.txt(외 3개)", "Move to trash: a.txt, b.txt (+3 more)")) {
+            val c = confirmCopy(RiskCategory.DELETE, s)
+            assertEquals(listOf("a.txt", "b.txt", "외 3개"), c.details)
+            assertTrue(c.question.contains("5"))
+        }
+    }
+
+    @Test
+    fun trashSummaryParsesInBothLanguagesUnderEnglish() {
+        val saved = Lang.korean
+        Lang.korean = false
+        try {
+            for (s in listOf("휴지통으로 이동: a.txt, b.txt(외 3개)", "Move to trash: a.txt, b.txt (+3 more)")) {
+                val c = confirmCopy(RiskCategory.DELETE, s)
+                assertEquals(listOf("a.txt", "b.txt", "3 more"), c.details)
+                assertTrue(c.question.contains("5"))
+            }
+        } finally {
+            Lang.korean = saved
+        }
     }
 
     @Test

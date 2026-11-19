@@ -106,7 +106,8 @@ class NotificationTool(private val source: NotificationSource, private val now: 
         // App and time only: a notification's own title is third-party text and must not word the DELETE card.
         val clock = now()
         val shown = targets.take(MAX_SHOWN).joinToString(", ") { "${it.appLabel.take(MAX_SHOWN_CHARS)} ${clockText(it.postedAt, clock)}" }
-        val more = if (targets.size > MAX_SHOWN) " (외 ${targets.size - MAX_SHOWN}개)" else ""
+        val extra = targets.size - MAX_SHOWN
+        val more = if (extra > 0) tr(" (+$extra more)", " (외 ${extra}개)") else ""
         if (!confirm(tr("Clear ${targets.size} notifications: $shown$more", "알림 ${targets.size}개 지우기: $shown$more"))) return MessagingReply.Cancelled
         source.dismiss(targets.map { it.key })
         return MessagingReply.Ok("OK: 알림 ${targets.size}개를 지웠어요.")

@@ -1,5 +1,6 @@
 package com.phoneuse.ui.chat
 
+import com.phoneuse.agent.FileModule
 import com.phoneuse.i18n.tr
 import com.phoneuse.phone.AlarmTool
 import com.phoneuse.phone.CallTool
@@ -20,20 +21,15 @@ data class ConfirmCopy(
     val allowLabel: String,
 )
 
-private const val TRASH_PREFIX = "휴지통으로 이동: "
-private val MORE = Regex("""\(외 (\d+)개\)$""")
-
 fun confirmCopy(category: RiskCategory, summary: String): ConfirmCopy {
-    if (category == RiskCategory.DELETE && summary.startsWith(TRASH_PREFIX)) {
-        var list = summary.removePrefix(TRASH_PREFIX)
-        val more = MORE.find(list)
-        if (more != null) list = list.substring(0, more.range.first)
-        val paths = list.split(", ").map { it.trim() }.filter { it.isNotEmpty() }
-        val total = paths.size + (more?.groupValues?.get(1)?.toInt() ?: 0)
+    val trash = if (category == RiskCategory.DELETE) FileModule.parseTrash(summary) else null
+    if (trash != null) {
+        val (paths, extra) = trash
+        val total = paths.size + extra
         return ConfirmCopy(
             kicker = tr("Confirm delete", "삭제 확인"),
             question = tr("Move $total file${if (total == 1) "" else "s"} to the trash?", "파일 ${total}개를 휴지통으로 옮길까요?"),
-            details = paths + listOfNotNull(more?.let { tr("${it.groupValues[1]} more", "외 ${it.groupValues[1]}개") }),
+            details = paths + listOfNotNull(if (extra > 0) tr("$extra more", "외 ${extra}개") else null),
             monoDetails = true,
             note = tr("Moves them to the app's trash folder (.PhoneUseTrash). You can restore them later.", "앱 휴지통 폴더(.PhoneUseTrash)로 옮겨요. 나중에 되돌릴 수 있어요."),
             allowLabel = tr("Move to trash", "휴지통으로 옮기기"),
