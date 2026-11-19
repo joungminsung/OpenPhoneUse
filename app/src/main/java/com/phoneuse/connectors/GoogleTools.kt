@@ -158,7 +158,7 @@ class GoogleTools(private val api: GoogleApi) {
 
         fun spec(name: String, description: String, vararg props: Pair<String, String>) = ToolSpec(
             name,
-            "[Google 커넥터] $description",
+            "[Google connector] $description",
             buildJsonObject {
                 put("type", "object")
                 putJsonObject("properties") {

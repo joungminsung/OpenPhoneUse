@@ -238,4 +238,12 @@ class McpClientTest {
         assertEquals("DELETE", del.method)
         assertEquals("s9", del.getHeader("Mcp-Session-Id"))
     }
+
+    @Test fun imageAndAudioMarkersAreFixedEnglish() = runBlocking {
+        server.enqueue(initResult())
+        server.enqueue(accepted())
+        server.enqueue(json("""{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"image"},{"type":"audio"}]}}"""))
+        val result = client().callTool("t", JsonObject(emptyMap()))
+        assertEquals("[image]\n[audio]", result.text)
+    }
 }

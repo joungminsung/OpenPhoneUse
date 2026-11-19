@@ -22,10 +22,10 @@ object Lang {
 
     fun isKorean(locale: Locale): Boolean = locale.language == "ko"
 
-    /** The language tag the model is told to answer in when the user's own words do not settle it. */
     /** The language's English name, for instructions to the model. */
     val name: String get() = if (korean) "Korean" else "English"
 
+    /** The language tag the model is told to answer in when the user's own words do not settle it. */
     val tag: String get() = if (korean) "ko" else "en"
 }
 

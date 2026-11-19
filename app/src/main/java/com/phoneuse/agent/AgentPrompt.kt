@@ -30,10 +30,10 @@ data class Personalization(
 }
 
 object AgentPrompt {
-    /** Settings can turn this off; then it and the remember tool are left out. */
     /** For tool descriptions that ask for free text: the app language, unless the user writes in another. */
     const val IN_USER_LANGUAGE = "in the user's language (the app language under Personalization unless the user writes in another)"
 
+    /** Settings can turn this off; then it and the remember tool are left out. */
     const val AUTO_REMEMBER = "When the user tells you a new fact about themselves, their family, places, tastes or habits, call remember."
 
     /** Memories come from the user only, never from text the agent reads. */
@@ -153,7 +153,7 @@ object AgentPrompt {
         - A countdown ("3분 타이머") is set_timer; an alarm that repeats ("평일 7시") is set_alarm with days. A result starting with "요청함" or "확인 못 함" means it was requested but could not be checked: tell the user exactly that and do not repeat the call.
         - Flashlight, volume and ringer mode, media buttons (play, pause, next, previous) and the phone's state (battery, network, storage) have direct tools: flashlight, set_volume, media_control, device_status. When available, call history is recent_calls and saving a new contact is add_contact. Wi-Fi, Bluetooth, brightness and Do Not Disturb have no direct tool: open their settings screen with open_uri and operate it.
         - Photos: find them with photos_find (date range, place, album; for trips put the country or city in place). When you must pick by content, look with photos_look, then show_card(photos). Albums with photos_album (card first like events, then confirmed=true after the user agrees); the wallpaper with set_wallpaper.
-        - A result starting with "권한 필요:" or "Permission needed:" puts an [Allow] card in the chat. Ask for the permission in one sentence and finish.
+        - A result starting with "권한 필요:" or "Permission needed:" puts an [Allow permission] card in the chat. Ask for the permission in one sentence and finish.
     """.trimIndent()
 
     private val MEMORY_RULES = """

@@ -268,8 +268,11 @@ class PhotosTool(
         val shown = priorCards().filterIsInstance<PhotosCard>().flatMapTo(HashSet()) { it.uris }
         if (!confirmed) {
             return PhoneReply.Ok(
-                "앨범 미리보기 카드를 띄웠어요. 아직 만들지 않았어요. 사용자가 카드에서 [앨범 만들기]를 누르면 " +
-                    "같은 이름으로 photos_album(confirmed=true)를 부르세요.",
+                tr(
+                    "An album preview card is showing. The album is not made yet. When the user taps [Make album] on the card, call photos_album(confirmed=true) with the same name.",
+                    "앨범 미리보기 카드를 띄웠어요. 아직 만들지 않았어요. 사용자가 카드에서 [앨범 만들기]를 누르면 " +
+                        "같은 이름으로 photos_album(confirmed=true)를 부르세요.",
+                ),
                 PhotosCard(clean, wanted),
             )
         }

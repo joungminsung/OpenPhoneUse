@@ -1,5 +1,6 @@
 package com.phoneuse.cards
 
+import com.phoneuse.i18n.tr
 import com.phoneuse.understand.DigestBucket
 import kotlinx.serialization.MissingFieldException
 import kotlinx.serialization.SerializationException
@@ -129,11 +130,11 @@ object CardJson {
         is ParcelCard -> "택배: ${card.stage()?.wire ?: "?"}" +
             (card.tracking?.takeIf { TRACKING.matches(it) }?.let { " $it" } ?: "") +
             (if (card.events.isEmpty()) "" else ", 단계 ${card.events.size}개 " + card.events.mapNotNull { it.at.takeIf { a -> CLOCK.matches(a) } }.joinToString(" "))
-        is PermissionCard -> "권한 요청 카드: ${card.label} [권한 허용]"
+        is PermissionCard -> tr("Permission card: ${card.label} [Allow permission]", "권한 요청 카드: ${card.label} [권한 허용]")
         is RoutineCard -> card.parsed()?.let { r ->
-            "루틴 미리보기 '${r.title}': ${com.phoneuse.routine.RoutineText.whenText(r.trigger)} → " +
-                com.phoneuse.routine.RoutineText.steps(r.action).joinToString(", ") { it.text } + " [루틴 저장]"
-        } ?: "루틴 미리보기"
+            tr("Routine preview '${r.title}': ", "루틴 미리보기 '${r.title}': ") + "${com.phoneuse.routine.RoutineText.whenText(r.trigger)} → " +
+                com.phoneuse.routine.RoutineText.steps(r.action).joinToString(", ") { it.text } + " [${tr("Save routine", "루틴 저장")}]"
+        } ?: tr("Routine preview", "루틴 미리보기")
     }
 
 

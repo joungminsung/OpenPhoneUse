@@ -110,4 +110,21 @@ class RoutineToolTest {
         assertTrue(executor().specs.any { it.name == "make_routine" })
         assertTrue(run("""{"routine":{}}""", executor(null)).output.startsWith("ERROR"))
     }
+
+    @Test
+    fun englishPreviewResultNamesTheEnglishButtonsAndHasNoHangulInstructions() {
+        val saved = com.phoneuse.i18n.Lang.korean
+        com.phoneuse.i18n.Lang.korean = false
+        try {
+            val card = PermissionCard("Nearby devices", listOf("android.permission.BLUETOOTH_CONNECT"))
+            val r = run(
+                """{"routine":{"title":"Car","trigger":{"type":"device","kind":"bluetooth","detail":"car"},"action":{"type":"notify","text":"a"}}}""",
+                executor(RoutineAccess(search, memories, permissionFor = { card })),
+            )
+            assertTrue(r.output, r.output.contains("[Save routine]") && r.output.contains("[Allow permission]"))
+            assertFalse(r.output, Regex("[가-힣]").containsMatchIn(r.output))
+        } finally {
+            com.phoneuse.i18n.Lang.korean = saved
+        }
+    }
 }

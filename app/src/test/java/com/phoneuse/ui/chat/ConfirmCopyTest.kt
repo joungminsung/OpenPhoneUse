@@ -60,7 +60,7 @@ class ConfirmCopyTest {
         for (s in listOf("휴지통으로 이동: a.txt(외 99999999999개)", "Move to trash: a.txt (+99999999999 more)")) {
             val c = confirmCopy(RiskCategory.DELETE, s)
             assertTrue(c.monoDetails)
-            assertEquals(2, c.details.size.coerceAtLeast(2))
+            assertEquals(listOf(s.substringAfter(": ")), c.details)
             assertTrue(c.details.first().startsWith("a.txt"))
         }
     }

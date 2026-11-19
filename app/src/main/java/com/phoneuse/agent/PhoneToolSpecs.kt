@@ -72,7 +72,7 @@ internal object PhoneToolSpecs {
         ToolSpec(
             "calendar_add",
             "Add a calendar event. Without confirmed it saves nothing: it shows an event preview card with overlapping events. " +
-                "When the user then confirms (the card's [그대로 저장]), call again with the same values and confirmed=true " +
+                "When the user then confirms (the card's save button), call again with the same values and confirmed=true " +
                 "as the first tool of that turn.",
             schema(
                 required = listOf("title", "start", "end"),
@@ -152,7 +152,7 @@ internal object PhoneToolSpecs {
         ToolSpec(
             "photos_album",
             "Make an album: copy photos into Pictures/<name>/ (originals stay). Without confirmed it only shows a photos card; " +
-                "when the user confirms (its [앨범 만들기]), call again with confirmed=true.",
+                "when the user confirms (the card's make-album button), call again with confirmed=true.",
             schema(
                 required = listOf("name", "uris"),
                 props = mapOf(

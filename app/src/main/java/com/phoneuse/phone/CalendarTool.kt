@@ -167,13 +167,16 @@ class CalendarTool(private val source: CalendarSource, private val priorCards: s
             conflicts = conflicts.map { EventConflict(it.title, it.start.toString(), it.end.toString()) },
         )
         val clash = if (conflicts.isEmpty()) {
-            "겹치는 일정 없음."
+            tr("No overlapping events.", "겹치는 일정 없음.")
         } else {
-            "겹치는 일정: " + conflicts.joinToString("; ") { "${it.title} ${it.start.toLocalTime()}–${it.end.toLocalTime()}" } + "."
+            tr("Overlapping events: ", "겹치는 일정: ") + conflicts.joinToString("; ") { "${it.title} ${it.start.toLocalTime()}–${it.end.toLocalTime()}" } + "."
         }
         return PhoneReply.Ok(
-            "미리보기 카드를 띄웠어요. 아직 저장하지 않았어요. $clash 사용자가 카드의 [그대로 저장]을 누르면 같은 값으로 " +
-                "calendar_add(confirmed=true)를 부르세요. 짧게 확인을 부탁하는 말만 쓰세요.",
+            tr(
+                "A preview card is showing. Nothing is saved yet. $clash When the user taps [Save as is] on the card, call calendar_add(confirmed=true) with the same values. Only ask briefly for confirmation.",
+                "미리보기 카드를 띄웠어요. 아직 저장하지 않았어요. $clash 사용자가 카드의 [그대로 저장]을 누르면 같은 값으로 " +
+                    "calendar_add(confirmed=true)를 부르세요. 짧게 확인을 부탁하는 말만 쓰세요.",
+            ),
             card,
         )
     }

@@ -282,8 +282,8 @@ class McpClient(
             val o = el as? JsonObject ?: return@mapNotNull null
             when (o.str("type")) {
                 "text" -> o.str("text")
-                "image" -> "[이미지]"
-                "audio" -> "[오디오]"
+                "image" -> "[image]"
+                "audio" -> "[audio]"
                 "resource" -> (o["resource"] as? JsonObject)?.let { it.str("text") ?: "[리소스 ${it.str("uri").orEmpty()}]" }
                 "resource_link" -> "[링크 ${o.str("name").orEmpty()} ${o.str("uri").orEmpty()}]".replace("  ", " ")
                 else -> null
