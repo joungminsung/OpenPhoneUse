@@ -266,8 +266,8 @@ class AgentLoopTest {
         val model = FakeModelClient(listOf(tap(), finish())) { n -> if (n == 1) r.steering.post("스크린샷은 남겨") }
         r = rig(model)
         r.loop.run(emptyList(), "t", observeFirst = true).toList()
-        assertTrue(InputItem.UserText("사용자 추가 지시: 스크린샷은 남겨") in model.inputs[1])
-        assertTrue(model.inputs[0].none { it is InputItem.UserText && it.text.startsWith("사용자 추가 지시") })
+        assertTrue(InputItem.UserText("User instruction: 스크린샷은 남겨") in model.inputs[1])
+        assertTrue(model.inputs[0].none { it is InputItem.UserText && it.text.startsWith("User instruction") })
     }
 
     @Test fun olderScreenshotsReplaced() = runTest {
@@ -276,7 +276,7 @@ class AgentLoopTest {
         val third = model.inputs[2]
         assertEquals(1, third.count { it is InputItem.UserImage })
         // The first screen's and the first screenshot's pictures (every screen read comes with one).
-        assertEquals(2, third.count { it == InputItem.UserText("[이전 스크린샷 생략]") })
+        assertEquals(2, third.count { it == InputItem.UserText("[earlier screenshot omitted]") })
         assertTrue(third.last() is InputItem.UserImage)
     }
 
@@ -301,7 +301,7 @@ class AgentLoopTest {
         rig(model).loop.run(listOf(old), "이 잎 왜 이래?", observeFirst = false, images = listOf(photo, photo)).toList()
         assertEquals(listOf(old, InputItem.UserText("이 잎 왜 이래?", listOf(photo, photo))), model.inputs[0].take(2))
         // Later steps keep a mark per photo; screenshots are still handled on their own.
-        assertEquals(listOf(InputItem.UserText("[사진]"), InputItem.UserText("[사진] [사진] 이 잎 왜 이래?")), model.inputs[1].take(2))
+        assertEquals(listOf(InputItem.UserText("[photo]"), InputItem.UserText("[photo] [photo] 이 잎 왜 이래?")), model.inputs[1].take(2))
         assertEquals(model.inputs[1].take(2), model.inputs[2].take(2))
         assertEquals(1, model.inputs[2].count { it is InputItem.UserImage })
     }
@@ -865,7 +865,7 @@ class AgentLoopTest {
         assertEquals(2, helper.calls)
         val back = main.inputs[1].filterIsInstance<InputItem.FunctionOutput>().last()
         assertTrue(back.output, back.output.contains("the user sent a new instruction"))
-        assertTrue(main.inputs[1].any { it is InputItem.UserText && it.text == "사용자 추가 지시: 그만, 첫 번째로" })
+        assertTrue(main.inputs[1].any { it is InputItem.UserText && it.text == "User instruction: 그만, 첫 번째로" })
     }
 
     @Test fun aMessageSentWhileTheFinalAnswerIsWrittenIsFollowed() = runTest {
@@ -880,7 +880,7 @@ class AgentLoopTest {
         assertEquals(1, events.count { it is AgentEvent.Finished })
         val second = model.inputs[1]
         assertTrue(second.any { it is InputItem.AssistantText && it.text == "3만원대 추천: A" })
-        assertTrue(second.last().let { it is InputItem.UserText && it.text == "사용자 추가 지시: 아니 3만원 이하로만" })
+        assertTrue(second.last().let { it is InputItem.UserText && it.text == "User instruction: 아니 3만원 이하로만" })
     }
 
     @Test fun aMessageSentWhileFinishingOverridesTheFinish() = runTest {

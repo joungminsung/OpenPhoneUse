@@ -135,10 +135,10 @@ class McpRegistry(
                 val name = toolName(server.name, t.name)
                 if (!seen.add(name)) continue
                 val risk = McpRisk.classify(t.name, t.description, t.readOnly, t.destructive)
-                val note = if (risk != null) " (사용자 확인 후 실행)" else ""
+                val note = if (risk != null) " (runs only after the user confirms)" else ""
                 val params = schema(t.inputSchema)
-                val omitted = if (params == null) " (인수 설명이 너무 길어 생략됨)" else ""
-                val description = "[${server.name} 커넥터$note] " + clean(t.description).take(MAX_DESCRIPTION).ifEmpty { t.name } + omitted
+                val omitted = if (params == null) " (argument schema omitted: too long)" else ""
+                val description = "[${server.name} connector$note] " + clean(t.description).take(MAX_DESCRIPTION).ifEmpty { t.name } + omitted
                 out += ExposedTool(name, server, t, ToolSpec(name, description, params ?: OPEN_SCHEMA), risk)
             }
             return out

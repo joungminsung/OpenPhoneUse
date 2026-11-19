@@ -89,7 +89,14 @@ class McpRegistryTest {
         assertNull(McpRegistry.schema(huge))
         val e = McpRegistry.expose(McpServer(id = "1", name = "srv", url = "https://x/mcp"), listOf(McpTool("t", "d", huge)))[0]
         assertTrue(e.spec.parameters.toString().length <= McpRegistry.MAX_SCHEMA_CHARS)
-        assertTrue(e.spec.description.contains("생략"))
+        assertTrue(e.spec.description.contains("omitted"))
+    }
+
+    @Test fun descriptionMarkersAreFixedEnglish() {
+        val server = McpServer(id = "1", name = "srv", url = "https://x/mcp")
+        val risky = McpRegistry.expose(server, listOf(McpTool("send_message", "Send a message", JsonObject(emptyMap()))))[0]
+        assertTrue(risky.spec.description, risky.spec.description.contains("connector (runs only after the user confirms)]"))
+        assertTrue(risky.spec.description, !Regex("[가-힣]").containsMatchIn(risky.spec.description))
     }
 
     @Test fun annotationsDecideToo() {

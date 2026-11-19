@@ -11,6 +11,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TimedUserGateTest {
+    private val HANGUL = Regex("[가-힣]")
+
+    @Test
+    fun noAnswerMarkIsFixedEnglish() {
+        assertFalse(HANGUL.containsMatchIn(TimedUserGate.NO_ANSWER))
+    }
+
     private object Never : UserGate {
         override suspend fun confirm(category: RiskCategory, summary: String): Boolean = awaitCancellation()
         override suspend fun ask(question: String, options: List<String>): String = awaitCancellation()

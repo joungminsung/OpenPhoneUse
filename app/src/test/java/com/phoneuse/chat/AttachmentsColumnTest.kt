@@ -63,7 +63,7 @@ class AttachmentsColumnTest {
             listOf(ChatMessage(1, 1, MessageRole.USER, "q", emptyList(), 0, attachments = listOf(Attachment.image("abc")))),
             loadImage = ImageBudget(remaining = 2).load { a -> InputItem.UserImage(a.file!!) },
         )
-        assertEquals(listOf(InputItem.UserText("[사진] q")), items)
+        assertEquals(listOf(InputItem.UserText("[photo] q")), items)
     }
 }
 

@@ -1,6 +1,7 @@
 package com.phoneuse.agent
 
 import com.phoneuse.BuildConfig
+import com.phoneuse.chat.HistoryBuilder
 import com.phoneuse.i18n.tr
 import com.phoneuse.i18n.Lang
 import com.phoneuse.cards.CardSpec
@@ -446,7 +447,7 @@ class AgentLoop(
     private fun addSteering(input: MutableList<InputItem>) {
         for (text in steering.drain()) {
             executor.userSaid(text)
-            input += InputItem.UserText("사용자 추가 지시: $text")
+            input += InputItem.UserText(STEERING_PREFIX + text)
         }
     }
 
@@ -636,7 +637,7 @@ class AgentLoop(
         input += InputItem.UserText(note)
     }
 
-    /** Replaces the image parts of user messages with one "[사진]" mark each, keeping the text. */
+    /** Replaces the image parts of user messages with one "[photo]" mark each, keeping the text. */
     private fun dropAttachedImages(input: MutableList<InputItem>) {
         for (i in input.indices) {
             val item = input[i]
@@ -751,8 +752,9 @@ class AgentLoop(
 
         /** Never tipped: this app and the system UI. */
         val NO_TIP_PACKAGES = setOf("com.phoneuse", "com.android.systemui")
-        const val OMITTED_SCREENSHOT = "[이전 스크린샷 생략]"
-        const val PHOTO_MARK = "[사진]"
+        const val STEERING_PREFIX = "User instruction: "
+        const val OMITTED_SCREENSHOT = "[earlier screenshot omitted]"
+        const val PHOTO_MARK = HistoryBuilder.PHOTO_MARK
         val TARGET_KEYS = listOf("package", "name", "uri", "key", "text", "path", "to_dir", "from")
         /** English and Korean verb for each tool; the Korean one is also what app tips store. */
         /** Tool calls and results in logcat (tag PU_TRACE), for debugging runs; debug builds only. */

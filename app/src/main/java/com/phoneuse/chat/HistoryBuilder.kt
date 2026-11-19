@@ -6,14 +6,16 @@ import com.phoneuse.model.InputItem
 /**
  * Turns stored chat messages into model input, keeping the newest messages that fit a character budget.
  * Attachments are sent in full (images, file text) only for the [RECENT_ATTACHMENTS] newest messages that have
- * any; older ones become "[사진]" / "[파일: 이름]" marks. Images do not count toward the budget.
+ * any; older ones become "[photo]" / "[file: name]" marks. Images do not count toward the budget.
  */
 object HistoryBuilder {
     /** Only the last steps are kept: they show where the run ended. */
     private const val MAX_STEPS = 10
     private const val ELLIPSIS = "…"
     const val RECENT_ATTACHMENTS = 2
-    const val PHOTO_MARK = "[사진]"
+    const val PHOTO_MARK = "[photo]"
+
+    fun fileMark(name: String): String = "[file: $name]"
 
     /** [loadImage] reads a stored image for the model; null (e.g. the file is gone) sends [PHOTO_MARK] instead. */
     fun build(
@@ -63,11 +65,11 @@ object HistoryBuilder {
                 AttachmentKind.IMAGE -> {
                     val image = if (withContent) loadImage(a) else null
                     if (image != null) images += image
-                    if (a.name != null) marks += "[파일: ${a.name}]" else if (image == null) marks += PHOTO_MARK
+                    if (a.name != null) marks += fileMark(a.name) else if (image == null) marks += PHOTO_MARK
                 }
                 AttachmentKind.TEXT ->
-                    if (withContent) files.append("\n\n[파일: ").append(a.name).append("]\n").append(a.text.orEmpty())
-                    else marks += "[파일: ${a.name}]"
+                    if (withContent) files.append("\n\n").append(fileMark(a.name.orEmpty())).append("\n").append(a.text.orEmpty())
+                    else marks += fileMark(a.name.orEmpty())
             }
         }
         val body = (marks + listOfNotNull(text.takeIf { it.isNotEmpty() })).joinToString(" ")
@@ -91,7 +93,7 @@ object HistoryBuilder {
 
 /**
  * Caps the attached-image data of one model request: [load] passes images through until their base64 adds up
- * to [remaining] characters; later ones read as missing, so they become "[사진]". Use one budget for the
+ * to [remaining] characters; later ones read as missing, so they become "[photo]". Use one budget for the
  * current message first, then the history, so the newest photos win.
  */
 class ImageBudget(private var remaining: Int = MAX_CHARS) {

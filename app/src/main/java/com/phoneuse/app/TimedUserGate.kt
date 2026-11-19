@@ -30,7 +30,7 @@ class TimedUserGate(
     }
 
     companion object {
-        const val NO_ANSWER = "(사용자가 답하지 않았어요. 묻지 말고 할 수 있는 만큼만 하고 finish 하세요.)"
+        const val NO_ANSWER = "(The user did not answer. Do not ask again: do what you can without them, then call finish.)"
 
         /** How long a routine run waits for an answer. */
         const val ROUTINE_TIMEOUT_MS = 10 * 60_000L

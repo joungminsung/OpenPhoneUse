@@ -79,7 +79,7 @@ class HistoryBuilderTest {
         val items = HistoryBuilder.build(messages, loadImage = load)
         assertEquals(
             listOf(
-                InputItem.UserText("[사진] q1"),
+                InputItem.UserText("[photo] q1"),
                 InputItem.AssistantText("a1"),
                 InputItem.UserText("q2", listOf(InputItem.UserImage("/a/2.jpg"), InputItem.UserImage("/a/3.jpg"))),
                 InputItem.AssistantText("a2"),
@@ -92,7 +92,7 @@ class HistoryBuilderTest {
 
     @Test fun missingImageFileReadsAsPhotoMark() {
         val items = HistoryBuilder.build(listOf(withFiles(MessageRole.USER, "이거", Attachment.image("/gone.jpg"))), loadImage = { null })
-        assertEquals(listOf(InputItem.UserText("[사진] 이거")), items)
+        assertEquals(listOf(InputItem.UserText("[photo] 이거")), items)
     }
 
     @Test fun fileTextOnlyForRecentMessages() {
@@ -104,9 +104,9 @@ class HistoryBuilderTest {
         val items = HistoryBuilder.build(messages, loadImage = load)
         assertEquals(
             listOf(
-                InputItem.UserText("[파일: 메모.txt] 요약해 줘"),
-                InputItem.UserText("이것도\n\n[파일: b.txt]\n둘"),
-                InputItem.UserText("[파일: 보고서.pdf 1쪽] 마지막", listOf(InputItem.UserImage("/a/9.jpg"))),
+                InputItem.UserText("[file: 메모.txt] 요약해 줘"),
+                InputItem.UserText("이것도\n\n[file: b.txt]\n둘"),
+                InputItem.UserText("[file: 보고서.pdf 1쪽] 마지막", listOf(InputItem.UserImage("/a/9.jpg"))),
             ),
             items,
         )
