@@ -60,7 +60,7 @@ internal class RoutineModule(private val access: RoutineAccess?) : ToolModule {
                     raw + ("trigger" to JsonObject(trigger + mapOf("lat" to JsonPrimitive(found.lat), "lng" to JsonPrimitive(found.lng)))),
                 )
             } else {
-                placeFrom = tr("Set by you", "직접 지정")
+                placeFrom = PlaceResolver.FROM_USER
             }
         }
         val sentence = args.text("sentence")?.trim()?.takeIf { it.isNotEmpty() }
@@ -111,7 +111,7 @@ internal class RoutineModule(private val access: RoutineAccess?) : ToolModule {
                     "{type:\"device\", kind:\"charger\"|\"bluetooth\"|\"headset\"|\"wifi\", detail?(device or Wi-Fi name)} | " +
                     "{type:\"before_event\", minutes} (before calendar events that have a location). " +
                     "conditions: {days?, time_from?, time_to?(HH:mm), only_when_unlocked?, cooldown_min?(default 60; 1440 = once a day)}. " +
-                    "action: {type:\"ask\", prompt (what the agent should do each time, in Korean), needs_device (true if it must operate apps), " +
+                    "action: {type:\"ask\", prompt (what the agent should do each time, ${AgentPrompt.IN_USER_LANGUAGE}), needs_device (true if it must operate apps), " +
                     "steps?:[{text, device}]} | {type:\"notify\", text} (just a notification) | {type:\"open_app\", package, name?}.",
                 schema(
                     required = listOf("routine"),

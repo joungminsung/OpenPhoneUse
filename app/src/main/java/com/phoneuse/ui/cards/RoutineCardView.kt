@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.phoneuse.cards.CardAction
 import com.phoneuse.cards.RoutineCard
 import com.phoneuse.routine.PlaceEdge
+import com.phoneuse.routine.PlaceResolver
 import com.phoneuse.routine.RoutineAction
 import com.phoneuse.routine.RoutinePermissions
 import com.phoneuse.routine.RoutineSystem
@@ -67,7 +68,7 @@ fun RoutineCardView(card: RoutineCard, onAction: (CardAction) -> Unit, modifier:
             if (place != null) {
                 RadiusMap(place.lat, place.lng, place.radiusM, Modifier.fillMaxWidth().height(128.dp))
                 Column(Modifier.padding(horizontal = 16.dp)) {
-                    InfoRow(tr("Place", "장소"), listOfNotNull(place.name, card.placeAddress).joinToString(" · "), card.placeFrom, top = false)
+                    InfoRow(tr("Place", "장소"), listOfNotNull(place.name, card.placeAddress).joinToString(" · "), PlaceResolver.label(card.placeFrom), top = false)
                     InfoRow(tr("Arrive / leave", "도착 / 떠날 때"), if (place.on == PlaceEdge.ENTER) tr("On arrival", "도착하면") else tr("On leaving", "떠나면"))
                     InfoRow(tr("Radius", "범위"), radiusText(place.radiusM), mono = true)
                 }

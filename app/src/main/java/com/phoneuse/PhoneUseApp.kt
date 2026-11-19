@@ -33,5 +33,6 @@ class PhoneUseApp : Application() {
             android.os.LocaleList.getEmptyLocaleList()
         }
         Lang.update(if (perApp.isEmpty) config.locales else perApp)
+        com.phoneuse.i18n.Region.update(android.content.res.Resources.getSystem().configuration.locales)
     }
 }

@@ -128,7 +128,7 @@ fun RoutineBuilderScreen(
             }
             if (found != null && !d.hasPlace) {
                 d = d.copy(lat = found.lat, lng = found.lng)
-                placeNote = listOfNotNull(found.from, found.address).joinToString(" · ")
+                placeNote = listOfNotNull(PlaceResolver.label(found.from), found.address).joinToString(" · ")
             }
         }
     }

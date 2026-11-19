@@ -32,7 +32,6 @@ import com.phoneuse.screen.ScreenSnapshot
 import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Ignore
 import org.junit.Test
 import java.lang.reflect.Proxy
 import java.security.MessageDigest
@@ -86,7 +85,6 @@ class ToolSpecsPinTest {
         assertEquals(FULL_HASH, hash(specs))
     }
 
-    @Ignore("until Task 6")
     @Test fun noToolTellsTheModelToWriteKorean() {
         for (s in full().specs) assertFalse(s.name, "${s.description}${s.parameters}".contains("in Korean"))
     }
@@ -119,6 +117,6 @@ class ToolSpecsPinTest {
             "mcp__notion__search",
         )
         const val BARE_HASH = "95843fa10990c4ae4a8e20ab0d6796416a6faa4acaa0b3a9154adb73382e6e56"
-        const val FULL_HASH = "be6eeb36106d43a8e92a84eac8601c1ebf42c624c7c21d95d20bfd3bbfe874d6"
+        const val FULL_HASH = "6946dfa5c720d6801d6bddddac4ed0905ad7e38f72a5c4a28653b1e65307a78d"
     }
 }

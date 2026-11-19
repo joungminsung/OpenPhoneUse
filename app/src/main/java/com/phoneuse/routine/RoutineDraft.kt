@@ -1,5 +1,6 @@
 package com.phoneuse.routine
 
+import com.phoneuse.i18n.Region
 import com.phoneuse.i18n.tr
 import java.time.DayOfWeek
 
@@ -146,6 +147,9 @@ data class RoutineTemplate(val title: String, val description: String, val draft
 
 /** The eight templates of the routine screen. */
 object RoutineTemplates {
+    /** Parcel notifications are written by local couriers, so the word follows the device region, not the app language. */
+    fun parcelKeyword(): String = if (Region.country == "KR") "택배" else "deliver"
+
     val all: List<RoutineTemplate> get() = listOf(
         RoutineTemplate(
             tr("Morning briefing", "아침 브리핑"), tr("Daily 07:30 · weather, today's schedule, important overnight notifications", "매일 07:30 · 날씨, 오늘 일정, 밤사이 중요한 알림"),
@@ -188,9 +192,9 @@ object RoutineTemplates {
             ),
         ),
         RoutineTemplate(
-            tr("Sort parcel messages", "택배 문자 오면 정리"), tr("When a '택배' notification arrives · courier, expected arrival, what to do", "'택배' 알림이 오면 · 택배사, 도착 예정, 할 일"),
+            tr("Sort parcel messages", "택배 문자 오면 정리"), tr("When a '${parcelKeyword()}' notification arrives · courier, expected arrival, what to do", "'${parcelKeyword()}' 알림이 오면 · 택배사, 도착 예정, 할 일"),
             RoutineDraft(
-                title = tr("Parcel summary", "택배 정리"), trigger = TriggerKind.NOTIFICATION, notifKeyword = "택배",
+                title = tr("Parcel summary", "택배 정리"), trigger = TriggerKind.NOTIFICATION, notifKeyword = parcelKeyword(),
                 prompt = tr("Sort out this parcel notification: courier, expected arrival, and what I need to do.", "이 택배 알림을 정리해줘: 택배사, 도착 예정, 내가 할 일."),
                 steps = listOf(RoutineStep(tr("Summarize parcel info", "택배 정보 정리"))),
             ),
