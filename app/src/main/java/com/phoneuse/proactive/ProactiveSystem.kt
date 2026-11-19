@@ -331,7 +331,8 @@ class ProactiveSystem private constructor(private val app: Context) {
         if (!location.hasPermission() || !location.isEnabled()) return null
         val here = withTimeoutOrNull(LOCATION_TIMEOUT_MS) { location.current() } ?: return null
         // About a kilometre is plenty for the city and district, which is all that is used.
-        val area = BriefingText.area(AndroidPhone.geocoder(AppGraph.http).reverse(BriefingText.coarse(here.lat), BriefingText.coarse(here.lng)))
+        // Korean on purpose: the area only feeds the weather model call, and BriefingText.area cuts Korean 구/군/시/도 suffixes.
+        val area = BriefingText.area(AndroidPhone.geocoder(AppGraph.http).reverse(BriefingText.coarse(here.lat), BriefingText.coarse(here.lng), lang = "ko"))
             ?: return null
         val backend = AppGraph.runner.automaticBackend() ?: return null
         val options = ModelOptions(settings.routineModel.first(), settings.fastMode.first(), "low", webSearch = true)

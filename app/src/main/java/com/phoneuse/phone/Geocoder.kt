@@ -1,6 +1,7 @@
 package com.phoneuse.phone
 
 import com.phoneuse.cards.LatLng
+import com.phoneuse.i18n.Lang
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -44,6 +45,8 @@ class Geocoder(
     /** Monotonic milliseconds: a wall-clock change must not stall or skip the spacing. */
     private val now: () -> Long = { System.nanoTime() / 1_000_000 },
     private val sleep: suspend (Long) -> Unit = { delay(it) },
+    /** The language Nominatim answers in; read once per call. */
+    private val language: () -> String = { Lang.tag },
 ) : PlaceSearch, PlaceBounds {
     private val lock = Mutex()
     private var lastRequestAt: Long? = null
@@ -67,14 +70,15 @@ class Geocoder(
         val q = query.trim()
         require(q.isNotEmpty()) { "query is empty" }
         val near = if (nearLat != null && nearLng != null) LatLng(nearLat, nearLng) else null
-        val key = q + "|" + near?.let { "%.3f,%.3f".format(Locale.ROOT, it.lat, it.lng) }.orEmpty()
+        val lang = language()
+        val key = "$lang|" + q + "|" + near?.let { "%.3f,%.3f".format(Locale.ROOT, it.lat, it.lng) }.orEmpty()
         return lock.withLock {
             searches.get(key, now())?.let { return@withLock it.second }
             val url = baseUrl.toHttpUrl().newBuilder().addPathSegment("search")
                 .addQueryParameter("format", "jsonv2")
                 .addQueryParameter("q", q)
                 .addQueryParameter("limit", LIMIT.toString())
-                .addQueryParameter("accept-language", "ko")
+                .addQueryParameter("accept-language", lang)
                 .apply {
                     // Prefer (do not limit to) hits around the centre.
                     if (near != null) {
@@ -97,17 +101,19 @@ class Geocoder(
     override suspend fun bounds(place: String): BBox? {
         val q = place.trim()
         require(q.isNotEmpty()) { "place is empty" }
+        val lang = language()
+        val key = "$lang|$q"
         return lock.withLock {
-            boxes.get(q, now())?.let { return@withLock it.second }
+            boxes.get(key, now())?.let { return@withLock it.second }
             val url = baseUrl.toHttpUrl().newBuilder().addPathSegment("search")
                 .addQueryParameter("format", "jsonv2")
                 .addQueryParameter("q", q)
                 .addQueryParameter("limit", "1")
-                .addQueryParameter("accept-language", "ko")
+                .addQueryParameter("accept-language", lang)
                 .build()
             val first = (parseJson(fetch(url)) as? JsonArray)?.firstOrNull() as? JsonObject
             val box = first?.let { parseBox(it) }
-            boxes.put(q, now(), box)
+            boxes.put(key, now(), box)
             box
         }
     }
@@ -123,15 +129,15 @@ class Geocoder(
     }
 
     /** The address at a point, or null when Nominatim has none. */
-    suspend fun reverse(lat: Double, lng: Double): String? {
-        val key = "%.4f,%.4f".format(Locale.ROOT, lat, lng)
+    suspend fun reverse(lat: Double, lng: Double, lang: String = language()): String? {
+        val key = "$lang|" + "%.4f,%.4f".format(Locale.ROOT, lat, lng)
         return lock.withLock {
             reverses.get(key, now())?.let { return@withLock it.second }
             val url = baseUrl.toHttpUrl().newBuilder().addPathSegment("reverse")
                 .addQueryParameter("format", "jsonv2")
                 .addQueryParameter("lat", lat.toString())
                 .addQueryParameter("lon", lng.toString())
-                .addQueryParameter("accept-language", "ko")
+                .addQueryParameter("accept-language", lang)
                 .build()
             val obj = parseJson(fetch(url)) as? JsonObject
             val address = (obj?.get("display_name") as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }

@@ -25,12 +25,13 @@ class GeocoderTest {
     private var now = 1_000_000L
     private val slept = mutableListOf<Long>()
 
-    private fun geocoder() = Geocoder(
+    private fun geocoder(language: () -> String = { "ko" }) = Geocoder(
         OkHttpClient(),
         userAgent = "PhoneUse/1.2.3",
         baseUrl = server.url("/").toString().trimEnd('/'),
         now = { now },
         sleep = { slept += it; now += it },
+        language = language,
     )
 
     private val body = """
@@ -185,5 +186,36 @@ class GeocoderTest {
         for (q in listOf("a", "b", "c", "d")) assertNull(q, g.bounds(q))
         // Spaced one a second like search.
         assertEquals(listOf(1000L, 1000L, 1000L), slept)
+    }
+
+    @Test fun asksInTheAppLanguageAndCachesPerLanguage() = runBlocking {
+        var lang = "en"
+        val g = geocoder(language = { lang })
+        server.enqueue(MockResponse().setBody(body)); server.enqueue(MockResponse().setBody(body))
+        g.search("강남역", null, null)
+        assertEquals("en", server.takeRequest(1, TimeUnit.SECONDS)!!.requestUrl!!.queryParameter("accept-language"))
+        lang = "ko"
+        g.search("강남역", null, null)
+        assertEquals("ko", server.takeRequest(1, TimeUnit.SECONDS)!!.requestUrl!!.queryParameter("accept-language"))
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test fun boundsAsksInTheAppLanguageAndCachesPerLanguage() = runBlocking {
+        var lang = "en"
+        val g = geocoder(language = { lang })
+        val hit = """[{"lat":"1","lon":"1","boundingbox":["0","1","0","1"]}]"""
+        server.enqueue(MockResponse().setBody(hit)); server.enqueue(MockResponse().setBody(hit))
+        g.bounds("영국")
+        assertEquals("en", server.takeRequest(1, TimeUnit.SECONDS)!!.requestUrl!!.queryParameter("accept-language"))
+        lang = "ko"
+        g.bounds("영국")
+        assertEquals("ko", server.takeRequest(1, TimeUnit.SECONDS)!!.requestUrl!!.queryParameter("accept-language"))
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test fun reverseCanAskInAGivenLanguage() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"display_name":"역삼동, 강남구, 서울특별시, 대한민국"}"""))
+        geocoder(language = { "en" }).reverse(37.5, 127.03, lang = "ko")
+        assertEquals("ko", server.takeRequest(1, TimeUnit.SECONDS)!!.requestUrl!!.queryParameter("accept-language"))
     }
 }
