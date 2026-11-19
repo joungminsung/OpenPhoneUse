@@ -65,7 +65,7 @@ internal class FileModule(private val files: FileTools?, private val gate: UserG
 
         private const val TRASH_EN = "Move to trash: "
         private const val TRASH_KO = "휴지통으로 이동: "
-        private val MORE_TAIL = Regex("""\s*(?:\(\+(\d+) more\)|\(외 (\d+)개\))$""")
+        private val MORE_TAIL = Regex("""\s*(?:\(\+(\d{1,9}) more\)|\(외 (\d{1,9})개\))$""")
 
         /** The DELETE card's summary; [parseTrash] reads it back in either language. */
         fun trashSummary(paths: List<String>): String {

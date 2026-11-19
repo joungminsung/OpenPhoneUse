@@ -56,6 +56,16 @@ class ConfirmCopyTest {
     }
 
     @Test
+    fun oversizedTrashCountStillGivesADeleteCard() {
+        for (s in listOf("휴지통으로 이동: a.txt(외 99999999999개)", "Move to trash: a.txt (+99999999999 more)")) {
+            val c = confirmCopy(RiskCategory.DELETE, s)
+            assertTrue(c.monoDetails)
+            assertEquals(2, c.details.size.coerceAtLeast(2))
+            assertTrue(c.details.first().startsWith("a.txt"))
+        }
+    }
+
+    @Test
     fun otherSummariesShownVerbatim() {
         val copy = confirmCopy(RiskCategory.MONEY, "tap: 결제하기")
         assertEquals("결제 확인", copy.kicker)
