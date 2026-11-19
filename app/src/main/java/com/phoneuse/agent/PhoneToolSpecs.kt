@@ -43,7 +43,7 @@ internal object PhoneToolSpecs {
                 required = listOf("time", "text"),
                 props = mapOf(
                     "time" to prop("string", "HH:mm (next occurrence) or ISO 8601 local date-time, e.g. 2026-11-02T08:30."),
-                    "text" to prop("string", "What the notification says, in Korean."),
+                    "text" to prop("string", "What the notification says, ${AgentPrompt.IN_USER_LANGUAGE}."),
                 ),
             ),
         ),
@@ -145,7 +145,7 @@ internal object PhoneToolSpecs {
                 required = listOf("uris", "question"),
                 props = mapOf(
                     "uris" to arr(str(), "content://media/… uris from photos_find."),
-                    "question" to prop("string", "What to look for, in Korean."),
+                    "question" to prop("string", "What to look for, ${AgentPrompt.IN_USER_LANGUAGE}."),
                 ),
             ),
         ),

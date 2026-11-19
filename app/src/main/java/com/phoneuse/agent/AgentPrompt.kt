@@ -31,6 +31,9 @@ data class Personalization(
 
 object AgentPrompt {
     /** Settings can turn this off; then it and the remember tool are left out. */
+    /** For tool descriptions that ask for free text: the app language, unless the user writes in another. */
+    const val IN_USER_LANGUAGE = "in the user's language (the app language under Personalization unless the user writes in another)"
+
     const val AUTO_REMEMBER = "When the user tells you a new fact about themselves, their family, places, tastes or habits, call remember."
 
     /** Memories come from the user only, never from text the agent reads. */
@@ -200,7 +203,7 @@ object AgentPrompt {
 
     private fun personal(p: Personalization): String = buildString {
         append("Personalization:")
-        append("\n- App language: ").append(if (Lang.korean) "Korean" else "English").append(".")
+        append("\n- App language: ").append(Lang.name).append(".")
         p.callName.trim().takeIf { it.isNotEmpty() }?.let { append("\n- Call the user '").append(it.take(30)).append("'.") }
         append(
             if (p.polite) {

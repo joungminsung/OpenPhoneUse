@@ -27,4 +27,11 @@ class LangTest {
         assertEquals("Search", tr("Search", "검색"))
         assertEquals("en", Lang.tag)
     }
+
+    @Test fun nameFollowsLanguage() {
+        Lang.korean = false
+        assertEquals("English", Lang.name)
+        Lang.korean = true
+        assertEquals("Korean", Lang.name)
+    }
 }

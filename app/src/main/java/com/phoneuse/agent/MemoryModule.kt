@@ -187,7 +187,7 @@ internal class MemoryModule(
                 schema(
                     required = listOf("text", "kind"),
                     props = mapOf(
-                        "text" to prop("string", "One short fact in Korean, e.g. \"엄마 생신은 11월 20일\"."),
+                        "text" to prop("string", "One short fact ${AgentPrompt.IN_USER_LANGUAGE}, e.g. \"Mom's birthday is November 20\" or \"엄마 생신은 11월 20일\"."),
                         "kind" to enumProp("What it is about.", listOf("me", "person", "place", "habit", "todo", "app_tip")),
                         "confidence" to enumProp("guess when you inferred it rather than heard it (default sure).", listOf("sure", "guess")),
                         "date" to prop("string", "A date the fact is about, e.g. a birthday \"11월 20일\" (optional)."),

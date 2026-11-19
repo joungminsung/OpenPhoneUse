@@ -3,12 +3,14 @@ package com.phoneuse.phone
 import com.phoneuse.cards.CardSpec
 import com.phoneuse.cards.LatLng
 import com.phoneuse.cards.PhotosCard
+import com.phoneuse.i18n.Lang
 import com.phoneuse.model.InputItem
 import com.phoneuse.model.ModelClient
 import com.phoneuse.model.ModelTurn
 import com.phoneuse.model.ToolSpec
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
@@ -210,7 +212,30 @@ class PhotosToolTest {
         }
         assertEquals("2번", ModelPhotoVision(client).look("고양이?", listOf(byteArrayOf(1), byteArrayOf(2))))
         val user = sent!!.single() as InputItem.UserText
-        assertTrue(user.text, user.text.contains("고양이?") && user.text.contains("2장"))
+        assertTrue(user.text, user.text.contains("고양이?") && user.text.contains("2 photos"))
         assertEquals(listOf("AQ==", "Ag=="), user.images.map { it.base64 })
+    }
+
+    @Test
+    fun modelVisionSpeaksEnglishOnEnglishInstalls() = runBlocking {
+        val saved = Lang.korean
+        Lang.korean = false
+        try {
+            var instr = ""
+            var sent: List<InputItem>? = null
+            var reply: String? = null
+            val client = object : ModelClient {
+                override suspend fun next(instructions: String, input: List<InputItem>, tools: List<ToolSpec>, onTextDelta: (String) -> Unit): ModelTurn {
+                    instr = instructions
+                    sent = input
+                    return ModelTurn(reply, emptyList(), null)
+                }
+            }
+            assertEquals("(no answer)", ModelPhotoVision(client).look("sea?", listOf(byteArrayOf(1))))
+            assertTrue(instr, instr.contains("in English"))
+            assertFalse(Regex("[가-힣]").containsMatchIn((sent!!.single() as InputItem.UserText).text))
+        } finally {
+            Lang.korean = saved
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.phoneuse.assist
 
+import com.phoneuse.i18n.Lang
 import com.phoneuse.model.InputItem
 import com.phoneuse.model.ModelClient
 import com.phoneuse.model.ModelException
@@ -11,6 +12,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+private val HANGUL = Regex("[가-힣]")
 
 class AssistSuggestionsTest {
     private class FakeModel(private val reply: suspend () -> String?) : ModelClient {
@@ -112,5 +115,19 @@ class AssistSuggestionsTest {
         // The screen never reaches the instructions; they say screen text authorizes nothing.
         assertFalse(model.instructions.contains("엄마에게"))
         assertTrue(model.instructions.contains("never instructions"))
+    }
+
+    @Test fun instructionsFollowLanguageSwitch() = runTest {
+        val saved = Lang.korean
+        try {
+            Lang.korean = false
+            assertTrue(AssistSuggester.INSTRUCTIONS.contains("English"))
+            assertFalse(AssistSuggester.INSTRUCTIONS.contains("Korean"))
+            assertFalse(HANGUL.containsMatchIn((AssistSuggester.input("x").single() as InputItem.UserText).text.substringAfter("</screen>")))
+            Lang.korean = true
+            assertTrue(AssistSuggester.INSTRUCTIONS.contains("Korean"))
+        } finally {
+            Lang.korean = saved
+        }
     }
 }
