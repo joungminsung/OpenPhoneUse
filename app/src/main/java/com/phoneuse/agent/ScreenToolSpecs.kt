@@ -22,8 +22,9 @@ private val batchActions = buildJsonObject {
     put("type", "array")
     put(
         "description",
-        "Steps run in order. Allowed tools: tap, long_press, type_text, scroll, swipe, pinch, press_key, " +
-            "open_app, open_uri, wait. A step names its element by args.index (on the screen you saw) or by " +
+        "Steps run in order. Allowed tools: tap, long_press, type_text, scroll, swipe, pinch, rotate, two_finger_swipe, press_key, " +
+            "open_app, open_uri, wait. Use rotate or two_finger_swipe only as the first step, with coordinates and no args.target. " +
+            "A step that names an element uses args.index (on the screen you saw) or " +
             "args.target, the element's visible label (button text, tab name, field hint). target works on screens " +
             "you have not seen yet: the step waits up to 3 s for the label to appear, so one batch can run through " +
             "several screens. A step that pays, sends, deletes or changes a setting carries risk and effect in its " +
@@ -101,6 +102,34 @@ internal object ScreenToolSpecs {
                     "x" to coordX, "y" to coordY,
                     "zoom" to enumProp("in makes things bigger, out smaller.", listOf("in", "out")),
                 ),
+            ),
+        ),
+        ToolSpec(
+            "rotate",
+            "Turn a selected sticker or a map by twisting two fingers around (x, y). They start to the left and right of the pivot. " +
+                "Choose a smaller spread_px to fit both fingers on a narrow target. Near an edge the pivot or spread may change. " +
+                "The result reports the actual pivot and finger starts. Check the resulting screen before adjusting.",
+            schema(
+                required = listOf("x", "y", "direction", "degrees"),
+                props = mapOf(
+                    "x" to coordX, "y" to coordY,
+                    "direction" to enumProp("Turn as viewed on screen.", listOf("clockwise", "counterclockwise")),
+                    "degrees" to prop("integer", "Amount of rotation, from 1 to 180 degrees."),
+                    "spread_px" to prop("integer", "Optional positive distance between finger starts in pixels. Defaults to about a third of the short screen side, also the maximum. Fitted to even pixels (minimum 2)."),
+                ) + RiskJudge.PROPS,
+            ),
+        ),
+        ToolSpec(
+            "two_finger_swipe",
+            "Move two fingers side by side in the same direction, keeping their spacing. The midpoint travels from (x1, y1) to (x2, y2). " +
+                "Use it to pan a drawing canvas or tilt a 3D map when the app supports it. " +
+                "Aim away from edges because both contacts can shift inward. Check the resulting screen.",
+            schema(
+                required = listOf("x1", "y1", "x2", "y2"),
+                props = mapOf(
+                    "x1" to coordX, "y1" to coordY, "x2" to coordX, "y2" to coordY,
+                    "duration_ms" to prop("integer", "Duration in milliseconds, from 1 to 10000 (default 300)."),
+                ) + RiskJudge.PROPS,
             ),
         ),
         ToolSpec(

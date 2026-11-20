@@ -7,6 +7,7 @@ import com.phoneuse.screen.CompressedScreen
 import com.phoneuse.screen.ScreenSnapshot
 import com.phoneuse.screen.TreeCompressor
 import com.phoneuse.screen.UiNode
+import com.phoneuse.service.EdgeGuard
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -317,7 +318,7 @@ class ToolExecutorTest {
         assertEquals(names.toSet().size, names.size)
         assertEquals(
             setOf(
-                "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri",
+                "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "rotate", "two_finger_swipe", "press_key", "open_app", "open_uri",
                 "list_apps", "screenshot", "wait", "batch", "ask_user", "hand_to_user", "finish",
                 "list_dir", "search_files", "file_info", "mkdir", "move_file", "move_files", "copy_file", "rename_file",
                 "trash_files", "get_screen", "show_card", "open_route", "delegate", "update_plan",
@@ -466,6 +467,210 @@ class ToolExecutorTest {
         assertEquals(listOf("pinch(540,900,in)", "pinch(540,900,out)"), dev.calls.filter { it.startsWith("pinch") })
         assertTrue(gate.confirms.isEmpty())
         assertEquals("ERROR: invalid arguments: zoom must be in or out", ex.execute(call("pinch", """{"x":540,"y":900,"zoom":"up"}"""), screenOf(base)).output)
+    }
+
+    @Test fun twoFingerGesturesUseScreenDirectionsAndReturnTheScreen() = runTest {
+        val (dev, gate, ex) = setup()
+        for ((direction, degrees) in listOf("clockwise" to 90, "counterclockwise" to -90)) {
+            val result = ex.execute(call("rotate", """{"x":540,"y":900,"direction":"$direction","degrees":90}"""), screenOf(base))
+            assertTrue(result.output, result.output.startsWith("OK — pivot (540, 900), finger starts (360, 900) and (720, 900)"))
+            assertEquals(TwoFingerGesture.Rotation(540, 900, 180, degrees), dev.gestures.last().first)
+            assertTrue(result.deviceTool)
+            assertNotNull(result.screenshot)
+        }
+        val batch = ex.execute(call("batch", """{"actions":[{"tool":"two_finger_swipe","args":{"x1":540,"y1":900,"x2":360,"y2":750,"duration_ms":600}}]}"""), screenOf(base))
+        assertTrue(batch.output, batch.output.startsWith("1. two_finger_swipe: OK"))
+        assertEquals(TwoFingerGesture.Swipe(540, 900, 360, 750, 54) to 600L, dev.gestures.last())
+        assertTrue(gate.confirms.isEmpty())
+    }
+
+    @Test fun batchReportsTheFittedRotationForANarrowTargetAtTheScreenEdge() = runTest {
+        val (dev, _, ex) = setup()
+        dev.gestureEdges = com.phoneuse.service.EdgeGuard.Edges(1080, 2400, 100, 120, 150)
+        val result = ex.execute(call("batch", """{"actions":[{"tool":"rotate","args":{"x":1,"y":1,"direction":"clockwise","degrees":30,"spread_px":16}}]}"""), screenOf(base))
+        assertEquals(TwoFingerGesture.Rotation(108, 128, 8, 30), dev.gestures.single().first)
+        assertEquals("1. rotate: OK — pivot (108, 128), finger starts (100, 128) and (116, 128)", result.output.lineSequence().first())
+    }
+
+    @Test fun invalidAndUnseenGesturesDoNotTouchTheScreen() = runTest {
+        val (dev, _, ex) = setup()
+        for (args in listOf(
+            """{"x":540,"y":900,"direction":"clockwise","degrees":0}""",
+            """{"x":540,"y":900,"direction":"clockwise","degrees":181}""",
+            """{"x":540,"y":900,"direction":"left","degrees":10}""",
+            """{"x":540,"y":900,"direction":"clockwise","degrees":10,"spread_px":0}""",
+            """{"x":540,"y":900,"direction":"clockwise","degrees":10,"spread_px":-1}""",
+            """{"x":540,"y":900,"direction":"clockwise","degrees":10,"spread_px":3.5}""",
+            """{"x":540,"y":900,"direction":"clockwise","degrees":10,"spread_px":"64"}""",
+        )) assertTrue(ex.execute(call("rotate", args), screenOf(base)).output.startsWith("ERROR"))
+        for (args in listOf(
+            """{"x1":540,"y1":900,"x2":540,"y2":900}""",
+            """{"x1":540,"y1":900,"x2":640,"y2":900,"duration_ms":0}""",
+            """{"x1":540,"y1":900,"x2":640,"y2":900,"duration_ms":"slow"}""",
+        )) assertTrue(ex.execute(call("two_finger_swipe", args), screenOf(base)).output.startsWith("ERROR"))
+        val result = ex.execute(call("batch", """{"actions":[{"tool":"two_finger_swipe","args":{"x1":540,"y1":900,"x2":640,"y2":900}}]}"""), null)
+        assertTrue(result.output, result.output.startsWith("STOPPED"))
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun eitherTouchOnAPayButtonRequiresOneConfirmationForTheGesture() = runTest {
+        val (dev, gate, ex) = setup()
+        gate.confirmResult = false
+        // The pay button spans x=100..299. One contact hits it at 80/320, both do at 200.
+        for (center in listOf(80, 320, 200)) {
+            val result = ex.execute(call("rotate", """{"x":$center,"y":330,"direction":"clockwise","degrees":90,"spread_px":64}"""), screenOf(base))
+            assertEquals("CANCELLED by user", result.output)
+            assertEquals(RiskCategory.MONEY, gate.confirms.single().first)
+            gate.confirms.clear()
+        }
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun aLaterTwoFingerStepRejectsTheBatchBeforeItsFirstAction() = runTest {
+        val (dev, _, ex) = setup(snap("New app", pkg = "other.app"))
+        val result = ex.execute(call("batch", """{"actions":[{"tool":"press_key","args":{"key":"back"}},{"tool":"two_finger_swipe","args":{"x1":540,"y1":900,"x2":700,"y2":940}}]}"""), screenOf(base))
+        assertTrue(result.output, result.output.contains("must be the first step"))
+        assertTrue(dev.calls.none { it.startsWith("globalAction(") })
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun swipeWithTwoDifferentSensitiveTargetsShowsBothOnOneCard() = runTest {
+        val pay = button("결제하기", 300).copy(bounds = Bounds(465, 300, 510, 360))
+        val send = button("보내기", 300).copy(path = listOf(2), bounds = Bounds(570, 300, 610, 360))
+        val screen = base.copy(roots = listOf(pay, send))
+        val dev = FakeDeviceController(listOf(screen))
+        val gate = FakeUserGate()
+        val ex = ToolExecutor(dev, gate, inlineRisk = true)
+        ex.markThirdParty()
+        gate.confirmResult = false
+        val result = ex.execute(call("two_finger_swipe", """{"x1":540,"y1":330,"x2":740,"y2":330,"risk":"send","effect":"Submit this order"}"""), screenOf(screen))
+        assertEquals("CANCELLED by user", result.output)
+        val (category, summary) = gate.confirms.single()
+        assertEquals(RiskCategory.MONEY, category)
+        assertEquals(listOf("Submit this order", "two_finger_swipe: 결제하기", "two_finger_swipe: 보내기"), summary.lines())
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun changingAppsDuringGestureConfirmationDoesNotDispatch() = runTest {
+        val (dev, gate, ex) = setup(base, snap("Other app", pkg = "another.app"))
+        val result = ex.execute(call("rotate", """{"x":200,"y":330,"direction":"clockwise","degrees":90,"spread_px":64}"""), screenOf(base))
+        assertTrue(result.output, result.output.startsWith("STOPPED"))
+        assertEquals(1, gate.confirms.size)
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun rotationChecksTheFingerThatMovesInFromTheScreenEdge() = runTest {
+        val control = button("결제하기", 300).copy(bounds = Bounds(155, 300, 170, 360))
+        val screen = base.copy(roots = listOf(control))
+        val (dev, gate, ex) = setup(screen)
+        dev.gestureEdges = EdgeGuard.Edges(1080, 2400, 100, 0, 0)
+        gate.confirmResult = false
+        // Center 4 moves to 130. The right finger at 160 is over the control.
+        val result = ex.execute(call("rotate", """{"x":4,"y":330,"degrees":90,"direction":"clockwise","spread_px":60}"""), screenOf(screen))
+        assertEquals("CANCELLED by user", result.output)
+        assertEquals(RiskCategory.MONEY, gate.confirms.single().first)
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun aReplacementControlAtTheSamePositionNeedsAFreshGesture() = runTest {
+        val old = button("결제하기", 300).copy(viewId = "checkout_first")
+        val before = base.copy(roots = listOf(old))
+        val after = base.copy(roots = listOf(old.copy(viewId = "checkout_second")))
+        val (dev, gate, ex) = setup(before, after)
+        val result = ex.execute(call("rotate", """{"x":200,"y":330,"direction":"clockwise","degrees":90,"spread_px":64}"""), screenOf(before))
+        assertEquals(1, gate.confirms.size)
+        assertTrue(result.output, result.output.startsWith("STOPPED"))
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun aTwoFingerDeletionShowsBothContactsOnTheConfirmationCard() = runTest {
+        val left = button("Delete item", 100).copy(bounds = Bounds(160, 100, 180, 160))
+        val right = left.copy(path = listOf(2), bounds = Bounds(220, 100, 240, 160))
+        val screen = base.copy(roots = listOf(left, right))
+        val dev = FakeDeviceController(listOf(screen))
+        val gate = FakeUserGate().apply { confirmResult = false }
+        val ex = ToolExecutor(dev, gate, inlineRisk = true)
+        ex.userSaid("Delete this item")
+        val result = ex.execute(call("rotate", """{"x":200,"y":130,"direction":"clockwise","degrees":45,"spread_px":60,"risk":"delete","effect":"Delete this item","delete_scope":"requested_one"}"""), screenOf(screen))
+        assertEquals("CANCELLED by user", result.output)
+        val (category, summary) = gate.confirms.single()
+        assertEquals(RiskCategory.DELETE, category)
+        assertEquals(listOf("Delete this item", "rotate: Delete item (170, 130)", "rotate: Delete item (230, 130)"), summary.lines())
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun gestureCannotClaimAuthorizationToSend() = runTest {
+        val screen = snap("보내기")
+        val (dev, gate, ex) = setup(screen)
+        gate.confirmResult = false
+        val result = ex.execute(call("rotate", """{"x":200,"y":130,"direction":"clockwise","degrees":90,"spread_px":64,"user_authorized":true}"""), screenOf(screen))
+        assertEquals("CANCELLED by user", result.output)
+        assertEquals(RiskCategory.SEND, gate.confirms.single().first)
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun firstBatchedGestureRechecksTheScreenBeforeTouchingIt() = runTest {
+        val (dev, _, ex) = setup()
+        dev.snapshotHook = { dev.screenshotResult = null; it }
+        val result = ex.execute(call("batch", """{"actions":[{"tool":"rotate","args":{"x":540,"y":900,"direction":"clockwise","degrees":90}}]}"""), screenOf(base))
+        assertTrue(result.output, result.output.contains("1. rotate: STOPPED"))
+        assertFalse(result.output, result.output.contains("결제하기"))
+        assertNull(result.screenshot)
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun visualGestureIsUnavailableInHelperBatch() = runTest {
+        val (dev, _, ex) = setup()
+        val result = ex.execute(call("batch", """{"actions":[{"tool":"rotate","args":{"x":540,"y":900,"direction":"clockwise","degrees":90}}]}"""), screenOf(base), fromHelper = true)
+        assertTrue(result.output, result.output.contains("not allowed in batch"))
+        assertTrue(dev.gestures.isEmpty())
+    }
+
+    @Test fun gestureEnteringSecureViewReturnsNoTextOrScreenshot() = runTest {
+        val (dev, _, ex) = setup()
+        val secureView = snap("Private view")
+        dev.snapshotHook = { before ->
+            if (dev.gestures.isEmpty()) before else {
+                dev.screenshotResult = null
+                secureView
+            }
+        }
+        val result = ex.execute(call("rotate", """{"x":540,"y":900,"direction":"clockwise","degrees":45}"""), screenOf(base))
+        assertEquals(1, dev.gestures.size)
+        assertTrue(result.output, result.output.contains(ToolExecutor.PROTECTED))
+        assertFalse(result.output.contains("Private view"))
+        assertNull(result.screenshot)
+        val shots = dev.calls.count { it == "screenshot()" }
+        dev.screenshotResult = byteArrayOf(1)
+        val blocked = ex.execute(call("two_finger_swipe", """{"x1":300,"y1":400,"x2":450,"y2":400}"""), result.screen)
+        assertTrue(blocked.output, blocked.output.startsWith("STOPPED"))
+        assertEquals(shots, dev.calls.count { it == "screenshot()" })
+        assertEquals(1, dev.gestures.size)
+    }
+
+    @Test fun textOnlyGestureRechecksReturnedViewAndSubsequentBatchTargets() = runTest {
+        val rotate = """{"tool":"rotate","args":{"x":540,"y":900,"direction":"clockwise","degrees":45}}"""
+        val tap = """{"tool":"tap","args":{"target":"Private view"}}"""
+        for (action in listOf(
+            call("rotate", """{"x":540,"y":900,"direction":"clockwise","degrees":45}"""),
+            call("batch", """{"actions":[$rotate]}"""),
+            call("batch", """{"actions":[$rotate,$tap]}"""),
+        )) {
+            val dev = FakeDeviceController(listOf(base))
+            val ex = ToolExecutor(dev, FakeUserGate(), screenshots = false)
+            dev.snapshotHook = { before ->
+                if (dev.gestures.isEmpty()) before else {
+                    dev.screenshotResult = null
+                    snap("Private view")
+                }
+            }
+            val result = ex.execute(action, screenOf(base))
+            assertEquals(1, dev.gestures.size)
+            assertTrue(result.output, result.output.contains(ToolExecutor.PROTECTED))
+            assertFalse(result.output, result.output.contains("Private view"))
+            assertTrue(dev.calls.none { it.startsWith("tap(") })
+            assertNull(result.screenshot)
+        }
     }
 
     @Test fun shortSwipeInsideBatchIsGated() = runTest {

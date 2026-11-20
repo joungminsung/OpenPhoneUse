@@ -742,7 +742,7 @@ class AgentLoop(
         val QUIET_TOOLS = setOf("finish", "show_card", "remember", "forget", "delegate")
 
         /** Actions that make up an app tip: the ones that change the screen. */
-        val TIP_ACTIONS = setOf("tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri", "batch")
+        val TIP_ACTIONS = setOf("tap", "long_press", "type_text", "scroll", "swipe", "pinch", "rotate", "two_finger_swipe", "press_key", "open_app", "open_uri", "batch")
 
         /** Actions that work inside an app, as opposed to only opening one. */
         val WORK_TOOLS = TIP_ACTIONS - setOf("open_app", "open_uri") + "delegate"
@@ -763,7 +763,8 @@ class AgentLoop(
         val VERBS: Map<String, Pair<String, String>> = mapOf(
             "update_plan" to ("Plan" to "계획"),
             "tap" to ("Tap" to "탭"), "long_press" to ("Long press" to "길게 누르기"), "type_text" to ("Type" to "입력"),
-            "scroll" to ("Scroll" to "스크롤"), "swipe" to ("Swipe" to "스와이프"), "pinch" to ("Zoom" to "확대/축소"), "press_key" to ("Key" to "키"),
+            "scroll" to ("Scroll" to "스크롤"), "swipe" to ("Swipe" to "스와이프"), "pinch" to ("Zoom" to "확대/축소"),
+            "rotate" to ("Rotate" to "회전"), "two_finger_swipe" to ("Two-finger swipe" to "두 손가락 스와이프"), "press_key" to ("Key" to "키"),
             "open_app" to ("Open app" to "앱 열기"), "open_uri" to ("Open link" to "링크 열기"),
             "list_apps" to ("App list" to "앱 목록"), "screenshot" to ("Screenshot" to "스크린샷"), "wait" to ("Wait" to "대기"),
             "batch" to ("Action sequence" to "연속 동작"), "ask_user" to ("Question" to "질문"),

@@ -122,7 +122,7 @@ class RiskJudgeTest {
     }
 
     @Test fun skipList() {
-        for (tool in listOf("tap", "long_press", "type_text", "swipe")) assertTrue(tool, RiskJudge.judges(tool, "com.app"))
+        for (tool in listOf("tap", "long_press", "type_text", "swipe", "rotate", "two_finger_swipe")) assertTrue(tool, RiskJudge.judges(tool, "com.app"))
         for (tool in listOf("scroll", "press_key", "wait", "open_app", "open_uri", "get_screen", "pinch")) {
             assertFalse(tool, RiskJudge.judges(tool, "com.app"))
         }

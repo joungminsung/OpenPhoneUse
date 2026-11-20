@@ -44,6 +44,10 @@ interface DeviceController {
 
     /** Two fingers around (x, y): spreading apart when [zoomIn] (a map or photo grows), closing in otherwise. */
     suspend fun pinch(x: Int, y: Int, zoomIn: Boolean, durationMs: Long = 400): Boolean = false
+    /** Fit both contacts on the live display before their actual starting points are checked. */
+    fun planRotate(x: Int, y: Int, degrees: Int, spreadPx: Int? = null): TwoFingerGesture? = null
+    fun planTwoFingerSwipe(x1: Int, y1: Int, x2: Int, y2: Int): TwoFingerGesture? = null
+    suspend fun executeTwoFinger(plan: TwoFingerGesture, durationMs: Long): Boolean = false
     suspend fun setText(node: UiNode, text: String): Boolean
     suspend fun imeEnter(node: UiNode): Boolean
 

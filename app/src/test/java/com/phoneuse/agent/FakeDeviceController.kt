@@ -2,6 +2,7 @@ package com.phoneuse.agent
 
 import com.phoneuse.screen.ScreenSnapshot
 import com.phoneuse.screen.UiNode
+import com.phoneuse.service.EdgeGuard
 
 /** Records every call in [calls]; snapshots come from [snapshots] in order, the last one repeating. */
 class FakeDeviceController(snapshots: List<ScreenSnapshot> = emptyList()) : DeviceController {
@@ -65,6 +66,21 @@ class FakeDeviceController(snapshots: List<ScreenSnapshot> = emptyList()) : Devi
     override suspend fun pinch(x: Int, y: Int, zoomIn: Boolean, durationMs: Long): Boolean {
         record("pinch($x,$y,${if (zoomIn) "in" else "out"})")
         return true
+    }
+
+    val gestures = mutableListOf<Pair<TwoFingerGesture, Long>>()
+
+    internal var gestureEdges = snapshots.first().let { EdgeGuard.Edges(it.displayWidth, it.displayHeight, 0, 0, 0) }
+
+    override fun planRotate(x: Int, y: Int, degrees: Int, spreadPx: Int?) = gestureEdges.rotate(x, y, degrees, spreadPx)
+
+    override fun planTwoFingerSwipe(x1: Int, y1: Int, x2: Int, y2: Int) =
+        gestureEdges.twoFingerSwipe(x1, y1, x2, y2)
+
+    override suspend fun executeTwoFinger(plan: TwoFingerGesture, durationMs: Long): Boolean {
+        record("executeTwoFinger()")
+        gestures += plan to durationMs
+        return !failAll
     }
 
     /** The nodes setText was called on, in order. */

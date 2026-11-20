@@ -2,7 +2,7 @@ package com.phoneuse.service
 
 /** Implemented by the overlay manager so gestures and screenshots are not blocked or polluted by it. */
 interface OverlayHooks {
-    suspend fun <T> passThrough(x: Int, y: Int, block: suspend () -> T): T
+    suspend fun <T> passThrough(starts: List<Pair<Int, Int>>, block: suspend () -> T): T
     suspend fun <T> hiddenForCapture(block: suspend () -> T): T
 
     /** Takes input focus away from the dock so keys and the IME go to the app underneath. */

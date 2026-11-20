@@ -90,6 +90,8 @@ These requests come from the [benchmark suite](bench/suites/v2.json), shortened 
 
 Besides driving apps, it has built-in tools for calendar, alarms, reminders, notifications, photos, files, location and routes (calls, texts and contacts go through the phone's own apps, so the APK asks for no SMS, call or contacts permissions), plus memory, routines ("when I arrive at work, go silent"), Gmail and Google Calendar connectors, remote MCP servers, and two-pane layouts on foldables.
 
+In apps that support two-finger gestures, the agent can pinch to zoom, adjust its finger spacing to rotate small objects, or swipe two fingers side by side to pan a canvas or tilt a 3D map.
+
 ## Install
 
 <table>

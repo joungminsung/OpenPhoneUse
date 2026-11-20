@@ -10,6 +10,7 @@ import com.phoneuse.agent.ScreenInterruptedException
 import com.phoneuse.agent.ScreenMark
 import com.phoneuse.agent.ServiceUnavailableException
 import com.phoneuse.agent.SettleKind
+import com.phoneuse.agent.TwoFingerGesture
 import com.phoneuse.agent.UserGate
 import com.phoneuse.assist.VoiceBridge
 import com.phoneuse.overlay.AgentPhase
@@ -190,6 +191,10 @@ internal object LiveDeviceController : DeviceController {
         readyToAct().swipe(x1, y1, x2, y2, durationMs)
     override suspend fun pinch(x: Int, y: Int, zoomIn: Boolean, durationMs: Long): Boolean =
         readyToAct().pinch(x, y, zoomIn, durationMs)
+    override fun planRotate(x: Int, y: Int, degrees: Int, spreadPx: Int?) = device().planRotate(x, y, degrees, spreadPx)
+    override fun planTwoFingerSwipe(x1: Int, y1: Int, x2: Int, y2: Int) = device().planTwoFingerSwipe(x1, y1, x2, y2)
+    override suspend fun executeTwoFinger(plan: TwoFingerGesture, durationMs: Long) =
+        readyToAct().executeTwoFinger(plan, durationMs)
     override suspend fun setText(node: UiNode, text: String): Boolean = readyToAct().setText(node, text)
     override suspend fun imeEnter(node: UiNode): Boolean = readyToAct().imeEnter(node)
     override suspend fun scroll(node: UiNode?, direction: String): Boolean = readyToAct().scroll(node, direction)

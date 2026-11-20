@@ -2,6 +2,9 @@ package com.phoneuse.service
 
 import com.phoneuse.service.EdgeGuard.Stroke
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EdgeGuardTest {
@@ -47,5 +50,72 @@ class EdgeGuardTest {
     @Test fun aPinchNearAnEdgeMovesInwardAndKeepsItsReach() {
         // Center 100 + 324 = 424 keeps the left finger at the strip; the bottom start leaves the home strip.
         assertEquals(Stroke(370, 2249, 100, 2249) to Stroke(478, 2249, 748, 2249), pinch(150, 2390, zoomIn = true))
+    }
+
+    private val portrait = EdgeGuard.Edges(1080, 2400, 100, 120, 150)
+    private val landscape = EdgeGuard.Edges(2400, 1080, 100, 120, 150)
+
+    @Test fun twistsShareACenterAndRadiusInBothDirections() {
+        for (angle in listOf(-90, 90, 180)) {
+            val twist = portrait.rotate(540, 1200, angle)!!
+            assertEquals(540 to 1200, twist.cx to twist.cy)
+            assertEquals(angle, twist.degrees)
+            assertEquals(listOf(540 - twist.radius to 1200, 540 + twist.radius to 1200), twist.starts)
+            assertEquals(Math.toRadians(kotlin.math.abs(angle).toDouble()) * twist.radius, twist.travelPx, 0.001)
+        }
+    }
+
+    @Test fun aTurnNearAnyEdgeFitsBothArcsInEitherOrientation() {
+        for (edges in listOf(portrait, landscape)) {
+            for (x in listOf(0, edges.width - 1)) for (y in listOf(0, edges.height - 1)) {
+                val g = edges.rotate(x, y, 180)!!
+                assertTrue(g.radius > 0)
+                assertTrue(g.cx - g.radius >= edges.side && g.cx + g.radius < edges.width - edges.side)
+                assertTrue(g.cy - g.radius >= edges.top && g.cy + g.radius < edges.height - edges.bottom)
+            }
+        }
+    }
+
+    @Test fun rotationSpreadFitsSmallTargetsAndNeverExceedsTheDefault() {
+        val large = portrait.rotate(540, 1200, 90)!!
+        assertEquals(180, large.radius)
+        assertEquals(large, portrait.rotate(540, 1200, 90, Int.MAX_VALUE))
+        assertEquals(listOf(521 to 1200, 559 to 1200), portrait.rotate(540, 1200, 90, 39)!!.starts)
+        assertEquals(listOf(539 to 1200, 541 to 1200), portrait.rotate(540, 1200, 90, 1)!!.starts)
+        assertNull(portrait.rotate(540, 1200, 90, 0))
+        assertNull(portrait.rotate(540, 1200, 90, -10))
+    }
+
+    @Test fun aSmallSpreadKeepsThePivotNearTheRequestedEdge() {
+        val g = portrait.rotate(108, 130, 90, 16)!!
+        assertEquals(108 to 130, g.cx to g.cy)
+        assertEquals(listOf(100 to 130, 116 to 130), g.starts)
+        val moved = portrait.rotate(1, 1, -90, 16)!!
+        assertEquals(108 to 128, moved.cx to moved.cy)
+        assertEquals(listOf(100 to 128, 116 to 128), moved.starts)
+    }
+
+    @Test fun parallelSwipePreservesTheRequestedDisplacementNearEdges() {
+        for (edges in listOf(portrait, landscape)) {
+            val swipe = edges.twoFingerSwipe(0, 0, 240, 380)!!
+            assertEquals(240, swipe.x2 - swipe.x1)
+            assertEquals(380, swipe.y2 - swipe.y1)
+            assertEquals(listOf(swipe.x1 - swipe.halfSpacing to swipe.y1, swipe.x1 + swipe.halfSpacing to swipe.y1), swipe.starts)
+            assertTrue(swipe.halfSpacing > 0)
+            assertTrue(swipe.x1 - swipe.halfSpacing >= edges.side && swipe.x2 + swipe.halfSpacing < edges.width - edges.side)
+            assertTrue(swipe.y1 >= edges.top && swipe.y2 < edges.height - edges.bottom)
+            assertNotNull(edges.twoFingerSwipe(300, 400, 200, 300))
+        }
+    }
+
+    @Test fun impossibleOrMalformedTwoFingerGesturesHaveNoPaths() {
+        val noRoom = EdgeGuard.Edges(200, 200, 100, 120, 150)
+        assertNull(noRoom.rotate(100, 100, 90))
+        assertNull(portrait.rotate(540, 1200, 0))
+        assertNull(portrait.rotate(540, 1200, -181))
+        assertNull(portrait.rotate(-1, 1200, 90))
+        assertNull(portrait.twoFingerSwipe(100, 500, 100, 500))
+        assertNull(portrait.twoFingerSwipe(0, 0, 1079, 2399))
+        assertNull(portrait.twoFingerSwipe(Int.MAX_VALUE, 500, Int.MIN_VALUE, 510))
     }
 }

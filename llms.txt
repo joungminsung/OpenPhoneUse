@@ -8,7 +8,8 @@ Key facts:
 - Runs on the phone itself; it operates the foreground screen (no hidden background control without shell privileges; split-screen works).
 - Apps that block screen capture (some banking, ticketing and payment apps) are not operated: it refuses and tells the user to do that part themselves.
 - Screen reading is vision first: every step sends the compressed numbered element list and a screenshot with each actionable element outlined and tagged with its number; the model acts by number.
-- Risk is judged inline: the acting model labels each tap, type, long press and swipe with `risk` (money, security, delete, send, change) and an effect in the same tool call, merged with `RiskGuard` keywords; strong keywords always ask. There is no separate risk-judge model call.
+- Two-finger gestures include pinch to zoom, rotation with adjustable finger spacing, and a side-by-side swipe for canvas panning or 3D map tilt.
+- Risk is judged inline: the acting model labels each tap, type, long press, swipe, rotation and two-finger swipe with `risk` (money, security, delete, send, change) and an effect in the same tool call, merged with `RiskGuard` keywords; strong keywords always ask. There is no separate risk-judge model call.
 - Model providers: ChatGPT plan sign-in (OpenAI's "Sign in with ChatGPT" plan usage), OpenAI API key, Claude (Anthropic Java SDK), Grok and Gemini (Chat Completions). Helper model for repetitive screen work: GPT-6 Luna (OpenAI) or Claude Haiku; none for Grok and Gemini.
 - Research uses the provider's hosted web search (OpenAI or Claude), plus driving Chrome on the device when a page must be read.
 - The agent harness is self-written Kotlin; it does not use LangChain or another agent framework.

@@ -284,6 +284,7 @@ class ToolExecutor(
         try {
             if (current != null && call.name in SCREEN_TOOLS && interruptedSinceRead()) return interrupted()
             val args = parseArgs(call.argumentsJson)
+            if (call.name in TWO_FINGER_TOOLS) checkGestureTarget(args)
             if (current == null && call.name in SCREEN_TOOLS && namesSpot(call.name, args)) {
                 // An element number or point chosen before any screen was seen (a guess, or one remembered from an
                 // earlier run) would hit whatever is there now: show the screen instead.
@@ -340,7 +341,8 @@ class ToolExecutor(
                 "batch" -> batch(args, current ?: return error("no screen"))
                 in BATCH_TOOLS -> {
                     // The settle compares against the live screen the step acted on, when it read one.
-                    if (runStep(name, args, current)) settled("OK", name, actedOn ?: current) else cancelled()
+                    val result = runStep(name, args, current) ?: return cancelled()
+                    settled(result, name, actedOn ?: current)
                 }
                 // delegate is AgentLoop's (its helper model); it never reaches the executor while offered.
                 else -> error("unknown tool $name")
@@ -361,7 +363,7 @@ class ToolExecutor(
         (live ?: readNow()).also { actedOn = it }
 
     /**
-     * Runs one screen-changing tool. Returns false if the user declined a confirmation. [live] is a screen read
+     * Runs one screen-changing tool. Returns its result line, or null when the user declined. [live] is a screen read
      * just now (batch steps after the first); without it a step that names an element reads the live screen
      * first and acts on the same element there (see [liveIndex]), so every check judges what is there now.
      */
@@ -370,7 +372,7 @@ class ToolExecutor(
         args: JsonObject,
         screenOrNull: CompressedScreen?,
         live: CompressedScreen? = null,
-    ): Boolean {
+    ): String? {
         actedOn = null
         when (tool) {
             "tap", "long_press" -> {
@@ -379,7 +381,7 @@ class ToolExecutor(
                 val t = liveTarget(args, seen, now)
                 // A point, or an element with no label, is also judged by what is around it.
                 val judgeAround = args.int("index") == null || t.index?.let { now.fullLabels[it] }.isNullOrBlank()
-                if (allowed(tool, t.index, now, args, if (judgeAround) t.x to t.y else null) == Gate.DENIED) return false
+                if (allowed(tool, t.index, now, args, if (judgeAround) t.x to t.y else null) == Gate.DENIED) return null
                 // An element is clicked as itself first (works under the touch blocker); a point, or an element
                 // that cannot be clicked that way, gets a real touch.
                 val long = tool == "long_press"
@@ -400,12 +402,12 @@ class ToolExecutor(
                 // A field whose label reads as a send ("Send a message") asks with the text on the card, so the user
                 // never approves a send without seeing what goes.
                 val gated = allowed(tool, index, now, args, typed = text)
-                if (gated == Gate.DENIED) return false
+                if (gated == Gate.DENIED) return null
                 if (args.bool("submit") == true && !userAuthorized(args, now, index, text) &&
                     gated != Gate.CONFIRMED_SEND && !isSearchField(node) &&
                     !confirming.confirm(RiskCategory.SEND, tr("Type and send: \"${preview(text, SEND_PREVIEW_CHARS)}\"", "입력 후 전송: \"${preview(text, SEND_PREVIEW_CHARS)}\""))
                 ) {
-                    return false
+                    return null
                 }
                 if (!device.setText(node, text)) throw StepFail("$tool failed")
                 if (args.bool("submit") == true && !device.imeEnter(node)) throw StepFail("$tool failed")
@@ -431,7 +433,7 @@ class ToolExecutor(
                 // ("밀어서 결제"), so its start element and container are judged, never the text around it.
                 val now = liveScreen(live)
                 val asTap = hypot((x2 - x1).toDouble(), (y2 - y1).toDouble()) < TAP_SLOP_PX
-                if (allowed(tool, pointTarget(x1, y1, now).index, now, args, x1 to y1, swipe = !asTap) == Gate.DENIED) return false
+                if (allowed(tool, pointTarget(x1, y1, now).index, now, args, x1 to y1, swipe = !asTap) == Gate.DENIED) return null
                 if (!device.swipe(x1, y1, x2, y2, duration)) throw StepFail("$tool failed")
             }
             "pinch" -> {
@@ -443,6 +445,7 @@ class ToolExecutor(
                 }
                 if (!device.pinch(args.requireInt("x"), args.requireInt("y"), zoomIn)) throw StepFail("$tool failed")
             }
+            in TWO_FINGER_TOOLS -> return twoFingerStep(tool, args, need(screenOrNull), live, seenInterruptions ?: device.interruptions())
             "press_key" -> {
                 val action = KEYS[args.requireStr("key")] ?: throw ArgException("unknown key")
                 if (!device.globalAction(action)) throw StepFail("$tool failed")
@@ -456,7 +459,88 @@ class ToolExecutor(
             "wait" -> delay(args.requireInt("ms").coerceIn(0, MAX_WAIT_MS).toLong())
             else -> throw StepFail("unknown tool $tool")
         }
-        return true
+        return "OK"
+    }
+
+    private fun checkGestureTarget(args: JsonObject?) {
+        if (args?.containsKey("target") == true) throw ArgException("two-finger gestures take coordinates only")
+    }
+
+    private fun planTwoFinger(tool: String, args: JsonObject): TwoFingerGesture {
+        val plan = if (tool == "rotate") {
+            val degrees = args.requireInt("degrees")
+            if (degrees !in 1..180) throw ArgException("degrees must be between 1 and 180")
+            val angle = when (args.requireStr("direction")) {
+                "clockwise" -> degrees
+                "counterclockwise" -> -degrees
+                else -> throw ArgException("direction must be clockwise or counterclockwise")
+            }
+            val spread = args.int("spread_px")
+            if (spread != null && (spread <= 0 || args.prim("spread_px")?.isString == true)) {
+                throw ArgException("spread_px must be a positive integer")
+            }
+            device.planRotate(args.requireInt("x"), args.requireInt("y"), angle, spread)
+        } else {
+            val x1 = args.requireInt("x1")
+            val y1 = args.requireInt("y1")
+            val x2 = args.requireInt("x2")
+            val y2 = args.requireInt("y2")
+            if (x1 == x2 && y1 == y2) throw ArgException("the swipe must move")
+            device.planTwoFingerSwipe(x1, y1, x2, y2)
+        }
+        return plan ?: throw StepFail(
+            if (tool == "rotate") "rotate does not fit here; choose a point away from the edges"
+            else "two_finger_swipe does not fit here; choose a shorter swipe away from the edges",
+        )
+    }
+
+    private suspend fun twoFingerStep(tool: String, args: JsonObject, seen: CompressedScreen, live: CompressedScreen?, session: Int): String? {
+        fun checkSession() {
+            if (device.interruptions() != session) throw ScreenInterruptedException()
+        }
+        checkSession()
+        val duration = if (tool == "rotate") 400 else args.int("duration_ms") ?: DEFAULT_SWIPE_MS
+        if (duration !in 1..10_000) throw ArgException("duration_ms must be between 1 and 10000")
+        val plan = planTwoFinger(tool, args)
+        suspend fun checkScreen(before: CompressedScreen, fresh: CompressedScreen) {
+            if (isProtected(fresh, recheck = true) || before.packageName != fresh.packageName ||
+                before.displayWidth != fresh.displayWidth || before.displayHeight != fresh.displayHeight ||
+                plan.starts.any { (x, y) -> !sameContact(x, y, before, fresh) }
+            ) throw StaleTarget(fresh)
+        }
+        fun confirmations(screen: CompressedScreen): List<Confirmation> {
+            val contacts = plan.starts.map { (x, y) -> pointTarget(x, y, screen) }
+            val checks = contacts.mapNotNull { contact ->
+                requiredConfirmation(tool, contact.index, screen, args, contact.x to contact.y, swipe = plan.travelPx >= TAP_SLOP_PX)
+            }
+            // Two distinct buttons can have the same label. Show which contact lands on each.
+            if (checks.size == 2 && checks[0].control == checks[1].control &&
+                (contacts[0].index == null || contacts[0].index != contacts[1].index)
+            ) {
+                return checks.mapIndexed { i, check -> check.copy(control = "${check.control} ${plan.starts[i]}") }
+            }
+            return checks.distinct()
+        }
+
+        val now = liveScreen(live)
+        checkScreen(seen, now)
+        val checks = confirmations(now)
+        if (checks.isNotEmpty()) {
+            val strongest = checks.maxBy { RiskCombine.rank(it.category) }
+            val summary = (listOfNotNull(strongest.effect) + checks.map { it.control }.distinct()).joinToString("\n")
+            if (!confirming.confirm(strongest.category, summary)) return null
+            // A confirmation can remain on screen while the app or controls under the two fingers change.
+            checkSession()
+            val fresh = liveScreen(null)
+            checkScreen(now, fresh)
+            if (confirmations(fresh) != checks) throw StaleTarget(fresh)
+        }
+        checkSession()
+        if (!device.executeTwoFinger(plan, duration.toLong())) throw StepFail("$tool failed")
+        return if (plan is TwoFingerGesture.Rotation) {
+            val (left, right) = plan.starts
+            "OK — pivot (${plan.cx}, ${plan.cy}), finger starts $left and $right"
+        } else "OK"
     }
 
     /**
@@ -490,12 +574,12 @@ class ToolExecutor(
 
     /** Whether [args] of screen tool [name] point at an element number or a screen position. */
     private fun namesSpot(name: String, args: JsonObject): Boolean = when (name) {
-        "swipe", "pinch" -> true
+        in COORDINATE_GESTURES -> true
         "batch" -> (args["actions"] as? JsonArray).orEmpty().any { a ->
             val action = a as? JsonObject ?: return@any false
             val tool = (action["tool"] as? JsonPrimitive)?.content
             val step = action["args"] as? JsonObject
-            tool == "swipe" || tool == "pinch" || (step != null && SPOT_KEYS.any { it in step })
+            tool in COORDINATE_GESTURES || (step != null && SPOT_KEYS.any { it in step })
         }
         else -> SPOT_KEYS.any { it in args }
     }
@@ -595,6 +679,17 @@ class ToolExecutor(
     private fun kind(index: Int, screen: CompressedScreen): Pair<String?, String?> =
         screen.elements[index]?.className to screen.fullLabels[index]
 
+    /** A replacement control can occupy exactly the same place and show the same label. */
+    private fun sameContact(x: Int, y: Int, before: CompressedScreen, fresh: CompressedScreen): Boolean {
+        val was = pointTarget(x, y, before).index
+        val now = pointTarget(x, y, fresh).index
+        if (was == null || now == null) return was == now
+        val oldNode = before.elements.getValue(was)
+        val newNode = fresh.elements.getValue(now)
+        return oldNode.windowId == newNode.windowId && oldNode.path == newNode.path &&
+            oldNode.viewId == newNode.viewId && identity(was, before) == identity(now, fresh)
+    }
+
     /** The smallest element containing (x, y), if any. */
     private fun pointTarget(x: Int, y: Int, screen: CompressedScreen): Target {
         val hit = screen.elements.entries
@@ -606,7 +701,10 @@ class ToolExecutor(
     private fun element(index: Int, screen: CompressedScreen): UiNode =
         screen.elements[index] ?: throw StepFail("no element [$index]")
 
-    /** Risk gate: true if the action may proceed. Classifies the untruncated label. */
+    private data class Confirmation(val category: RiskCategory, val control: String, val effect: String?) {
+        val summary: String get() = effect?.let { "$it\n$control" } ?: control
+    }
+
     private suspend fun allowed(
         tool: String,
         index: Int?,
@@ -619,6 +717,18 @@ class ToolExecutor(
         /** type_text's text: shown on the card, and what user_authorized is checked against. */
         typed: String? = null,
     ): Gate {
+        val check = requiredConfirmation(tool, index, screen, args, point, swipe, typed) ?: return Gate.PASSED
+        return when {
+            !confirming.confirm(check.category, check.summary) -> Gate.DENIED
+            check.category == RiskCategory.SEND -> Gate.CONFIRMED_SEND
+            else -> Gate.CONFIRMED_OTHER
+        }
+    }
+
+    private fun requiredConfirmation(
+        tool: String, index: Int?, screen: CompressedScreen, args: JsonObject, point: Pair<Int, Int>?,
+        swipe: Boolean, typed: String? = null,
+    ): Confirmation? {
         val label = index?.let { screen.fullLabels[it] }
         var (match, context) = classify(tool, index, label, screen)
         var name = label?.takeIf { it.isNotBlank() }?.let { preview(it, LABEL_PREVIEW_CHARS) } ?: index?.let { "[$it]" } ?: "<unlabeled>"
@@ -631,18 +741,13 @@ class ToolExecutor(
         }
         // The model's own declaration may add risk or clear a weak keyword hit; without one the keywords decide alone.
         val judgment = if (inlineRisk && RiskJudge.judges(tool, screen.packageName)) RiskJudge.fromArgs(args) else null
-        val cat = RiskCombine.combine(match, judgment) ?: return Gate.PASSED
+        val cat = RiskCombine.combine(match, judgment) ?: return null
         val needsConfirm = when (cat) {
-            RiskCategory.SEND -> !userAuthorized(args, screen, index.takeIf { typed != null }, typed)
-            RiskCategory.DELETE -> !deleteSkips(judgment, label, context, name, screen.packageName)
+            RiskCategory.SEND -> tool in TWO_FINGER_TOOLS || !userAuthorized(args, screen, index.takeIf { typed != null }, typed)
+            RiskCategory.DELETE -> tool in TWO_FINGER_TOOLS || !deleteSkips(judgment, label, context, name, screen.packageName)
             else -> true
         }
-        if (!needsConfirm) return Gate.PASSED
-        return when {
-            !confirming.confirm(cat, cardSummary(tool, name, context, typed, judgment?.effect)) -> Gate.DENIED
-            cat == RiskCategory.SEND -> Gate.CONFIRMED_SEND
-            else -> Gate.CONFIRMED_OTHER
-        }
+        return if (needsConfirm) Confirmation(cat, cardControl(tool, name, context, typed), judgment?.effect) else null
     }
 
     /**
@@ -665,12 +770,11 @@ class ToolExecutor(
         return fromContext to context
     }
 
-    /** The confirmation card's text: the model's [effect] (what will really happen) over the touched control. */
-    private fun cardSummary(tool: String, name: String, context: String?, typed: String?, effect: String?): String {
+    /** Describes one touched control under the confirmation card's effect. */
+    private fun cardControl(tool: String, name: String, context: String?, typed: String?): String {
         val dialog = context?.let { " — \"${preview(it, CONTEXT_PREVIEW_CHARS)}\"" }.orEmpty()
         val text = typed?.let { " — \"${preview(it, SEND_PREVIEW_CHARS)}\"" }.orEmpty()
-        val action = "$tool: $name$dialog$text"
-        return effect?.let { "$it\n$action" } ?: action
+        return "$tool: $name$dialog$text"
     }
 
     // ---- batch --------------------------------------------------------------------------------
@@ -678,7 +782,16 @@ class ToolExecutor(
     private suspend fun batch(args: JsonObject, current: CompressedScreen): ToolResult {
         val actions = args["actions"] as? JsonArray ?: throw ArgException("actions must be an array")
         if (actions.isEmpty()) throw ArgException("actions is empty")
+        // A gesture's coordinates refer to the initial screen. Reject a malformed batch before moving it.
+        actions.forEachIndexed { i, action ->
+            val step = action as? JsonObject ?: return@forEachIndexed
+            if ((step["tool"] as? JsonPrimitive)?.content in TWO_FINGER_TOOLS) {
+                if (i != 0) throw ArgException("a two-finger gesture must be the first step in a batch")
+                checkGestureTarget(step["args"] as? JsonObject)
+            }
+        }
         val lines = ArrayList<String>()
+        var usedTwoFingers = false
         var working = current
         var finalScreen: CompressedScreen? = null
         // The last step that ran; the UI is settled after it before the next step and before the final read.
@@ -688,7 +801,8 @@ class ToolExecutor(
             val obj = action as? JsonObject ?: throw ArgException("action $n must be an object")
             val tool = obj.requireStr("tool")
             var stepArgs = obj["args"] as? JsonObject ?: JsonObject(emptyMap())
-            if (tool !in BATCH_TOOLS) {
+            // The helper only sees the text tree. It cannot use the visual transform tools indirectly via batch.
+            if (tool !in BATCH_TOOLS || (helperCall && tool in TWO_FINGER_TOOLS)) {
                 lines += "$n. $tool: ERROR: not allowed in batch"
                 break
             }
@@ -703,7 +817,7 @@ class ToolExecutor(
                     // The first step looks on the live screen too: the model's screen may be seconds old, and the
                     // risk gate and the touch must see what is there now.
                     val start = if (n >= 2) refresh(afterTool = acted, baseline = working) else readNow()
-                    val (seen, found) = awaitTarget(target, start)
+                    val (seen, found) = awaitTarget(target, start, afterTwoFingers = acted in TWO_FINGER_TOOLS)
                     working = seen
                     if (found == null) {
                         lines += "$n. $tool: STOPPED: no element \"$target\" appeared"
@@ -713,6 +827,7 @@ class ToolExecutor(
                     stepArgs = JsonObject(stepArgs + ("index" to JsonPrimitive(found)))
                 } else if (n >= 2) {
                     val fresh = refresh(afterTool = acted, baseline = working)
+                    if (acted in TWO_FINGER_TOOLS && isProtected(fresh, recheck = true)) throw StaleTarget(fresh)
                     val index = stepArgs.int("index")
                     if (index != null) {
                         // Indices refer to the screen the model saw; find that same element now.
@@ -726,12 +841,14 @@ class ToolExecutor(
                     }
                     working = fresh
                 }
-                if (!runStep(tool, stepArgs, working, live = if (n >= 2 || target != null) working else null)) {
+                val result = runStep(tool, stepArgs, working, live = if (n >= 2 || target != null) working else null)
+                if (result == null) {
                     lines += "$n. $tool: CANCELLED by user"
                     break
                 }
-                lines += "$n. $tool: OK"
+                lines += "$n. $tool: $result"
                 acted = tool
+                if (tool in TWO_FINGER_TOOLS) usedTwoFingers = true
                 actedOn?.let { working = it }
             } catch (e: ScreenInterruptedException) {
                 lines += "$n. $tool: STOPPED: $INTERRUPTED"
@@ -752,7 +869,7 @@ class ToolExecutor(
                 break
             }
         }
-        return screenResult(lines.joinToString("\n"), finalScreen ?: refresh(afterTool = acted, baseline = working))
+        return screenResult(lines.joinToString("\n"), finalScreen ?: refresh(afterTool = acted, baseline = working), afterTwoFingers = usedTwoFingers)
     }
 
     /**
@@ -760,10 +877,11 @@ class ToolExecutor(
      * every [TARGET_POLL_MS] until [TARGET_WAIT_MS] has passed (a new screen still loading). When it never shows,
      * the last screen read and null.
      */
-    private suspend fun awaitTarget(label: String, first: CompressedScreen): Pair<CompressedScreen, Int?> {
+    private suspend fun awaitTarget(label: String, first: CompressedScreen, afterTwoFingers: Boolean = false): Pair<CompressedScreen, Int?> {
         var screen = first
         var waited = 0L
         while (true) {
+            if (afterTwoFingers && isProtected(screen, recheck = true)) throw StaleTarget(screen)
             findLabel(label, screen)?.let { return screen to it }
             if (waited >= TARGET_WAIT_MS) return screen to null
             delay(TARGET_POLL_MS)
@@ -864,11 +982,13 @@ class ToolExecutor(
     }
 
     private suspend fun settled(head: String, afterTool: String? = null, baseline: CompressedScreen? = null): ToolResult =
-        screenResult(head, refresh(afterTool, baseline))
+        screenResult(head, refresh(afterTool, baseline), afterTwoFingers = afterTool in TWO_FINGER_TOOLS)
 
-    private suspend fun screenResult(head: String, screen: CompressedScreen): ToolResult {
+    private suspend fun screenResult(head: String, screen: CompressedScreen, afterTwoFingers: Boolean = false): ToolResult {
         val shot = look(screen)
-        if (isProtected(screen, shot, tried = screenshots)) return ToolResult("$head\n\n# Screen\n${protectedText(screen)}", screen, null, null)
+        if (isProtected(screen, shot, tried = screenshots, recheck = afterTwoFingers)) {
+            return ToolResult("$head\n\n# Screen\n${protectedText(screen)}", screen, null, null)
+        }
         return ToolResult("$head\n\n# Screen\n${screen.text}", screen, shot, null)
     }
 
@@ -892,13 +1012,13 @@ class ToolExecutor(
     }
 
     /**
-     * Whether [screen]'s app blocks screen capture (FLAG_SECURE: banking, rail ticketing, payment apps). Checked once
-     * per app per run with a screenshot that is never sent anywhere; a failure is tried once more, so one slow capture
-     * does not lock an ordinary app out.
+     * A protected app stays blocked for the run. Two-finger gestures request a fresh check before
+     * dispatch and on the resulting screen. Other tools use the usual per-app check.
      */
-    private suspend fun isProtected(screen: CompressedScreen, taken: ByteArray? = null, tried: Boolean = false): Boolean {
+    private suspend fun isProtected(screen: CompressedScreen, taken: ByteArray? = null, tried: Boolean = false, recheck: Boolean = false): Boolean {
         val pkg = screen.packageName ?: return false
-        protectedApps[pkg]?.let { return it }
+        val cached = protectedApps[pkg]
+        if (cached != null && (cached || !recheck)) return cached
         // A capture just [taken] of this screen answers it; one that was [tried] and failed counts as the first try.
         var shot = taken ?: if (tried) null else device.screenshot()
         if (shot == null) {
@@ -1055,10 +1175,12 @@ class ToolExecutor(
             "quick_settings" to GlobalAction.QUICK_SETTINGS,
         )
         private const val STALE = "the screen changed since you read it, so element numbers are stale; choose again on the screen below."
-        private val SCREEN_TOOLS = setOf("tap", "long_press", "type_text", "scroll", "swipe", "pinch", "batch")
+        private val TWO_FINGER_TOOLS = setOf("rotate", "two_finger_swipe")
+        private val COORDINATE_GESTURES = setOf("swipe", "pinch") + TWO_FINGER_TOOLS
+        private val SCREEN_TOOLS = setOf("tap", "long_press", "type_text", "scroll", "batch") + COORDINATE_GESTURES
         /** Tools that act on or read the phone screen; their results carry deviceTool=true. */
         val DEVICE_TOOLS: Set<String> = setOf(
-            "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri", "batch",
+            "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "rotate", "two_finger_swipe", "press_key", "open_app", "open_uri", "batch",
             "get_screen", "screenshot", "wait", "open_route",
         )
         /** How long a batch step's target label may take to appear, and how often the screen is re-read. */
@@ -1084,7 +1206,7 @@ class ToolExecutor(
         private fun squash(t: String) = t.lowercase().replace(Regex("\\s+"), "")
 
         private val BATCH_TOOLS = setOf(
-            "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "press_key", "open_app", "open_uri", "wait",
+            "tap", "long_press", "type_text", "scroll", "swipe", "pinch", "rotate", "two_finger_swipe", "press_key", "open_app", "open_uri", "wait",
         )
     }
 }
