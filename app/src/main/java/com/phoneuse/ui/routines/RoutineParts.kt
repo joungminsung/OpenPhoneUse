@@ -26,10 +26,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -54,7 +57,8 @@ import kotlin.math.ln
 fun RadiusMap(lat: Double, lng: Double, radiusM: Int, modifier: Modifier = Modifier) {
     val dark = pu.dark
     val accent = pu.accent.toArgb()
-    Box(modifier) {
+    // osmdroid draws its tiles past the view's own bounds, over the card's title and rows, unless the box clips.
+    Box(modifier.clipToBounds()) {
         AndroidView(
             factory = { ctx ->
                 MapView(ctx).apply {
@@ -167,9 +171,14 @@ internal fun InfoRow(label: String, value: String, note: String? = null, mono: B
     Column {
         if (top) Box(Modifier.fillMaxWidth().height(1.dp).background(pu.lineSoft))
         Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, Modifier.weight(1f), fontSize = 14.sp, color = pu.text)
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = pu.text, style = if (mono) MonoStyle else TextStyle.Default, maxLines = 1)
-            if (note != null) Text(" $note", fontSize = 12.sp, color = pu.textSub)
+            // The label and note keep their natural width; the value takes the rest and ends in "…",
+            // so a long place name or a longer English note can't squeeze the label to one letter a line.
+            Text(label, fontSize = 14.sp, color = pu.text, maxLines = 1, softWrap = false)
+            Text(
+                value, Modifier.weight(1f).padding(start = 12.dp), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = pu.text,
+                style = if (mono) MonoStyle else TextStyle.Default, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
+            )
+            if (note != null) Text(" $note", fontSize = 12.sp, color = pu.textSub, maxLines = 1, softWrap = false)
         }
     }
 }

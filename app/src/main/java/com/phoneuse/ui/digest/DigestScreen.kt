@@ -84,8 +84,11 @@ object DigestText {
     const val HOURS = 24
     val ROUTINE_PROMPT get() = tr("Make a routine that shows my notification summary every evening at 9", "매일 저녁 9시에 알림 요약을 보여주는 루틴 만들어줘")
 
-    fun lead(total: Int, reply: Int): String =
-        if (reply > 0) tr("Grouped $total notifications. The $reply above need a look.", "알림 ${total}개를 묶었어요. 꼭 볼 건 위의 ${reply}개예요.") else tr("Grouped $total notifications.", "알림 ${total}개를 묶었어요.")
+    fun lead(total: Int, reply: Int): String {
+        val grouped = if (total == 1) "Grouped 1 notification." else "Grouped $total notifications."
+        val look = if (reply == 1) " The one above needs a look." else " The $reply above need a look."
+        return if (reply > 0) tr(grouped + look, "알림 ${total}개를 묶었어요. 꼭 볼 건 위의 ${reply}개예요.") else tr(grouped, "알림 ${total}개를 묶었어요.")
+    }
 
     fun replyPrompt(index: Int, at: String) =
         tr("Write a draft reply to notification ${index + 1} ($at) under '${DigestBucket.REPLY.label()}' in the notification summary", "알림 요약의 '${DigestBucket.REPLY.label()}' ${index + 1}번 알림($at)에 보낼 답장 초안 써줘")
