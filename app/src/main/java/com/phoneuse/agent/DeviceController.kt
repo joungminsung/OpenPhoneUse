@@ -26,6 +26,8 @@ class ScreenInterruptedException : Exception("screen changed during voice input"
 interface DeviceController {
     suspend fun snapshot(): ScreenSnapshot
     suspend fun screenshot(): ByteArray? // JPEG. null on a secure screen
+    /** Whether Android permits a capture now. A probe needs no copy of the image. */
+    suspend fun canCaptureScreen(): Boolean = screenshot() != null
 
     /**
      * A screenshot with each of [marks] outlined and labelled with its element number (Set-of-Mark), so the model

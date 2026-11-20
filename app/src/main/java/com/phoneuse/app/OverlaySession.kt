@@ -183,6 +183,7 @@ internal object LiveDeviceController : DeviceController {
     override fun interruptions(): Int = VoiceBridge.sessions
     override suspend fun snapshot(): ScreenSnapshot = ready().snapshot()
     override suspend fun screenshot(): ByteArray? = ready().screenshot()
+    override suspend fun canCaptureScreen(): Boolean = ready().canCaptureScreen()
     override suspend fun markedScreenshot(marks: List<ScreenMark>): ByteArray? = ready().markedScreenshot(marks)
     override suspend fun tap(x: Int, y: Int): Boolean = readyToAct().tap(x, y)
     override suspend fun longPress(x: Int, y: Int): Boolean = readyToAct().longPress(x, y)

@@ -65,8 +65,10 @@ app: com.coupang.mobile | screen 1080x2400 | list continues below (more-below): 
 `AgentLoop` adds it to the input (`addImage`). Each element you can act on is outlined and tagged with its list
 number. `agent/MarkLayout` places the tags (pure geometry, tested on the JVM; at most 120 tags per image) and
 `service/MarkPainter` draws them, so the model reads layouts, icons, charts and games from the picture and still acts
-by number. There is no screenshot when the setting that sends text only is on, or on a protected screen where the
-capture is blocked; the text list is always sent. `screenshot` remains a tool for a fresh look.
+by number. The capture check uses Android's result for the whole display. Text-only mode checks capture before
+sending the element list. A failed check in a previously visible app withholds its contents and asks the model
+to call `get_screen`. The protection notice appears after a failed retry on the same app, 400 ms after the first
+attempt. `screenshot` remains a tool for a fresh look.
 
 ## Speed
 
@@ -77,9 +79,12 @@ capture is blocked; the text list is always sent. `screenshot` remains a tool fo
   - a 1.5 s cap.
 - **Batches.** `batch` runs several steps in one model call.
   - A step can name its element by `index`, which refers to the screen the model saw.
-  - A step can instead name it by `target`, a visible label that is waited for for up to 3 s on a new screen.
+  - A step can instead name it by `target`. The agent waits 150 ms between tree reads, for up to 3 s of waiting,
+    and checks capture when the label appears. Tree reads and the final capture add to the elapsed time.
   - Either way, one model call can go through several screens.
 - **Live re-check.** Before every act, the live screen is read again and the target element is found there.
+  - An identical, complete tree in the same voice session can reuse its last successful capture check before the action.
+    Returning a screen to the model or resuming after confirmation requires a fresh capture check.
   - If the element is gone, the executor returns `STOPPED` with the fresh screen.
   - It never taps something that moved.
 - **Speculation (`agent/ScreenWatch`, `AgentLoop`).** The next model call starts as soon as the screen looks

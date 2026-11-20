@@ -17,6 +17,8 @@ class CompressedScreen(
     val density: Float = ScreenSnapshot.DEFAULT_DENSITY,
     /** A shown vertical list can still scroll down: there is content the model has not seen. */
     val listContinues: Boolean = false,
+    /** This observation was redacted after capture failed. Screen actions need a fresh visible observation. */
+    val captureBlocked: Boolean = false,
 ) {
     /** Where to touch element [index]: the centre of its bounds clipped to the display. */
     fun tapPoint(index: Int): Pair<Int, Int> {

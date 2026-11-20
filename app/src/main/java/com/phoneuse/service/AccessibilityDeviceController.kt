@@ -193,22 +193,10 @@ class AccessibilityDeviceController(
 
     override suspend fun screenshot(): ByteArray? = markedScreenshot(emptyList())
 
-    override suspend fun markedScreenshot(marks: List<ScreenMark>): ByteArray? {
-        val s = service()
-        val run: suspend () -> ByteArray? = { captureJpeg(s, marks) }
-        val o = overlay
-        return if (o != null) o.hiddenForCapture(run) else run()
-    }
+    override suspend fun canCaptureScreen(): Boolean = capture(copyPixels = false) == ShotResult.Allowed
 
-    private suspend fun captureJpeg(s: PhoneUseAccessibilityService, marks: List<ScreenMark>): ByteArray? {
-        var result = takeScreenshotOnce(s)
-        if (result is ShotResult.Error && result.code ==
-            AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT
-        ) {
-            delay(350)
-            result = takeScreenshotOnce(s)
-        }
-        val bitmap = (result as? ShotResult.Ok)?.bitmap ?: return null
+    override suspend fun markedScreenshot(marks: List<ScreenMark>): ByteArray? {
+        val bitmap = (capture(copyPixels = true) as? ShotResult.Ok)?.bitmap ?: return null
         val longest = maxOf(bitmap.width, bitmap.height)
         val scaled = if (longest > MAX_EDGE) {
             val f = MAX_EDGE.toFloat() / longest
@@ -231,14 +219,28 @@ class AccessibilityDeviceController(
 
     private sealed interface ShotResult {
         class Ok(val bitmap: Bitmap) : ShotResult
+        data object Allowed : ShotResult
         class Error(val code: Int) : ShotResult
     }
 
-    /** The GPU readback and copy run off the main thread, so the overlay and event delivery do not stall. */
-    private suspend fun takeScreenshotOnce(s: PhoneUseAccessibilityService): ShotResult =
-        withTimeoutOrNull(SCREENSHOT_TIMEOUT_MS) { takeScreenshotUnbounded(s) } ?: ShotResult.Error(-2)
+    private suspend fun capture(copyPixels: Boolean): ShotResult {
+        val s = service()
+        val run: suspend () -> ShotResult = {
+            val first = takeScreenshotOnce(s, copyPixels)
+            if (first is ShotResult.Error && first.code == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) {
+                delay(350)
+                takeScreenshotOnce(s, copyPixels)
+            } else first
+        }
+        val o = overlay
+        return if (o != null) o.hiddenForCapture(run) else run()
+    }
 
-    private suspend fun takeScreenshotUnbounded(s: PhoneUseAccessibilityService): ShotResult =
+    /** The GPU readback and copy run off the main thread, so the overlay and event delivery do not stall. */
+    private suspend fun takeScreenshotOnce(s: PhoneUseAccessibilityService, copyPixels: Boolean): ShotResult =
+        withTimeoutOrNull(SCREENSHOT_TIMEOUT_MS) { takeScreenshotUnbounded(s, copyPixels) } ?: ShotResult.Error(-2)
+
+    private suspend fun takeScreenshotUnbounded(s: PhoneUseAccessibilityService, copyPixels: Boolean): ShotResult =
         suspendCancellableCoroutine { cont ->
             s.takeScreenshot(
                 Display.DEFAULT_DISPLAY,
@@ -246,6 +248,11 @@ class AccessibilityDeviceController(
                 object : AccessibilityService.TakeScreenshotCallback {
                     override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
                         val buffer = screenshot.hardwareBuffer
+                        if (!copyPixels) {
+                            buffer.close()
+                            if (cont.isActive) cont.resume(ShotResult.Allowed)
+                            return
+                        }
                         val r: ShotResult = try {
                             val hw = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
                             val copy = hw?.copy(Bitmap.Config.ARGB_8888, true)
