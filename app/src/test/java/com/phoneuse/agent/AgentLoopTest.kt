@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -896,6 +897,17 @@ class AgentLoopTest {
         val outs = model.inputs[1].filterIsInstance<InputItem.FunctionOutput>().map { it.output }
         assertTrue(outs.toString(), outs[0].startsWith("NOT FINISHED"))
         assertTrue(outs.toString(), outs[1].startsWith("NOT RUN: the user sent a new instruction"))
+    }
+
+    @Test fun aFollowUpSentDuringCompletionStaysWithTheSender() = runTest {
+        for (lastTurn in listOf(finish(), ModelTurn("done", emptyList(), null))) {
+            val r = rig(FakeModelClient(listOf(lastTurn)))
+            val events = r.loop.run(emptyList(), "task", observeFirst = false)
+                .onEach { if (it is AgentEvent.Finished) assertFalse(r.steering.post("follow-up")) }
+                .toList()
+            assertTrue(events.last() is AgentEvent.Finished)
+            assertFalse(r.steering.pending())
+        }
     }
 
     @Test fun longRunsAreTrimmedInOneCutAndOverflowCompactsAndRetriesOnce() = runTest {

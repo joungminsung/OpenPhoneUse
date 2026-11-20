@@ -17,6 +17,7 @@ import com.phoneuse.connectors.Connectors
 import com.phoneuse.files.AttachmentStore
 import com.phoneuse.memory.SqliteMemoryStore
 import com.phoneuse.usage.UsageStore
+import com.phoneuse.ui.chat.ConversationDrafts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -197,6 +199,7 @@ object AppGraph {
         val app = context.applicationContext
         return scope.async {
             runner.stopAndWait()
+            withContext(Dispatchers.Main.immediate) { ConversationDrafts.clear() }
             FullWipe.run(app)
         }.await()
     }
@@ -209,7 +212,10 @@ object AppGraph {
     private suspend fun pruneConversations(app: Context, days: Int) {
         try {
             val pruned = Retention.prune(chats, days, System.currentTimeMillis(), keptConversations())
-            if (pruned.isNotEmpty()) com.phoneuse.proactive.ProactiveSystem.get(app).conversationsGone(pruned)
+            if (pruned.isNotEmpty()) {
+                withContext(Dispatchers.Main.immediate) { ConversationDrafts.forget(pruned) }
+                com.phoneuse.proactive.ProactiveSystem.get(app).conversationsGone(pruned)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

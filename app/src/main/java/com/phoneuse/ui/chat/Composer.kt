@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,25 +50,26 @@ import com.phoneuse.ui.theme.SendCircle
 import com.phoneuse.ui.theme.StopCircle
 import com.phoneuse.ui.theme.pu
 import com.phoneuse.ui.voice.VoiceBar
-import com.phoneuse.ui.voice.rememberVoiceInput
+import com.phoneuse.ui.voice.rememberDraftVoiceInput
 
 /**
  * The pill-shaped input from the boards: the + attach button (× while the attach sheet is open), multi-line
  * text, 🎤, and a 44dp round send button that becomes ■ stop while the agent runs. Typing while it runs steers
  * it (the small arrow sends the text). [hasAttachments] lets a message without text be sent.
- * 🎤 listens in place: the pill turns into [VoiceBar] (waveform, live words, × and ✓) and the result goes to
- * [onVoiceResult].
+ * 🎤 listens in place. The pill turns into [VoiceBar] (waveform, live words, × and ✓) and returns the
+ * recognised segment to the editable draft.
  */
 @Composable
 fun Composer(
+    conversationId: Long?,
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
+    onAppendSpeech: (String) -> Unit,
     placeholder: String,
     running: Boolean,
     showMic: Boolean,
     onSend: () -> Unit,
     onStop: () -> Unit,
-    onVoiceResult: (String) -> Unit,
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     attachOpen: Boolean = false,
@@ -75,10 +77,12 @@ fun Composer(
     hasAttachments: Boolean = false,
 ) {
     val c = pu
-    val voice = rememberVoiceInput(onVoiceResult)
+    val voice = key(conversationId) {
+        rememberDraftVoiceInput(onAppendSpeech, enabled = showMic)
+    }
     val listening = voice.state.active
-    // The mic is gone (a confirmation card is up): stop listening with it.
-    LaunchedEffect(showMic) { if (!showMic) voice.cancel() }
+    // A confirmation hides the mic. Keep the words that were already visible.
+    LaunchedEffect(voice, showMic) { if (!showMic) voice.interrupt() }
     val hasText = value.text.isNotBlank()
     val shape = RoundedCornerShape(26.dp)
     val border by animateColorAsState(
@@ -137,10 +141,8 @@ fun Composer(
                             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         )
                     }
-                    when {
-                        running && hasText -> IconBtn(PuIcons.Send, tr("Send instruction", "지시 보내기"), onSend, tint = c.text, iconSize = 20.dp)
-                        showMic -> IconBtn(PuIcons.Mic, tr("Voice input", "음성 입력"), onClick = voice::toggle, tint = c.textSub)
-                    }
+                    if (showMic) IconBtn(PuIcons.Mic, tr("Voice input", "음성 입력"), onClick = voice::toggle, tint = c.textSub)
+                    if (running && hasText) IconBtn(PuIcons.Send, tr("Send instruction", "지시 보내기"), onSend, tint = c.text, iconSize = 20.dp)
                     if (running) StopCircle(onStop) else SendCircle(onSend, enabled = hasText || hasAttachments)
                 }
             }

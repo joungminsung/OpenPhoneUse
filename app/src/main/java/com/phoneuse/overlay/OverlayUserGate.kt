@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.update
 /** What [OverlayUserGate] needs from the overlay; [OverlayManager] implements it. */
 interface CardSink {
     val state: MutableStateFlow<AgentUiState>
-    var onCardResult: (id: Long, result: String) -> Unit
+    var onCardResult: (id: Long, result: String) -> Boolean
     fun setBlocking(enabled: Boolean)
 
     /** True once the overlay is gone for good (service lost); card requests then fail. */
@@ -38,7 +38,7 @@ class OverlayUserGate(private val overlay: CardSink) : UserGate {
 
     init {
         // Taps from an old or already-answered card carry a different id and are ignored.
-        overlay.onCardResult = { id, result -> pending?.takeIf { it.id == id }?.answer?.complete(result) }
+        overlay.onCardResult = { id, result -> pending?.takeIf { it.id == id }?.answer?.complete(result) == true }
         overlay.onClosed = { pending?.answer?.completeExceptionally(ServiceUnavailableException()) }
     }
 

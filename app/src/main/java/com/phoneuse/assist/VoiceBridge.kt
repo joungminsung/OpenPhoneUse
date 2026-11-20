@@ -1,61 +1,131 @@
 package com.phoneuse.assist
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
-/**
- * Hands recognised speech from [AssistVoiceActivity] back to a window that cannot receive activity results
- * (the overlay dock). One request at a time: a new request ends the previous one with null.
- * While a request is open the speech screen is in front, so device actions wait ([awaitIdle]).
- */
+/** Hands a dock dictation back to its owner, even if the overlay or speech activity goes away first. */
 object VoiceBridge {
-    private var callback: ((String?) -> Unit)? = null
-    private val _listening = MutableStateFlow(false)
+    private class Request(val id: Int, val onResult: (String?) -> Unit) {
+        var partial: String? = null
+        var externalUi = false
+    }
 
-    /** True from [request] until the result (or cancellation) is delivered. */
-    val listening: StateFlow<Boolean> = _listening.asStateFlow()
+    private var current: Request? = null
+    private val _activeSession = MutableStateFlow<Int?>(null)
+    val activeSession = _activeSession.asStateFlow()
+    private val revision = MutableStateFlow(0L)
 
     /** Voice sessions started so far; the agent's element indices from before one are stale. */
     @Volatile
     var sessions: Int = 0
         private set
 
-    /** Longest a device action waits for the speech screen; a stuck request never blocks the agent for good. */
     const val MAX_WAIT_MS = 60_000L
-
-    /** After the speech screen closes, the app underneath needs a moment to be back in front. */
     const val SETTLE_MS = 400L
 
-    @Synchronized
-    fun request(onResult: (String?) -> Unit) {
-        val old = callback
-        callback = onResult
-        sessions++
-        _listening.value = true
-        old?.invoke(null)
-    }
-
-    /** Delivers [text] (null: nothing recognised or cancelled) to the waiting request, once. */
-    fun deliver(text: String?) {
-        val cb = synchronized(this) {
-            _listening.value = false
-            callback.also { callback = null }
+    fun request(onResult: (String?) -> Unit): Int {
+        val old: Request?
+        val id: Int
+        synchronized(this) {
+            old = current
+            id = ++sessions
+            current = Request(id, onResult)
+            _activeSession.value = id
+            revision.value++
         }
-        cb?.invoke(text)
+        old?.let { it.onResult(it.partial) }
+        return id
     }
 
-    /**
-     * Suspends while the speech screen is up (at most [timeoutMs]; then the request is dropped so later calls
-     * do not wait again), then lets the screen settle. Returns true if it had to wait.
-     */
+    /** Recognizers revise a partial for the same phrase and may emit an empty one before the final result. */
+    @Synchronized
+    fun update(id: Int, partial: String) {
+        val request = current ?: return
+        if (request.id == id && partial.isNotBlank() && partial != request.partial) {
+            request.partial = partial
+            if (!request.externalUi) revision.value++
+        }
+    }
+
+    /** Android owns the microphone permission prompt or a speech dialog which only returns a final result. */
+    @Synchronized
+    fun setExternalUi(id: Int, visible: Boolean) {
+        val request = current ?: return
+        if (request.id == id && request.externalUi != visible) {
+            request.externalUi = visible
+            revision.value++
+        }
+    }
+
+    /** Some in-app providers report speech activity but do not provide partial text. */
+    @Synchronized
+    fun heardAudio(id: Int) {
+        val request = current ?: return
+        if (request.id == id && !request.externalUi) revision.value++
+    }
+
+    /** A null result is an explicit cancellation, including when the recognizer already had some words. */
+    fun deliver(id: Int, text: String?) {
+        val request = take(id) ?: return
+        request.onResult(text?.takeIf { it.isNotBlank() })
+    }
+
+    /** A lifecycle interruption or timeout keeps the most recent usable transcript. */
+    fun interrupt(id: Int) {
+        val request = take(id) ?: return
+        request.onResult(request.partial)
+    }
+
+    /** Give this run's final phrase a bounded wait, even if a recognizer keeps reporting audio. */
+    internal suspend fun finishForRun(id: Int, runJob: Job) {
+        try {
+            withContext(runJob) {
+                withTimeoutOrNull(MAX_WAIT_MS) { activeSession.first { it != id } }
+            }
+        } catch (stopped: CancellationException) {
+            if (!runJob.isCancelled) throw stopped
+        }
+        // Timeout or Stop preserves the partial. A completed or replaced request is already delivered.
+        interrupt(id)
+    }
+
+    @Synchronized
+    private fun take(id: Int, expectedRevision: Long? = null): Request? {
+        val request = current?.takeIf { it.id == id } ?: return null
+        if (expectedRevision != null && expectedRevision != revision.value) return null
+        current = null
+        _activeSession.value = null
+        revision.value++
+        return request
+    }
+
+    /** Live native speech extends the wait. An abandoned external dialog or silent mic returns its last words. */
     suspend fun awaitIdle(timeoutMs: Long = MAX_WAIT_MS): Boolean {
-        if (!_listening.value) return false
-        if (withTimeoutOrNull(timeoutMs) { _listening.first { !it } } == null) deliver(null)
-        delay(SETTLE_MS)
-        return true
+        if (activeSession.value == null) return false
+        while (true) {
+            val seen = revision.value
+            val id = activeSession.value
+            if (id == null) {
+                delay(SETTLE_MS)
+                if (revision.value == seen) return true
+                continue
+            }
+            val changed = withTimeoutOrNull(timeoutMs) {
+                revision.first { it != seen }
+            }
+            if (changed == null) {
+                withContext(Dispatchers.Main.immediate) {
+                    // A later partial may already have arrived while the timeout was being dispatched.
+                    take(id, seen)?.let { it.onResult(it.partial) }
+                }
+            }
+        }
     }
 }

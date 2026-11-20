@@ -2,11 +2,11 @@ package com.phoneuse.ui.voice
 
 import android.Manifest
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import android.view.HapticFeedbackConstants
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -22,6 +22,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.phoneuse.app.AppGraph
 import com.phoneuse.app.voiceLanguageNow
 import com.phoneuse.i18n.tr
@@ -68,6 +71,12 @@ class VoiceInput internal constructor(
         if (cancelPending()) ended() else recognizer.stop()
     }
 
+    /** The input is being hidden: return anything heard to its draft. */
+    fun interrupt() {
+        cancelPending()
+        recognizer.interrupt()
+    }
+
     /** Cancel (X): drop what was heard and go back to the input. */
     fun cancel() {
         val wasPending = cancelPending()
@@ -80,20 +89,43 @@ class VoiceInput internal constructor(
 /**
  * Speech input that runs inside the app (no Google dialog): asks for the microphone when needed, ticks on
  * start and stop, clears error messages after a moment, and falls back to the system speech dialog only on a
- * device without any usable recognizer. [onText] gets the recognised text; [onEnd] is told when a session
- * ends without text (cancelled, failed, dialog closed).
+ * device without any usable recognizer. [onText] gets the recognised text. [onPartial] receives live
+ * revisions. [onInterrupted] receives the last words when the recognizer fails or its host goes away.
+ * [onEnd] reports cancellation, a dismissed dialog, or the end of an error message.
  */
 @Composable
-fun rememberVoiceInput(onText: (String) -> Unit, onEnd: () -> Unit = {}): VoiceInput {
+fun rememberVoiceInput(
+    onText: (String) -> Unit,
+    onEnd: () -> Unit = {},
+    onPartial: (String) -> Unit = {},
+    onInterrupted: (String) -> Unit = {},
+    onExternalUi: (Boolean) -> Unit = {},
+    onAudioActivity: () -> Unit = {},
+    canStart: () -> Boolean = { true },
+): VoiceInput {
     val context = LocalContext.current
     val view = LocalView.current
     val latestText by rememberUpdatedState(onText)
     val latestEnd by rememberUpdatedState(onEnd)
-    val recognizer = remember(context) { VoiceRecognizer(context) { latestText(it) } }
+    val latestPartial by rememberUpdatedState(onPartial)
+    val latestInterrupted by rememberUpdatedState(onInterrupted)
+    val latestExternalUi by rememberUpdatedState(onExternalUi)
+    val latestAudioActivity by rememberUpdatedState(onAudioActivity)
+    val latestCanStart by rememberUpdatedState(canStart)
+    val recognizer = remember(context) {
+        VoiceRecognizer(
+            context,
+            onText = { latestText(it) },
+            onPartial = { latestPartial(it) },
+            onInterrupted = { latestInterrupted(it) },
+            onAudioActivity = { latestAudioActivity() },
+        )
+    }
     DisposableEffect(recognizer) { onDispose { recognizer.destroy() } }
     val state = recognizer.state.collectAsState()
 
     val dialog = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        latestExternalUi(false)
         val text = if (result.resultCode == Activity.RESULT_OK) {
             result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.takeIf { it.isNotBlank() }
         } else {
@@ -116,10 +148,14 @@ fun rememberVoiceInput(onText: (String) -> Unit, onEnd: () -> Unit = {}): VoiceI
         pending[0] = scope.launch {
             val language = speechLanguageTag(AppGraph.voiceLanguageNow(), Locale.getDefault())
             pending[0] = null
+            // A permission dialog or language read can outlive its input or its dock session.
+            if (!latestCanStart()) return@launch
             if (recognizer.engine == VoiceEngine.Dialog) {
                 try {
+                    latestExternalUi(true)
                     dialog.launch(dialogIntent(language))
-                } catch (e: ActivityNotFoundException) {
+                } catch (e: RuntimeException) {
+                    latestExternalUi(false)
                     recognizer.fail(VoiceError.UNAVAILABLE)
                 }
             } else {
@@ -128,12 +164,26 @@ fun rememberVoiceInput(onText: (String) -> Unit, onEnd: () -> Unit = {}): VoiceI
         }
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) listen() else recognizer.fail(VoiceError.PERMISSION)
+        latestExternalUi(false)
+        // A confirmation can hide the mic while Android is showing the permission prompt.
+        if (latestCanStart()) {
+            if (granted) listen() else recognizer.fail(VoiceError.PERMISSION)
+        }
     }
     val begin = {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         // The system dialog records in its own app; only the in-app recognizer needs our microphone permission.
-        if (granted || recognizer.engine == VoiceEngine.Dialog) listen() else permission.launch(Manifest.permission.RECORD_AUDIO)
+        if (granted || recognizer.engine == VoiceEngine.Dialog) {
+            listen()
+        } else {
+            latestExternalUi(true)
+            try {
+                permission.launch(Manifest.permission.RECORD_AUDIO)
+            } catch (e: RuntimeException) {
+                latestExternalUi(false)
+                recognizer.fail(VoiceError.PERMISSION)
+            }
+        }
     }
 
     // A tick when the mic opens and when it closes, however it closed.
@@ -152,6 +202,22 @@ fun rememberVoiceInput(onText: (String) -> Unit, onEnd: () -> Unit = {}): VoiceI
         }
     }
     return remember(recognizer) { VoiceInput(recognizer, state, begin, { latestEnd() }, cancelPending) }
+}
+
+/** Chat dictation commits one segment on completion or when the input goes offscreen. */
+@Composable
+fun rememberDraftVoiceInput(onAppendSpeech: (String) -> Unit, enabled: Boolean = true): VoiceInput {
+    val voice = rememberVoiceInput(onText = onAppendSpeech, onInterrupted = onAppendSpeech, canStart = { enabled })
+    val lifecycle = (LocalActivity.current as? LifecycleOwner)?.lifecycle
+    DisposableEffect(voice, lifecycle) {
+        // Preserve recognised words before the activity saves its draft, including on rotation.
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) voice.interrupt()
+        }
+        lifecycle?.addObserver(observer)
+        onDispose { lifecycle?.removeObserver(observer) }
+    }
+    return voice
 }
 
 private fun dialogIntent(language: String): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)

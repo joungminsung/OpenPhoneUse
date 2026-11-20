@@ -21,17 +21,16 @@ data class AgentUiState(
     val card: DockCard? = null,
 )
 
-/** Text typed in the dock answers an open Ask card; otherwise it steers the agent. */
-fun routeDockText(card: DockCard?, text: String, answer: (id: Long, text: String) -> Unit, steer: (String) -> Unit) {
-    if (card is DockCard.Ask) answer(card.id, text) else steer(text)
-}
-
-/** The dock input's send: trims, ignores blank text, then [routeDockText]. Returns whether the text was taken. */
-fun submitDockText(card: DockCard?, text: String, answer: (id: Long, text: String) -> Unit, steer: (String) -> Unit): Boolean {
+/** Sends to the displayed question or running task. A refused submission stays in the composer. */
+fun submitDockText(
+    card: DockCard?,
+    text: String,
+    answer: (id: Long, text: String) -> Boolean,
+    steer: (String) -> Boolean,
+): Boolean {
     val t = text.trim()
     if (t.isEmpty()) return false
-    routeDockText(card, t, answer, steer)
-    return true
+    return if (card is DockCard.Ask) answer(card.id, t) else steer(t)
 }
 
 fun RiskCategory.koreanName(): String = when (this) {

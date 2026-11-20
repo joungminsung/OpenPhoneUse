@@ -55,9 +55,8 @@ class ChatUserGate(
     private var pending: Pending? = null
     private var nextId = 0L
 
-    fun answer(id: Long, text: String) {
-        pending?.takeIf { it.id == id }?.answer?.complete(text)
-    }
+    fun answer(id: Long, text: String): Boolean =
+        pending?.takeIf { it.id == id }?.answer?.complete(text) == true
 
     override suspend fun confirm(category: RiskCategory, summary: String): Boolean =
         request { ChatCard.Confirm(category, summary, it, conversationId()) } == CONFIRM_YES

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,12 +31,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,60 +77,64 @@ class AttachActions(
     val busy: () -> Boolean,
 )
 
-/**
- * The launchers behind the sheet. Picked items are copied into app storage by [store] and handed to [onAdded];
- * [room] is how many more fit in the draft. Problems are shown as toasts.
- */
+/** The pickers belong to the activity. Each launch holds the draft that will receive its result. */
 @Composable
-fun rememberAttachActions(store: AttachmentStore, room: () -> Int, onAdded: (List<Attachment>) -> Unit): AttachActions {
+internal fun rememberAttachActions(vm: ChatViewModel, paneState: ChatPaneState): AttachActions {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val currentRoom by rememberUpdatedState(room)
-    val currentOnAdded by rememberUpdatedState(onAdded)
-    var busy by remember { mutableIntStateOf(0) }
+    val store = remember(context) { AttachmentStore(context) }
+    val importingDrafts = remember { mutableStateListOf<AttachmentDraft>() }
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
 
-    fun importing(block: suspend () -> List<Attachment>) {
+    fun importing(draft: AttachmentDraft, block: suspend () -> List<Attachment>) {
         scope.launch {
-            busy++
+            importingDrafts.add(draft)
             try {
                 val added = block()
-                if (added.isNotEmpty()) currentOnAdded(added)
+                if (added.isNotEmpty()) {
+                    val visible = vm.attachmentDraft() === draft
+                    if (visible) paneState.attachOpen = false
+                    val extra = vm.attachTo(draft, added)
+                    if (extra.isNotEmpty()) {
+                        store.discard(extra)
+                        if (visible) toast(tr("Up to ${Attachment.MAX_PER_MESSAGE} at a time, so ${extra.size} left out", "한 번에 ${Attachment.MAX_PER_MESSAGE}개까지라 ${extra.size}개는 빠졌어요"))
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 // A provider that throws must not take the app down.
                 toast(tr("Couldn't attach", "첨부하지 못했어요"))
             } finally {
-                busy--
+                importingDrafts.remove(draft)
             }
         }
     }
 
-    fun images(uris: List<Uri>) {
+    fun images(draft: AttachmentDraft, uris: List<Uri>) {
         if (uris.isEmpty()) return
-        val take = uris.take(currentRoom().coerceAtLeast(0))
+        val take = uris.take(draft.room)
         if (take.size < uris.size) toast(FULL)
-        importing {
+        importing(draft) {
             take.mapNotNull { store.importImage(it) }.also { if (it.size < take.size) toast(tr("Couldn't read the photo", "사진을 읽지 못했어요")) }
         }
     }
 
-    val many = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(Attachment.MAX_PER_MESSAGE)) { images(it) }
-    val one = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> images(listOfNotNull(uri)) }
+    val many = rememberAttachmentPicker(ActivityResultContracts.PickMultipleVisualMedia(Attachment.MAX_PER_MESSAGE), vm, ::images)
+    val one = rememberAttachmentPicker(ActivityResultContracts.PickVisualMedia(), vm) { draft, uri -> images(draft, listOfNotNull(uri)) }
     var shot by rememberSaveable { mutableStateOf<String?>(null) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
-        val file = shot?.let(::File) ?: return@rememberLauncherForActivityResult
+    val camera = rememberAttachmentPicker(ActivityResultContracts.TakePicture(), vm) { draft, saved ->
+        val file = shot?.let(::File) ?: return@rememberAttachmentPicker
         shot = null
         if (!saved) {
             file.delete()
-            return@rememberLauncherForActivityResult
+            return@rememberAttachmentPicker
         }
-        importing { listOfNotNull(store.importCameraShot(file)).also { if (it.isEmpty()) toast(tr("Couldn't read the photo", "사진을 읽지 못했어요")) } }
+        importing(draft) { listOfNotNull(store.importCameraShot(file)).also { if (it.isEmpty()) toast(tr("Couldn't read the photo", "사진을 읽지 못했어요")) } }
     }
-    val document = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        importing {
+    val document = rememberAttachmentPicker(ActivityResultContracts.OpenDocument(), vm) { draft, uri ->
+        if (uri == null) return@rememberAttachmentPicker
+        importing(draft) {
             when (val r = store.importDocument(uri)) {
                 is AttachmentStore.Result.Added -> r.attachments.also { r.notice?.let(::toast) }
                 is AttachmentStore.Result.Refused -> emptyList<Attachment>().also { toast(r.message) }
@@ -138,20 +142,21 @@ fun rememberAttachActions(store: AttachmentStore, room: () -> Int, onAdded: (Lis
         }
     }
 
-    fun ifRoom(block: () -> Unit) {
-        if (currentRoom() <= 0) toast(FULL) else block()
+    fun ifRoom(block: (AttachmentDraft) -> Unit) {
+        val draft = vm.attachmentDraft()
+        if (draft.room <= 0) toast(FULL) else block(draft)
     }
 
     return remember(store) {
         AttachActions(
             camera = {
-                ifRoom {
+                ifRoom { draft ->
                     val (file, uri) = store.cameraTarget()
                     // A shot whose result never came back is not needed any more.
                     shot?.let { File(it).delete() }
                     shot = file.path
                     try {
-                        camera.launch(uri)
+                        camera(draft, uri)
                     } catch (e: ActivityNotFoundException) {
                         shot = null
                         file.delete()
@@ -160,14 +165,14 @@ fun rememberAttachActions(store: AttachmentStore, room: () -> Int, onAdded: (Lis
                 }
             },
             album = {
-                ifRoom {
+                ifRoom { draft ->
                     val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    if (currentRoom() >= 2) many.launch(request) else one.launch(request)
+                    if (draft.room >= 2) many(draft, request) else one(draft, request)
                 }
             },
             screen = {
-                ifRoom {
-                    importing {
+                ifRoom { draft ->
+                    importing(draft) {
                         when (val r = store.recentScreen()) {
                             is AttachmentStore.Result.Added -> r.attachments
                             is AttachmentStore.Result.Refused -> emptyList<Attachment>().also { toast(r.message) }
@@ -176,16 +181,41 @@ fun rememberAttachActions(store: AttachmentStore, room: () -> Int, onAdded: (Lis
                 }
             },
             file = {
-                ifRoom {
+                ifRoom { draft ->
                     try {
-                        document.launch(DOCUMENT_TYPES)
+                        document(draft, DOCUMENT_TYPES)
                     } catch (e: ActivityNotFoundException) {
                         toast(tr("No file app found", "파일 앱이 없어요"))
                     }
                 }
             },
-            busy = { busy > 0 },
+            busy = { vm.attachmentDraft() in importingDrafts },
         )
+    }
+}
+
+@Composable
+private fun <I, O> rememberAttachmentPicker(
+    contract: ActivityResultContract<I, O>,
+    vm: ChatViewModel,
+    onResult: (AttachmentDraft, O) -> Unit,
+): (AttachmentDraft, I) -> Unit {
+    var launchedFor by remember { mutableStateOf<AttachmentDraft?>(null) }
+    val launcher = rememberLauncherForActivityResult(contract) { result ->
+        val draft = launchedFor ?: vm.attachmentDraft()
+        launchedFor = null
+        onResult(draft, result)
+    }
+    return remember(launcher) {
+        { draft, input ->
+            launchedFor = draft
+            try {
+                launcher.launch(input)
+            } catch (e: ActivityNotFoundException) {
+                launchedFor = null
+                throw e
+            }
+        }
     }
 }
 

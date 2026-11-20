@@ -6,6 +6,7 @@ import com.phoneuse.chat.ChatRepository
 import com.phoneuse.chat.InMemoryChatRepository
 import com.phoneuse.chat.MessageRole
 import com.phoneuse.chat.StepLog
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,17 +68,13 @@ private class FakeRunner(private val repo: ChatRepository, private val scope: Co
         }
     }
 
-    override fun steer(text: String) {
-        steered += text
-    }
+    override fun steer(text: String): Boolean = !refuse && steered.add(text)
 
     override fun stop() {
         stops++
     }
 
-    override fun answer(cardId: Long, text: String) {
-        answers += cardId to text
-    }
+    override fun answer(cardId: Long, text: String): Boolean = !refuse && answers.add(cardId to text)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -118,12 +115,15 @@ class ChatViewModelTest {
         val (repo, runner, vm) = setup()
         val old = repo.createConversation("t")
         vm.select(old)
-        vm.attach(listOf(Attachment.image("a.jpg")))
+        val photo = Attachment.image("a.jpg")
+        vm.attach(listOf(photo))
         assertTrue(vm.startTyped("루틴 만들어줘: 매일 8시에 날씨"))
         assertEquals(listOf<Pair<Long?, String>>(null to "루틴 만들어줘: 매일 8시에 날씨"), runner.sent)
         assertEquals(listOf(false), runner.fromCard)
         assertEquals(listOf(emptyList<Attachment>()), runner.attached)
-        assertEquals(1, vm.pending.value.size)
+        assertTrue(vm.pending.value.isEmpty())
+        vm.select(old)
+        assertEquals(listOf(photo), vm.pending.value)
         // A run is going: refused, not steered.
         assertFalse(vm.startTyped("또"))
         assertTrue(runner.steered.isEmpty())
@@ -190,6 +190,84 @@ class ChatViewModelTest {
         assertTrue(runner.steered.isEmpty())
         assertEquals(listOf(photos[4]), vm.pending.value)
         assertFalse(vm.send(""))
+    }
+
+    @Test
+    fun inFlightImportKeepsItsDraftWhenSwitchingConversations() = runTest(UnconfinedTestDispatcher()) {
+        val (repo, _, vm) = setup()
+        val source = repo.createConversation("Source")
+        val other = repo.createConversation("Other")
+        vm.select(source)
+        val draft = vm.attachmentDraft()
+        val imported = CompletableDeferred<List<Attachment>>()
+        val import = launch { assertTrue(vm.attachTo(draft, imported.await()).isEmpty()) }
+
+        vm.select(other)
+        val existing = Attachment.image("other.jpg")
+        vm.attach(listOf(existing))
+        val file = Attachment.image("pdf-page.jpg")
+        imported.complete(listOf(file))
+        import.join()
+
+        assertEquals(listOf(existing), vm.pending.value)
+        vm.select(source)
+        assertEquals(listOf(file), vm.pending.value)
+    }
+
+    @Test
+    fun completedImportForDeletedConversationIsReturnedForCleanup() = runTest(UnconfinedTestDispatcher()) {
+        val (repo, _, vm) = setup()
+        val source = repo.createConversation("Source")
+        vm.select(source)
+        val draft = vm.attachmentDraft()
+
+        vm.delete(source)
+        val files = listOf(Attachment.image("pdf-page.jpg"))
+
+        assertEquals(files, vm.attachTo(draft, files))
+        assertTrue(vm.pending.value.isEmpty())
+    }
+
+    @Test
+    fun followUpsAndLateFileImportsMoveWithTheNewComposer() = runTest(UnconfinedTestDispatcher()) {
+        val repo = InMemoryChatRepository()
+        val runner = FakeRunner(repo, backgroundScope).apply { createsConversation = false }
+        val moves = mutableListOf<Pair<Long?, Long>>()
+        val vm = ChatViewModel(repo, runner, backgroundScope, onDraftMoved = { from, to -> moves += from to to })
+        val draft = vm.attachmentDraft()
+        val first = Attachment.image("first.jpg")
+        val followUp = Attachment.image("follow-up.jpg")
+        vm.attach(listOf(first))
+        assertTrue(vm.send("Start"))
+        assertTrue(vm.moveDraftOnFollow)
+        val id = repo.createConversation("Start")
+        runner.activeConversation.value = id
+        assertEquals(listOf<Pair<Long?, Long>>(null to id), moves)
+        val other = repo.createConversation("Other")
+        vm.select(other)
+        assertTrue(vm.attachTo(draft, listOf(followUp)).isEmpty())
+        assertTrue(vm.pending.value.isEmpty())
+        vm.newChat()
+        assertTrue(vm.pending.value.isEmpty())
+        vm.select(id)
+        assertEquals(listOf(followUp), vm.pending.value)
+        runner.finish("Done")
+        assertTrue(vm.send("Next"))
+        assertEquals(listOf(listOf(first), listOf(followUp)), runner.attached)
+    }
+
+    @Test
+    fun externalRequestsLeaveTheUnsentHomeDraftOnHome() = runTest(UnconfinedTestDispatcher()) {
+        val repo = InMemoryChatRepository()
+        val runner = FakeRunner(repo, backgroundScope)
+        val vm = ChatViewModel(repo, runner, backgroundScope, onDraftMoved = { _, _ -> error("unexpected handoff") })
+        val file = Attachment.image("waiting.jpg")
+        vm.attach(listOf(file))
+        assertTrue(vm.startCardPrompt("External prompt"))
+        assertFalse(vm.moveDraftOnFollow)
+        assertTrue(vm.pending.value.isEmpty())
+        vm.newChat()
+        assertEquals(listOf(file), vm.pending.value)
     }
 
     @Test
@@ -281,6 +359,19 @@ class ChatViewModelTest {
 
         assertEquals(listOf(7L to "새 앨범"), runner.answers)
         assertTrue(runner.steered.isEmpty())
+    }
+
+    @Test
+    fun sendKeepsTheDraftWhenSteeringOrAnsweringIsAlreadyClosed() = runTest(UnconfinedTestDispatcher()) {
+        val (_, runner, vm) = setup()
+        assertTrue(vm.send("First task"))
+        runner.refuse = true
+        assertFalse(vm.send("Follow-up"))
+        runner.card.value = ChatCard.Ask("Which one?", emptyList(), id = 7)
+        assertFalse(vm.send("My answer"))
+        assertTrue(runner.answers.isEmpty())
+        assertTrue(runner.steered.isEmpty())
+        assertEquals(1, runner.sent.size)
     }
 
     @Test
@@ -474,10 +565,15 @@ class ChatViewModelTest {
     /** The runner moved a run to a new conversation (its own was deleted meanwhile): the screen goes along. */
     @Test
     fun theScreenFollowsARunMovedToANewConversation() = runTest(UnconfinedTestDispatcher()) {
-        val (repo, runner, vm) = setup()
+        val repo = InMemoryChatRepository()
+        val runner = FakeRunner(repo, backgroundScope)
+        val moves = mutableListOf<Pair<Long?, Long>>()
+        val vm = ChatViewModel(repo, runner, backgroundScope, onDraftMoved = { from, to -> moves += from to to })
         val a = repo.createConversation("a")
         vm.select(a)
         assertTrue(vm.send("작업"))
+        val followUp = Attachment.image("next.jpg")
+        vm.attach(listOf(followUp))
         repo.delete(a)
         advanceUntilIdle()
         assertEquals("kept while its run is moving", a, vm.current.value)
@@ -485,6 +581,8 @@ class ChatViewModelTest {
         runner.activeConversation.value = moved
         advanceUntilIdle()
         assertEquals(moved, vm.current.value)
+        assertEquals(listOf<Pair<Long?, Long>>(a to moved), moves)
+        assertEquals(listOf(followUp), vm.pending.value)
     }
 
     /** Activity recreation between send and follow: the new screen follows the run again (Stop stays here). */
@@ -496,13 +594,15 @@ class ChatViewModelTest {
         assertTrue(vm.followingNew.value)
         val stale = vm.followStale
 
-        val recreated = ChatViewModel(repo, runner, backgroundScope)
+        val moves = mutableListOf<Pair<Long?, Long>>()
+        val recreated = ChatViewModel(repo, runner, backgroundScope, onDraftMoved = { from, to -> moves += from to to })
         assertFalse(recreated.runningHere.value)
-        recreated.resumeFollowing(stale)
+        recreated.resumeFollowing(stale, vm.moveDraftOnFollow)
         assertTrue(recreated.runningHere.value)
         val id = repo.createConversation("새 작업")
         runner.activeConversation.value = id
         advanceUntilIdle()
         assertEquals(id, recreated.current.value)
+        assertEquals(listOf<Pair<Long?, Long>>(null to id), moves)
     }
 }

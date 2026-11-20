@@ -43,15 +43,20 @@ interface ChatRunner {
         fromCard: Boolean = false,
         attachments: List<Attachment> = emptyList(),
     ): Boolean
-    fun steer(text: String)
+    fun steer(text: String): Boolean
     fun stop()
 
     /** Stops the run and returns once it has fully ended (its last writes done). */
     suspend fun stopAndWait() = stop()
-    fun answer(cardId: Long, text: String)
+    fun answer(cardId: Long, text: String): Boolean
 }
 
 private val NO_SEARCHES: StateFlow<Int> = MutableStateFlow(0)
+
+internal class AttachmentDraft {
+    val files = MutableStateFlow<List<Attachment>>(emptyList())
+    val room: Int get() = Attachment.MAX_PER_MESSAGE - files.value.size
+}
 
 fun AgentRunner.asChatRunner(): ChatRunner {
     val runner = this
@@ -83,6 +88,7 @@ class ChatViewModel(
     private val onTypedAsk: (text: String, conversationId: Long) -> Unit = { _, _ -> },
     /** Conversations the user deleted (their asks.json entries go too). */
     private val onDeleted: (Set<Long>) -> Unit = {},
+    private val onDraftMoved: (from: Long?, to: Long) -> Unit = { _, _ -> },
 ) {
     private val _current = MutableStateFlow<Long?>(null)
 
@@ -112,20 +118,28 @@ class ChatViewModel(
             running && current != null && active == current && msgs.lastOrNull()?.role == MessageRole.USER
         }.stateIn(scope, SharingStarted.Eagerly, false)
 
-    private val _pending = MutableStateFlow<List<Attachment>>(emptyList())
+    private val attachmentDrafts = mutableMapOf<Long?, AttachmentDraft>()
 
-    /** Attachments of the composer draft; they go with the next message. Kept across conversations, like the text. */
-    val pending: StateFlow<List<Attachment>> = _pending.asStateFlow()
+    private fun draftFor(id: Long?) = attachmentDrafts.getOrPut(id, ::AttachmentDraft)
 
-    /** Adds to the draft up to [Attachment.MAX_PER_MESSAGE]; returns the ones that did not fit (their files can go). */
-    fun attach(list: List<Attachment>): List<Attachment> {
-        val room = (Attachment.MAX_PER_MESSAGE - _pending.value.size).coerceAtLeast(0)
-        _pending.value = _pending.value + list.take(room)
+    /** Attachments of the visible draft. Reads during Send use its exact owner even before the UI redraws. */
+    val pending = current.flatMapLatest { draftFor(it).files }
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    /** An import holds this draft through navigation and through assignment of a new conversation ID. */
+    internal fun attachmentDraft(): AttachmentDraft = draftFor(_current.value)
+
+    internal fun attachTo(draft: AttachmentDraft, list: List<Attachment>): List<Attachment> {
+        if (draft !in attachmentDrafts.values) return list // The conversation was deleted while importing.
+        val room = draft.room
+        draft.files.value += list.take(room)
         return list.drop(room)
     }
 
+    fun attach(list: List<Attachment>): List<Attachment> = attachTo(attachmentDraft(), list)
+
     fun detach(attachment: Attachment) {
-        _pending.value = _pending.value - attachment
+        attachmentDraft().files.value -= attachment
     }
 
     /** Set when a send started a new conversation; the screen follows it once the runner has created it. */
@@ -173,13 +187,18 @@ class ChatViewModel(
     /** The run's conversation when [followingNew] was set: not the one to follow. */
     val followStale: Long? get() = staleActive
 
+    /** Only a send from the new-chat composer transfers its draft when the run gets a conversation. */
+    var moveDraftOnFollow = false
+        private set
+
     /**
      * Back after activity recreation while a new chat was being followed: follow it again, so its run stays
      * "here" (Stop and steering) and the screen opens its conversation once the runner has created it.
      */
-    fun resumeFollowing(stale: Long?) {
+    fun resumeFollowing(stale: Long?, moveDraft: Boolean = false) {
         if (_current.value != null) return
         staleActive = stale
+        moveDraftOnFollow = moveDraft
         following.value = true
         follow(runner.activeConversation.value)
         if (!runner.running.value) following.value = false
@@ -223,7 +242,15 @@ class ChatViewModel(
         val from = sentTo ?: return
         if (active == null || active == from) return
         sentTo = null
-        if (_current.value == from) _current.value = active
+        if (_current.value == from) {
+            moveDraft(from, active)
+            _current.value = active
+        }
+    }
+
+    private fun moveDraft(from: Long?, to: Long) {
+        attachmentDrafts.remove(from)?.let { attachmentDrafts[to] = it }
+        onDraftMoved(from, to)
     }
 
     private fun follow(active: Long?) {
@@ -233,7 +260,13 @@ class ChatViewModel(
             typedAsk = null
             onTypedAsk(text, active)
         }
-        if (_current.value == null) _current.value = active
+        if (_current.value == null) {
+            if (moveDraftOnFollow) {
+                moveDraft(null, active)
+                sentTo = active // The initial id can still be replaced while storing the first message.
+            }
+            _current.value = active
+        }
     }
 
     /**
@@ -243,33 +276,31 @@ class ChatViewModel(
      */
     fun send(text: String): Boolean {
         val t = text.trim()
-        val files = _pending.value
+        val draft = attachmentDraft().files
+        val files = draft.value
         if (t.isEmpty() && files.isEmpty()) return false
         val open = runner.card.value
         if (files.isNotEmpty() && (open != null || runner.running.value)) return false
         return when {
             // Only a question of the run shown here; elsewhere the text is a steer or stays in the composer.
-            open is ChatCard.Ask && open.belongsTo(_current.value) -> {
-                runner.answer(open.id, t)
-                true
-            }
+            open is ChatCard.Ask && open.belongsTo(_current.value) -> runner.answer(open.id, t)
             // Only the run shown here can be steered; text typed elsewhere stays in the composer.
             runner.running.value -> {
                 val here = isHere(true, runner.activeConversation.value, _current.value, following.value)
-                if (here) runner.steer(t)
-                here
+                here && runner.steer(t)
             }
             else -> {
                 val target = _current.value
                 if (target == null) {
                     staleActive = runner.activeConversation.value
+                    moveDraftOnFollow = true
                     following.value = true
                     typedAsk = t.takeIf { it.isNotEmpty() }
                 }
                 if (target != null) sentTo = target
                 runner.send(target, t, attachments = files).also { started ->
                     if (started) {
-                        _pending.value = _pending.value - files.toSet()
+                        draft.value -= files.toSet()
                     } else {
                         sentTo = null
                         following.value = false
@@ -298,6 +329,7 @@ class ChatViewModel(
         if (runner.running.value || runner.card.value != null) return false
         _current.value = null
         staleActive = runner.activeConversation.value
+        moveDraftOnFollow = false
         following.value = true
         typedAsk = null
         return runner.send(null, text, fromCard = true).also { started -> if (!started) following.value = false }
@@ -313,6 +345,7 @@ class ChatViewModel(
         if (t.isEmpty() || runner.running.value || runner.card.value != null) return false
         _current.value = null
         staleActive = runner.activeConversation.value
+        moveDraftOnFollow = false
         following.value = true
         typedAsk = null
         return runner.send(null, t).also { started -> if (!started) following.value = false }
@@ -340,6 +373,7 @@ class ChatViewModel(
     fun delete(id: Long) {
         if (runner.running.value && runner.activeConversation.value == id) runner.stop()
         if (_current.value == id) newChat()
+        attachmentDrafts.remove(id)
         scope.launch {
             repo.delete(id)
             onDeleted(setOf(id))
@@ -348,6 +382,8 @@ class ChatViewModel(
 
     fun deleteAll() {
         newChat()
+        attachmentDrafts.values.forEach { it.files.value = emptyList() }
+        attachmentDrafts.keys.removeAll { it != null }
         scope.launch {
             // The run ends (and makes its last writes) before anything is deleted.
             if (runner.running.value) runner.stopAndWait()

@@ -71,6 +71,11 @@ import com.phoneuse.ui.cards.LocalCardStates
 import androidx.compose.runtime.CompositionLocalProvider
 import com.phoneuse.ui.chat.ChatScreen
 import com.phoneuse.ui.chat.ChatViewModel
+import com.phoneuse.ui.chat.ConversationDraft
+import com.phoneuse.ui.chat.ConversationDrafts
+import com.phoneuse.ui.chat.appendSpeech
+import com.phoneuse.ui.chat.rememberAttachActions
+import com.phoneuse.ui.chat.rememberConversationDraft
 import com.phoneuse.ui.chat.DrawerContent
 import com.phoneuse.ui.chat.ModelChoices
 import com.phoneuse.ui.chat.ModelSheet
@@ -323,7 +328,11 @@ private fun AppRoot(
         ChatViewModel(
             AppGraph.chats, AppGraph.runner.asChatRunner(), scope,
             onTypedAsk = { text, id -> ProactiveSystem.get(context).typed(text, id) },
-            onDeleted = { ProactiveSystem.get(context).conversationsGone(it) },
+            onDraftMoved = ConversationDrafts::move,
+            onDeleted = {
+                ConversationDrafts.forget(it)
+                ProactiveSystem.get(context).conversationsGone(it)
+            },
         )
     }
 
@@ -332,13 +341,15 @@ private fun AppRoot(
     var savedCurrent by rememberSaveable { mutableStateOf<Long?>(null) }
     var savedFollowing by rememberSaveable { mutableStateOf(false) }
     var savedStale by rememberSaveable { mutableStateOf<Long?>(null) }
+    var savedMoveDraft by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(vm) {
         val restore = savedCurrent
-        if (restore != null) vm.select(restore) else if (savedFollowing) vm.resumeFollowing(savedStale)
+        if (restore != null) vm.select(restore) else if (savedFollowing) vm.resumeFollowing(savedStale, savedMoveDraft)
         launch {
             vm.followingNew.collect {
                 savedFollowing = it
                 savedStale = vm.followStale
+                savedMoveDraft = vm.moveDraftOnFollow
             }
         }
         vm.current.collect {
@@ -531,10 +542,7 @@ private fun AppRoot(
     BackHandler(enabled = screen == Screen.NUDGES) { screen = Screen.SETTINGS }
     val routineList by remember { com.phoneuse.routine.RoutineSystem.get(context).store.routines }.collectAsState()
 
-    // The composer draft lives here, and the chat pane is movable content, so folding or unfolding (which
-    // moves the pane between the drawer layout and the two-pane layout) keeps the draft, the scroll
-    // position and a pending voice-input result.
-    var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
+    val draftState = rememberConversationDraft(current)
     // A home-screen widget's prompt: started like text from the composer (typed) or a card button (chips, tiles),
     // so every confirmation still applies. While a run is going it waits in the composer instead.
     LaunchedEffect(promptRequest) {
@@ -550,21 +558,27 @@ private fun AppRoot(
             else -> vm.startTyped(p.text)
         }
         if (!started) {
-            if (p.typed) draft = TextFieldValue(p.text)
+            if (p.typed) ConversationDrafts.state(vm.current.value).value = TextFieldValue(p.text)
             Toast.makeText(context, tr("You can do that when the current task finishes", "지금 작업이 끝나면 할 수 있어요"), Toast.LENGTH_SHORT).show()
         }
     }
-    val chatPane = remember(vm) {
-        movableContentOf { showMenu: Boolean, modifier: Modifier, layout: ChatPaneLayout ->
+    // The picker and import scope survive even when a fold layout temporarily has no chat pane.
+    val attach = rememberAttachActions(vm, chatPaneState)
+    val chatPane = remember(vm, attach) {
+        movableContentOf { showMenu: Boolean, modifier: Modifier, layout: ChatPaneLayout, composer: Pair<Long?, ConversationDraft> ->
+            val (owner, ownerDraft) = composer
             ChatScreen(
                 vm = vm,
+                current = owner,
+                attach = attach,
                 model = model,
                 fast = fast && authMode?.let { ModelProviders.supportsFast(it) } == true,
                 showMenuButton = showMenu,
                 onMenu = { scope.launch { drawerState.open() } },
                 onModelChip = { sheetOpen = true },
-                input = draft,
-                onInput = { draft = it },
+                input = ownerDraft.value,
+                onInput = { ownerDraft.value = it },
+                onAppendSpeech = { ownerDraft.value = ownerDraft.value.appendSpeech(it) },
                 modifier = modifier,
                 memoryIds = memoryIds,
                 onForgetMemory = { memoryId -> memoryAction { AppGraph.memories.delete(memoryId) } },
@@ -784,7 +798,7 @@ private fun AppRoot(
                         }
                         Box(Modifier.width(1.dp).fillMaxHeight().background(c.line))
                         Box(Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(topInsets), contentAlignment = Alignment.TopCenter) {
-                            chatPane(false, Modifier.widthIn(max = 560.dp), ChatPaneLayout.NORMAL)
+                            chatPane(false, Modifier.widthIn(max = 560.dp), ChatPaneLayout.NORMAL, current to draftState)
                         }
                     }
                     // Board UnfoldedFlex: the whole screen; opening the device flat again returns to the chat.
@@ -813,7 +827,7 @@ private fun AppRoot(
                                 Box(Modifier.width(1.dp).fillMaxHeight().background(c.line))
                             }
                             Box(Modifier.width(chatColumn).fillMaxHeight().windowInsetsPadding(topInsets)) {
-                                chatPane(!fold.listRail, Modifier.fillMaxSize(), ChatPaneLayout.BESIDE_RESULT)
+                                chatPane(!fold.listRail, Modifier.fillMaxSize(), ChatPaneLayout.BESIDE_RESULT, current to draftState)
                             }
                             Box(Modifier.width(1.dp).fillMaxHeight().background(c.line))
                             ResultPane(card, onResultAction, Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(topInsets))
@@ -824,7 +838,7 @@ private fun AppRoot(
                         Box(Modifier.fillMaxSize().background(c.bg).windowInsetsPadding(topInsets)) {
                             // Board UnfoldedSplit: a small window beside the app being operated shows the progress only.
                             val layout = if (fold.mode == FoldMode.SPLIT_PROGRESS) ChatPaneLayout.PROGRESS else ChatPaneLayout.NORMAL
-                            chatPane(true, Modifier.fillMaxSize(), layout)
+                            chatPane(true, Modifier.fillMaxSize(), layout, current to draftState)
                         }
                     }
                 }

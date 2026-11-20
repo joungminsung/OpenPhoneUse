@@ -18,7 +18,7 @@ import org.junit.Test
 class OverlayUserGateTest {
     private class FakeSink : CardSink {
         override val state = MutableStateFlow(AgentUiState(phase = AgentPhase.THINKING))
-        override var onCardResult: (Long, String) -> Unit = { _, _ -> }
+        override var onCardResult: (Long, String) -> Boolean = { _, _ -> false }
         override var isClosed = false
         override var onClosed: () -> Unit = {}
 
@@ -58,12 +58,13 @@ class OverlayUserGateTest {
         val first = async { gate.ask("q1", listOf("a", "b")) }
         advanceUntilIdle()
         val firstId = sink.state.value.card!!.id
-        sink.onCardResult(firstId, "a")
+        assertTrue(sink.onCardResult(firstId, "a"))
+        assertFalse(sink.onCardResult(firstId, "b"))
         assertEquals("a", first.await())
 
         val second = async { gate.ask("q2", listOf("c")) }
         advanceUntilIdle()
-        sink.onCardResult(firstId, "b") // double tap on the old card
+        assertFalse(sink.onCardResult(firstId, "b")) // double tap on the old card
         advanceUntilIdle()
         assertTrue(second.isActive)
         sink.onCardResult(sink.state.value.card!!.id, "c")

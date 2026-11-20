@@ -30,7 +30,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 import java.util.Base64
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface AgentEvent {
@@ -90,20 +89,27 @@ sealed interface AgentEvent {
 
 /** Thread-safe mailbox for mid-task user instructions. */
 class SteeringQueue {
-    private val queue = ConcurrentLinkedQueue<String>()
+    private val queue = ArrayList<String>()
+    private var closed = false
 
-    fun post(text: String) {
-        queue.add(text)
+    @Synchronized fun post(text: String): Boolean {
+        if (closed) return false
+        return queue.add(text)
     }
 
-    fun drain(): List<String> {
-        val out = ArrayList<String>()
-        while (true) out += queue.poll() ?: break
-        return out
+    @Synchronized fun drain(): List<String> = queue.toList().also { queue.clear() }
+
+    /** A finish and an explicit send race here: either the run continues with the text or the sender keeps it. */
+    @Synchronized fun closeIfEmpty(): Boolean {
+        if (queue.isNotEmpty()) return false
+        closed = true
+        return true
     }
+
+    @Synchronized fun close() { closed = true }
 
     /** Whether an instruction is waiting (it stays queued). */
-    fun pending(): Boolean = queue.isNotEmpty()
+    @Synchronized fun pending(): Boolean = queue.isNotEmpty()
 }
 
 /**
@@ -160,21 +166,25 @@ class AgentLoop(
         attached: Boolean = images.isNotEmpty(),
         note: String? = null,
     ): Flow<AgentEvent> = flow {
-        try {
+        val failure = try {
             if (attached) executor.markThirdParty()
             // The user's own words, which a send's user_authorized is checked against once the run read other text.
             // A message with attachments may carry file text the user did not write, so it does not count.
             if (!attached) executor.userSaid(message)
             loop(history, message, observeFirst, images, note)
+            return@flow
         } catch (e: CancellationException) {
             throw e
         } catch (e: ServiceUnavailableException) {
-            emit(AgentEvent.Failed(tr("Accessibility service was turned off", "접근성 서비스가 꺼졌어요")))
+            AgentEvent.Failed(tr("Accessibility service was turned off", "접근성 서비스가 꺼졌어요"))
         } catch (e: Fail) {
-            emit(AgentEvent.Failed(e.message, e.code))
+            AgentEvent.Failed(e.message, e.code)
         } catch (e: Exception) {
-            emit(AgentEvent.Failed(tr("Error: ${e.message}", "오류: ${e.message}")))
+            AgentEvent.Failed(tr("Error: ${e.message}", "오류: ${e.message}"))
+        } finally {
+            steering.close()
         }
+        emit(failure)
     }
 
     private class Fail(override val message: String, val code: String? = null) : Exception(message)
@@ -345,7 +355,7 @@ class AgentLoop(
                 // An empty reply is a fault (a response we failed to read), never a silent success.
                 val text = turn.text ?: throw Fail(tr("Error: the model's reply was empty. Please try again", "오류: 모델 답이 비어 있어요. 다시 시도해 주세요"))
                 // The user wrote while this answer was being written: it goes on with the new instruction.
-                if (steering.pending()) {
+                if (!steering.closeIfEmpty()) {
                     input += turn.reasoning
                     emit(AgentEvent.Log(text))
                     input += InputItem.AssistantText(text)
@@ -402,7 +412,7 @@ class AgentLoop(
                     TRACE.info("step=$step call=${call.name} args=${call.argumentsJson.take(300)} -> ${result.output.take(1500).replace('\n', '|')}")
                 }
                 // The user wrote while the run was finishing: it goes on with the new instruction instead.
-                val overridden = result.finishedSummary != null && steering.pending()
+                val overridden = result.finishedSummary != null && !steering.closeIfEmpty()
                 val output = if (overridden) NOT_FINISHED else result.output
                 input += call
                 addOutput(InputItem.FunctionOutput(call.callId, annotate(output, step, description, result.screen)), result.screen)

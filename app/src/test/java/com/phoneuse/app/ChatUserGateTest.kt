@@ -54,14 +54,15 @@ class ChatUserGateTest {
         val first = async { gate.ask("q1", listOf("a", "b")) }
         advanceUntilIdle()
         val firstId = gate.card.value!!.id
-        gate.answer(firstId, "a")
+        assertTrue(gate.answer(firstId, "a"))
+        assertFalse(gate.answer(firstId, "b"))
         assertEquals("a", first.await())
 
         val second = async { gate.ask("q2", listOf("c")) }
         advanceUntilIdle()
         val card = gate.card.value as ChatCard.Ask
         assertEquals("q2", card.question)
-        gate.answer(firstId, "b") // a late tap on the old card
+        assertFalse(gate.answer(firstId, "b")) // a late tap on the old card
         gate.answer(card.id + 1, "x") // an id that was never issued
         advanceUntilIdle()
         assertTrue(second.isActive)

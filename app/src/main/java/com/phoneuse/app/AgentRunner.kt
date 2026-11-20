@@ -74,6 +74,7 @@ import com.phoneuse.notify.NeedsOk
 import com.phoneuse.notify.Notifier
 import com.phoneuse.notify.UpdateThrottle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -315,12 +316,13 @@ class AgentRunner(
         job?.cancelAndJoin()
     }
 
-    fun steer(text: String) {
-        if (finishing) return
-        val queue = steering ?: return
-        queue.post(text)
+    fun steer(text: String): Boolean {
+        if (finishing || job?.isActive != true) return false
+        val queue = steering ?: return false
+        if (!queue.post(text)) return false
         steps?.let { publishStep(it, tr("Me: $text", "나: $text")) }
         session?.addLine(tr("Me: $text", "나: $text"))
+        return true
     }
 
     private suspend fun run(
@@ -341,6 +343,7 @@ class AgentRunner(
             runBody(st, conversationId, text, source, overlay, attachments, routine, suggested)
         } finally {
             st.watcher?.cancel()
+            val runJob = currentCoroutineContext().job
             withContext(NonCancellable) {
                 // The run slot is freed by the job's completion (RunSlot, see send()), never here.
                 endRun(
@@ -350,6 +353,7 @@ class AgentRunner(
                         st.runExecutor?.thirdPartySeen == true, st.cancelled, source, st.learned, st.tipsOn, st.modelCalls.get(),
                         st.deviceUsed, st.stayInApp, st.outcome, st.runTitle, routine, st.serviceLost.get(), st.failureCode,
                     ),
+                    runJob,
                 )
             }
         }
@@ -372,7 +376,8 @@ class AgentRunner(
         // Shows the overlay; from then on, losing the accessibility service cancels the run as a failure.
         suspend fun engage(): Boolean {
             if (overlay.active) return true
-            if (!overlay.engage(tr("Start: $text", "시작: $text"))) return false
+            val id = st.conversation ?: return false
+            if (!overlay.engage(id, tr("Start: $text", "시작: $text"))) return false
             // A routine never turns the screen on by itself (it may fire at 3 a.m.); it only keeps a lit one on.
             awake.hold(wakeUp = source != Source.ROUTINE)
             st.watcher = scope.launch {
@@ -723,7 +728,7 @@ class AgentRunner(
     )
 
     /** The end of a run: touches back, the reply stored, usage and tips recorded, and the user told. */
-    private suspend fun endRun(e: EndOfRun) {
+    private suspend fun endRun(e: EndOfRun, runJob: Job) {
         steering = null
         steps = null
         // Touches come back first, before any storage work.
@@ -748,12 +753,6 @@ class AgentRunner(
                 )
             } catch (x: Exception) {
                 Log.e(TAG, "saving the reply failed", x)
-            }
-            // Settings "답 소리 내어 읽기": the finished reply, never a routine's (nobody may be listening).
-            if (!e.cancelled && e.source != Source.ROUTINE) {
-                guarded("read aloud") {
-                    if (settings.readAloud.first()) ReadAloud.speak(context, answer, settings.voiceLanguage.first().tag)
-                }
             }
         }
         // Also when no reply was stored (or storing it failed): the next run must start tainted.
@@ -787,8 +786,16 @@ class AgentRunner(
         _liveSearches.value = 0
         // A run from the chat that operated another app brings the chat back, showing the reply.
         val usedDevice = e.deviceUsed && !uiVisible.value
+        val shouldReturn = ReturnPolicy.shouldReturn(e.source, usedDevice, e.stayInApp, e.outcome)
+        // Finish any open dictation before bringing another activity forward or reading the reply aloud.
+        val last = e.overlay.release(if (e.cancelled || shouldReturn) 0 else RESULT_LINGER_MS, runJob)
+        if (id != null && answer != null && !e.cancelled && e.source != Source.ROUTINE) {
+            guarded("read aloud") {
+                if (settings.readAloud.first()) ReadAloud.speak(context, answer, settings.voiceLanguage.first().tag)
+            }
+        }
         var returned = false
-        if (id != null && ReturnPolicy.shouldReturn(e.source, usedDevice, e.stayInApp, e.outcome)) {
+        if (id != null && shouldReturn) {
             val launchedAt = SystemClock.elapsedRealtime()
             guarded("return to chat") {
                 MainActivity.open(PhoneUseAccessibilityService.instance ?: context, id)
@@ -808,8 +815,6 @@ class AgentRunner(
                 }
             }
         }
-        // Stop (or going back to the chat) hides at once; other endings leave the last line up briefly.
-        val last = e.overlay.release(if (e.cancelled || returned) 0 else RESULT_LINGER_MS)
         // The whole reply, not the overlay's last line: the notification shows its first line and expands.
         val summary = answer ?: last
         if (e.source == Source.ROUTINE) {
