@@ -4,6 +4,8 @@ All notable changes to OpenPhoneUse are listed here, newest first. The format fo
 
 ## [Unreleased]
 
+- **Enter a PIN during handoff.** The agent waits in a compact bar near the top, leaving room for the app’s keypad. Tap **Move** to uncover another control, or **Done, continue** when you finish.
+
 ## [0.0.7] - 2026-11-15
 
 - **Any OpenAI-compatible server.** A new "Other" provider takes a base URL and an API key. Presets fill in OpenRouter, Groq, Mistral, Together, DeepSeek, Ollama and LM Studio, or you can enter any server that speaks Chat Completions, then pick a model from the list it offers. A local server may need no key. The model must support tool calling. Plain http works only for a server on the phone itself; anything else needs https.

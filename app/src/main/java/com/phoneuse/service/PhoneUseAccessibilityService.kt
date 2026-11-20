@@ -108,7 +108,7 @@ class PhoneUseAccessibilityService : AccessibilityService() {
      * system windows (status bar with its clock and speed meter, navigation bar). A large system window (the
      * notification shade pulled down) still counts.
      */
-    private fun refreshIgnoredWindows() {
+    internal fun refreshIgnoredWindows() {
         val ws = try {
             windows
         } catch (_: RuntimeException) {
@@ -134,6 +134,7 @@ class PhoneUseAccessibilityService : AccessibilityService() {
             if (noise) ignored.add(w.id)
         }
         idleWaiter.ignoredWindows = ignored
+        overlay?.onHandoffWindowsChanged(ws)
     }
 
     override fun onInterrupt() = Unit
