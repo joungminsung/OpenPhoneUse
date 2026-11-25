@@ -1,5 +1,6 @@
 package com.phoneuse.assist
 
+import com.phoneuse.app.AssistAction
 import com.phoneuse.chat.Conversation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -8,6 +9,7 @@ import kotlinx.coroutines.test.runCurrent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -121,5 +123,39 @@ class AssistSendTest {
         scope.runCurrent()
         assertEquals(listOf(300L), waits)
         assertNull(sentTo)
+    }
+
+    private fun listensOnOpen(
+        action: AssistAction? = AssistAction.TYPE,
+        openedBySystem: Boolean = true,
+        micGranted: Boolean = true,
+        inSheetRecognizer: Boolean = true,
+        canStartTask: Boolean = true,
+        keyguardLocked: Boolean = false,
+        screenOn: Boolean = true,
+        touchExploration: Boolean = false,
+    ) = shouldListenOnOpen(
+        action, openedBySystem, micGranted, inSheetRecognizer, canStartTask, keyguardLocked, screenOn, touchExploration,
+    )
+
+    @Test
+    fun onlyASavedTalkRightAwayListensOnOpen() {
+        assertTrue(listensOnOpen())
+        assertFalse(listensOnOpen(action = AssistAction.SUGGEST))
+        // The saved mode could not be read.
+        assertFalse(listensOnOpen(action = null))
+    }
+
+    @Test
+    fun listeningOnOpenWaitsForATapWhereSpeakingIsUnsafeOrImpossible() {
+        assertFalse(listensOnOpen(keyguardLocked = true))
+        // The screen went dark between the long press and the moment the microphone would open.
+        assertFalse(listensOnOpen(screenOn = false))
+        assertFalse(listensOnOpen(touchExploration = true))
+        assertFalse(listensOnOpen(micGranted = false))
+        assertFalse(listensOnOpen(inSheetRecognizer = false))
+        assertFalse(listensOnOpen(canStartTask = false))
+        // An app opened the sheet, not the side button or the assist gesture.
+        assertFalse(listensOnOpen(openedBySystem = false))
     }
 }

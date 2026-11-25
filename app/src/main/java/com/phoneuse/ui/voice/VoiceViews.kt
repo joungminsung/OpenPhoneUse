@@ -237,7 +237,10 @@ fun VoiceCaption(state: VoiceState, idleTitle: String, idleHint: String, modifie
             VoicePhase.ERROR -> VoiceErrorText(state, fontSize = 14.5f, align = align)
             else -> {
                 Text(
-                    state.partial.ifEmpty { tr("Listening…", "듣고 있어요…") },
+                    state.partial.ifEmpty {
+                        if (state.phase == VoicePhase.STARTING) tr("Opening microphone…", "마이크를 켜는 중…")
+                        else tr("Listening…", "듣고 있어요…")
+                    },
                     Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
                     fontSize = 15.sp,
                     lineHeight = 21.sp,

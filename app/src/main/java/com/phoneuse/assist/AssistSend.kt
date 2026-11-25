@@ -1,6 +1,7 @@
 package com.phoneuse.assist
 
 import com.phoneuse.i18n.tr
+import com.phoneuse.app.AssistAction
 import com.phoneuse.chat.Conversation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -18,6 +19,24 @@ fun assistBlocker(serviceReady: Boolean, running: Boolean): String? = when {
     running -> AssistSender.BUSY
     else -> null
 }
+
+/**
+ * Whether the sheet may open the microphone by itself as it opens. Only a saved "Talk right away" does, and only when
+ * the system opened the sheet, the microphone is already allowed, recognition runs inside the sheet and a task can
+ * start. A locked phone waits for a tap, because dictated words go straight to the agent. So does a phone whose
+ * screen has turned off, and a phone with TalkBack on, whose own announcement the microphone would pick up.
+ */
+fun shouldListenOnOpen(
+    action: AssistAction?,
+    openedBySystem: Boolean,
+    micGranted: Boolean,
+    inSheetRecognizer: Boolean,
+    canStartTask: Boolean,
+    keyguardLocked: Boolean,
+    screenOn: Boolean,
+    touchExploration: Boolean,
+): Boolean = action == AssistAction.TYPE && openedBySystem && micGranted && inSheetRecognizer && canStartTask &&
+    !keyguardLocked && screenOn && !touchExploration
 
 /** What [AssistSender.submit] did with a message. */
 sealed interface SubmitResult {

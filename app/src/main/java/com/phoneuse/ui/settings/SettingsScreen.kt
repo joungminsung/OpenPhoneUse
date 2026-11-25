@@ -45,7 +45,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.Color
-import com.phoneuse.app.AssistAction
 import com.phoneuse.app.ControlSpeed
 import com.phoneuse.app.FontSize
 import com.phoneuse.app.QuietHours
@@ -193,7 +192,7 @@ fun SettingsScreen(
     val confirmSend by settings.confirmSend.collectAsState(true)
     val riskJudge by settings.riskJudge.collectAsState(true)
     val understand by settings.understandNotifications.collectAsState(true)
-    val assistAction by settings.assistAction.collectAsState(AssistAction.SUGGEST)
+    val assistAction by settings.assistAction.collectAsState(SettingsStore.DEFAULT_ASSIST_ACTION)
     val speed by settings.controlSpeed.collectAsState(ControlSpeed.NORMAL)
     val summaryMinute by settings.summaryMinute.collectAsState(SettingsStore.DEFAULT_SUMMARY_MINUTE)
     val quiet by settings.quietHours.collectAsState(QuietHours())

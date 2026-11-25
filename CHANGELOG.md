@@ -4,6 +4,7 @@ All notable changes to OpenPhoneUse are listed here, newest first. The format fo
 
 ## [Unreleased]
 
+- The default assistant shows its input and microphone as soon as the sheet opens. With “Talk right away” selected, the sheet listens at once when the phone is unlocked, microphone permission is granted and an in-app recognizer is available. Tap the text field to switch to typing; words already heard stay in the field. Turning the screen off stops the listening and keeps them the same way. “Ideas for this screen” stays the default. (#37)
 - In a batch, the step right after a two-finger rotation or swipe checks screen capture again even when the screen looks unchanged, and a two-finger gesture makes one capture check before it starts instead of two.
 
 ## [0.0.8] - 2026-11-23

@@ -30,7 +30,7 @@ enum class ReasoningEffort { LOW, MEDIUM, HIGH }
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
-/** Settings "측면 버튼 길게 누르기": suggestions for the screen underneath, or only the input. */
+/** The side-button modes. TYPE is the stored name for "Talk right away". */
 enum class AssistAction { SUGGEST, TYPE }
 
 /** Settings "조작 속도": every settle wait of the agent is multiplied by [waitScale]. */
@@ -167,7 +167,7 @@ class SettingsStore internal constructor(
     /** Settings "알림 내용 분석": notification text goes to the model to sort payments, parcels and replies (on by default). */
     val understandNotifications: Flow<Boolean> = store.data.map { it[UNDERSTAND_NOTIFICATIONS] ?: true }
 
-    val assistAction: Flow<AssistAction> = store.data.map { prefs -> enumOf(prefs[ASSIST_ACTION], AssistAction.SUGGEST) }
+    val assistAction: Flow<AssistAction> = store.data.map { prefs -> enumOf(prefs[ASSIST_ACTION], DEFAULT_ASSIST_ACTION) }
     val controlSpeed: Flow<ControlSpeed> = store.data.map { prefs -> enumOf(prefs[CONTROL_SPEED], ControlSpeed.NORMAL) }
 
     /** Settings "오늘 요약 받기": minute of the day for the daily digest notification; -1 = off. */
@@ -419,6 +419,8 @@ class SettingsStore internal constructor(
     companion object {
         const val DEFAULT_MODEL = "gpt-6.1-terra"
         const val DEFAULT_FAST_MODE = true
+        /** "Ideas for this screen" until the user picks "Talk right away", which may open the microphone by itself. */
+        val DEFAULT_ASSIST_ACTION: AssistAction = AssistAction.SUGGEST
         /** Dictation follows the device language until the user picks one. */
         val DEFAULT_VOICE_LANGUAGE: VoiceLanguage = VoiceLanguage.SYSTEM
         /** The lighter preset routines use when "루틴은 가벼운 모델로" is on. */
