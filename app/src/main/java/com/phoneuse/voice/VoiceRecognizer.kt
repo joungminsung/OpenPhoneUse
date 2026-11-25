@@ -38,10 +38,20 @@ class VoiceRecognizer(
     /** Bumped by every start and cancel, so callbacks from an older session are ignored. */
     private var session = 0
 
+    /** The language of the last [start], and whether that start has already been made again on a new recognizer. */
+    private var language: String? = null
+    private var reconnected = false
+
     /** Which recognizer this device offers; [VoiceEngine.Dialog] means the caller shows the system dialog. */
     val engine: VoiceEngine by lazy { detectEngine(context) }
 
     fun start(languageTag: String) {
+        reconnected = false
+        begin(languageTag)
+    }
+
+    private fun begin(languageTag: String) {
+        language = languageTag
         val engine = engine
         if (engine == VoiceEngine.Dialog) {
             emit(VoiceEvent.Failed(VoiceError.UNAVAILABLE))
@@ -207,6 +217,12 @@ class VoiceRecognizer(
             // A manual stop that ends in "no match" still has whatever was heard.
             if (_state.value.partial.isNotBlank() && voiceErrorOf(error) == VoiceError.NO_MATCH) {
                 finish(emptyList())
+            } else if (shouldReconnect(error, _state.value.partial, reconnected, _state.value.listening)) {
+                // Destroying another recognizer of this app (the assistant's voice sheet has its own) can shut the
+                // speech service down under this one. A kept recognizer then fails every start until it is made anew.
+                reconnected = true
+                releaseRecognizer()
+                language?.let { begin(it) }
             } else {
                 val heard = _state.value.partial
                 session++

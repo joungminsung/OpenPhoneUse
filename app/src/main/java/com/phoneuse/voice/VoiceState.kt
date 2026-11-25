@@ -114,6 +114,14 @@ fun voiceErrorOf(code: Int): VoiceError = when (code) {
 }
 
 /**
+ * True when a start should be made once more on a new recognizer: the service reported that its connection is
+ * gone (SpeechRecognizer.ERROR_SERVER_DISCONNECTED) before anything was heard. Once per tap of the mic, and
+ * only while the mic is meant to be open ([listening]), never after Done.
+ */
+fun shouldReconnect(errorCode: Int, heard: String, alreadyTried: Boolean, listening: Boolean): Boolean =
+    errorCode == 11 && heard.isBlank() && !alreadyTried && listening
+
+/**
  * The recognition language: Settings "음성으로 말하기" (the same choice the old system dialog used), or the
  * device language when it is set to follow the device.
  */

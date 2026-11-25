@@ -12,6 +12,20 @@ import org.junit.Test
 import java.util.Locale
 
 class VoiceStateTest {
+    @Test fun aStartThatFindsTheServiceGoneIsMadeOnceMoreOnANewRecognizer() {
+        val serverDisconnected = 11
+        assertTrue(shouldReconnect(serverDisconnected, heard = "", alreadyTried = false, listening = true))
+        // Once per tap, or a service that stays away would be started in a loop.
+        assertFalse(shouldReconnect(serverDisconnected, heard = "", alreadyTried = true, listening = true))
+        // Words already heard are kept the usual way, through onInterrupted.
+        assertFalse(shouldReconnect(serverDisconnected, heard = "turn off", alreadyTried = false, listening = true))
+        // After Done the mic must not open again by itself.
+        assertFalse(shouldReconnect(serverDisconnected, heard = "", alreadyTried = false, listening = false))
+        // Network trouble and a busy service are reported as before.
+        assertFalse(shouldReconnect(2, heard = "", alreadyTried = false, listening = true))
+        assertFalse(shouldReconnect(8, heard = "", alreadyTried = false, listening = true))
+    }
+
     private fun run(vararg events: VoiceEvent): VoiceState = events.fold(VoiceState()) { s, e -> s.reduce(e) }
 
     @Test fun partialResultsShowLiveAndFinalEndsTheSession() {

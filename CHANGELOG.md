@@ -4,6 +4,7 @@ All notable changes to OpenPhoneUse are listed here, newest first. The format fo
 
 ## [Unreleased]
 
+- The microphone in the chat box works again after you have used the assistant's voice sheet. Before, it showed "No connection for voice input" on every tap until you sent a message or restarted the app.
 - In a batch, the step right after a two-finger rotation or swipe checks screen capture again even when the screen looks unchanged, and a two-finger gesture makes one capture check before it starts instead of two.
 
 ## [0.0.8] - 2026-11-23
