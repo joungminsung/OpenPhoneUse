@@ -68,6 +68,8 @@ class AssistVoiceActivity : ComponentActivity() {
                     },
                     onAudioActivity = { if (id != null) VoiceBridge.heardAudio(id) },
                     canStart = { !done && (id == null || VoiceBridge.activeSession.value == id) },
+                    // The assistant's request is sent as soon as it is heard. A dock dictation goes to a draft.
+                    sendsWithoutTap = id == null,
                 )
                 val dismiss = {
                     // Explicit cancellation discards even a partial the recognizer already delivered.
@@ -120,6 +122,15 @@ class AssistVoiceActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (!externalUi) {
+            interrupt()
+            finish()
+        }
+    }
+
+    /** The screen turned off, or another app came in front: the microphone must not stay open there either. */
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations && !externalUi) {
             interrupt()
             finish()
         }

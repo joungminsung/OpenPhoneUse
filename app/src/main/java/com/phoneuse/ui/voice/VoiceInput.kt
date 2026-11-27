@@ -26,6 +26,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.phoneuse.app.AppGraph
+import com.phoneuse.app.dictationWaitNow
 import com.phoneuse.app.voiceLanguageNow
 import com.phoneuse.i18n.tr
 import com.phoneuse.voice.VoiceEngine
@@ -35,6 +36,8 @@ import com.phoneuse.voice.VoiceRecognizer
 import com.phoneuse.voice.VoiceState
 import com.phoneuse.voice.speechLanguageTag
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -52,7 +55,7 @@ class VoiceInput internal constructor(
     stateHolder: State<VoiceState>,
     private val begin: () -> Unit,
     private val ended: () -> Unit,
-    /** Drops a start still waiting for the dictation language; true when there was one. */
+    /** Drops a start still waiting for the dictation settings; true when there was one. */
     private val cancelPending: () -> Boolean = { false },
 ) {
     val state: VoiceState by stateHolder
@@ -92,6 +95,10 @@ class VoiceInput internal constructor(
  * device without any usable recognizer. [onText] gets the recognised text. [onPartial] receives live
  * revisions. [onInterrupted] receives the last words when the recognizer fails or its host goes away.
  * [onEnd] reports cancellation, a dismissed dialog, or the end of an error message.
+ *
+ * [sendsWithoutTap] is for an input whose [onText] acts on the words at once. The saved dictation wait then
+ * applies only before the first word, and the recognizer's own end of speech ends the session, so the request
+ * goes out as soon as it did before the wait was configurable.
  */
 @Composable
 fun rememberVoiceInput(
@@ -102,6 +109,7 @@ fun rememberVoiceInput(
     onExternalUi: (Boolean) -> Unit = {},
     onAudioActivity: () -> Unit = {},
     canStart: () -> Boolean = { true },
+    sendsWithoutTap: Boolean = false,
 ): VoiceInput {
     val context = LocalContext.current
     val view = LocalView.current
@@ -134,7 +142,7 @@ fun rememberVoiceInput(
         if (text != null) latestText(text) else latestEnd()
     }
     val scope = rememberCoroutineScope()
-    // The start that is still resolving the dictation language; a stop or cancel meanwhile drops it.
+    // The start that is still reading the dictation language and wait; a stop or cancel meanwhile drops it.
     val pending = remember { arrayOfNulls<Job>(1) }
     val cancelPending = {
         val job = pending[0]
@@ -146,20 +154,27 @@ fun rememberVoiceInput(
     val listen = {
         pending[0]?.cancel()
         pending[0] = scope.launch {
-            val language = speechLanguageTag(AppGraph.voiceLanguageNow(), Locale.getDefault())
+            // Read together: each has its own time limit, and one after the other a cold start could wait for both.
+            val (language, wait) = coroutineScope {
+                val savedLanguage = async { AppGraph.voiceLanguageNow() }
+                val savedWait = async { AppGraph.dictationWaitNow() }
+                speechLanguageTag(savedLanguage.await(), Locale.getDefault()) to savedWait.await()
+            }
+            val pause = if (sendsWithoutTap) VoiceRecognizer.SERVICE_PAUSE else wait
             pending[0] = null
-            // A permission dialog or language read can outlive its input or its dock session.
+            // A permission dialog or settings read can outlive its input or its dock session.
             if (!latestCanStart()) return@launch
             if (recognizer.engine == VoiceEngine.Dialog) {
                 try {
                     latestExternalUi(true)
+                    // The system dialog decides by itself when the speaker has finished, as it did before.
                     dialog.launch(dialogIntent(language))
                 } catch (e: RuntimeException) {
                     latestExternalUi(false)
                     recognizer.fail(VoiceError.UNAVAILABLE)
                 }
             } else {
-                recognizer.start(language)
+                recognizer.start(language, wait, pause)
             }
         }
     }
@@ -208,16 +223,25 @@ fun rememberVoiceInput(
 @Composable
 fun rememberDraftVoiceInput(onAppendSpeech: (String) -> Unit, enabled: Boolean = true): VoiceInput {
     val voice = rememberVoiceInput(onText = onAppendSpeech, onInterrupted = onAppendSpeech, canStart = { enabled })
+    // Preserve recognised words before the activity saves its draft, including on rotation.
+    InterruptOnPause(voice)
+    return voice
+}
+
+/**
+ * Closes [voice] when its activity is paused (Home, the screen turning off, a rotation), so the mic is not left
+ * open on a screen nobody is looking at. Words already heard go to the input's `onInterrupted`.
+ */
+@Composable
+fun InterruptOnPause(voice: VoiceInput) {
     val lifecycle = (LocalActivity.current as? LifecycleOwner)?.lifecycle
     DisposableEffect(voice, lifecycle) {
-        // Preserve recognised words before the activity saves its draft, including on rotation.
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE) voice.interrupt()
         }
         lifecycle?.addObserver(observer)
         onDispose { lifecycle?.removeObserver(observer) }
     }
-    return voice
 }
 
 private fun dialogIntent(language: String): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)

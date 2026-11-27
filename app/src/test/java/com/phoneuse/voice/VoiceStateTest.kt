@@ -12,6 +12,20 @@ import org.junit.Test
 import java.util.Locale
 
 class VoiceStateTest {
+    @Test fun aSegmentedSessionIsAskedForOnlyByADraftInputOnAndroid13FromAGoogleService() {
+        val speechServices = VoiceEngine.Service("com.google.android.tts", "x")
+        val googleApp = VoiceEngine.Service("com.google.android.googlequicksearchbox", "x")
+        assertTrue(asksForSegments(33, pauseSeconds = 6, speechServices))
+        assertTrue(asksForSegments(37, pauseSeconds = 3, googleApp))
+        // The request does not exist before Android 13.
+        assertFalse(asksForSegments(32, pauseSeconds = 6, speechServices))
+        // A screen that sends without a tap ends at the service's own end of speech.
+        assertFalse(asksForSegments(37, pauseSeconds = 0, speechServices))
+        // No other service has been seen to answer the request.
+        assertFalse(asksForSegments(37, pauseSeconds = 6, VoiceEngine.Service("com.example.speech", "x")))
+        assertFalse(asksForSegments(37, pauseSeconds = 6, VoiceEngine.OnDevice))
+    }
+
     private fun run(vararg events: VoiceEvent): VoiceState = events.fold(VoiceState()) { s, e -> s.reduce(e) }
 
     @Test fun partialResultsShowLiveAndFinalEndsTheSession() {
@@ -143,5 +157,14 @@ class VoiceStateTest {
     @Test fun unreadableOrSlowSettingsFollowTheDevice() = runTest {
         assertEquals(VoiceLanguage.SYSTEM, voiceLanguageNow(null, read = { throw java.io.IOException() }))
         assertEquals(VoiceLanguage.SYSTEM, voiceLanguageNow(null, read = { delay(5_000); VoiceLanguage.KOREAN }, timeoutMs = 100))
+    }
+
+    @Test fun savedDictationWaitIsReadAtStart() = runTest {
+        assertEquals(10, dictationWaitNow(read = { 10 }))
+    }
+
+    @Test fun unreadableOrSlowSettingsUseTheDefaultDictationWait() = runTest {
+        assertEquals(6, dictationWaitNow(read = { throw java.io.IOException() }))
+        assertEquals(6, dictationWaitNow(read = { delay(5_000); 10 }, timeoutMs = 100))
     }
 }

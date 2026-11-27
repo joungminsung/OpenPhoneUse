@@ -227,3 +227,7 @@ object AppGraph {
 /** The dictation language right now: the loaded choice, else the saved one read, else the device language. */
 suspend fun AppGraph.voiceLanguageNow(): VoiceLanguage =
     com.phoneuse.voice.voiceLanguageNow(voiceLanguage.value, read = { settings.voiceLanguage.first() })
+
+/** The dictation wait right now, in seconds: the saved choice, else the default when it cannot be read in time. */
+suspend fun AppGraph.dictationWaitNow(): Int =
+    com.phoneuse.voice.dictationWaitNow(read = { settings.dictationWaitSeconds.first() })

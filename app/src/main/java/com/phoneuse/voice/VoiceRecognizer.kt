@@ -13,6 +13,7 @@ import android.speech.RecognitionService
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
+import com.phoneuse.app.SettingsStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,13 +36,25 @@ class VoiceRecognizer(
     private var recognizer: SpeechRecognizer? = null
     private var recognizerEngine: VoiceEngine? = null
 
+    /** The session in flight, or the last one. It keeps the mic open across the service's own endings. */
+    private var dictation: DictationSession? = null
+
     /** Bumped by every start and cancel, so callbacks from an older session are ignored. */
     private var session = 0
 
     /** Which recognizer this device offers; [VoiceEngine.Dialog] means the caller shows the system dialog. */
     val engine: VoiceEngine by lazy { detectEngine(context) }
 
-    fun start(languageTag: String) {
+    /**
+     * Opens the mic. It waits [waitSeconds] for the first words and [pauseSeconds] after the last ones, however
+     * early the recognition service ends an utterance. A screen that sends what it hears without a tap passes
+     * [SERVICE_PAUSE]: it then ends when the service does, a second or two after the last word.
+     */
+    fun start(
+        languageTag: String,
+        waitSeconds: Int = SettingsStore.DEFAULT_DICTATION_WAIT_SECONDS,
+        pauseSeconds: Int = waitSeconds,
+    ) {
         val engine = engine
         if (engine == VoiceEngine.Dialog) {
             emit(VoiceEvent.Failed(VoiceError.UNAVAILABLE))
@@ -49,13 +62,13 @@ class VoiceRecognizer(
         }
         val id = ++session
         main.removeCallbacksAndMessages(null)
+        dictation?.close()
         val r = recognizerFor(engine) ?: run {
             emit(VoiceEvent.Start)
             emit(VoiceEvent.Failed(VoiceError.UNAVAILABLE))
             return
         }
         emit(VoiceEvent.Start)
-        r.setRecognitionListener(Listener(id))
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
@@ -63,12 +76,14 @@ class VoiceRecognizer(
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageTag)
             .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-        try {
-            r.startListening(intent)
-        } catch (e: RuntimeException) {
-            Log.w(TAG, "speech recognition could not start", e)
-            emit(VoiceEvent.Failed(VoiceError.UNAVAILABLE))
-        }
+        // A draft input asks the service to listen on through pauses. No other request carries a length or a
+        // silence extra: without a segmented session they put Google's service into a mode whose final is empty.
+        val segmented = asksForSegments(Build.VERSION.SDK_INT, pauseSeconds, engine)
+        if (segmented) intent.withSegmentedSession()
+        // A start that fails is reported through the listener, like any other recognizer error.
+        val started = DictationSession(r, intent, waitSeconds, pauseSeconds, segmented, Listener(id))
+        dictation = started
+        started.listen()
     }
 
     /** Done: stop listening and keep what was said (the final text follows shortly). */
@@ -76,7 +91,7 @@ class VoiceRecognizer(
         if (!_state.value.listening) return
         emit(VoiceEvent.EndOfSpeech)
         awaitFinal()
-        runCatching { recognizer?.stopListening() }
+        dictation?.stop()
     }
 
     /** Some engines never return a final. Recover their last words if they stop responding. */
@@ -94,7 +109,7 @@ class VoiceRecognizer(
     fun cancel() {
         session++
         main.removeCallbacksAndMessages(null)
-        runCatching { recognizer?.cancel() }
+        dictation?.close()
         emit(VoiceEvent.Reset)
     }
 
@@ -122,6 +137,8 @@ class VoiceRecognizer(
     }
 
     private fun releaseRecognizer() {
+        dictation?.close()
+        dictation = null
         recognizer?.let { runCatching { it.destroy() } }
         recognizer = null
     }
@@ -226,6 +243,9 @@ class VoiceRecognizer(
 
         /** How long to wait after speech ends before using the latest partial. */
         const val FINAL_WAIT_MS = 4_000L
+
+        /** A pause of zero seconds: the recognition service decides when the speaker has finished. */
+        const val SERVICE_PAUSE = 0
 
         fun detectEngine(context: Context): VoiceEngine {
             val services = runCatching {

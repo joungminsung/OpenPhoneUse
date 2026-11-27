@@ -185,6 +185,11 @@ class SettingsStore internal constructor(
     val unfoldedLayout: Flow<UnfoldedLayout> = store.data.map { prefs -> enumOf(prefs[UNFOLDED], UnfoldedLayout.SIDE_BY_SIDE) }
     val voiceLanguage: Flow<VoiceLanguage> = store.data.map { prefs -> enumOf(prefs[VOICE_LANG], DEFAULT_VOICE_LANGUAGE) }
 
+    /** Settings "받아쓰기 대기 시간": how long the mic waits for the first word and through a pause, in seconds. */
+    val dictationWaitSeconds: Flow<Int> = store.data.map { prefs ->
+        prefs[DICTATION_WAIT_SECONDS]?.takeIf { it in DICTATION_WAIT_OPTIONS } ?: DEFAULT_DICTATION_WAIT_SECONDS
+    }
+
     /** Settings "답 소리 내어 읽기": replies are read aloud when a run ends; off by default. */
     val readAloud: Flow<Boolean> = store.data.map { it[READ_ALOUD] ?: false }
     val screenContent: Flow<ScreenContent> = store.data.map { prefs -> enumOf(prefs[SCREEN_CONTENT], ScreenContent.ALL) }
@@ -393,6 +398,11 @@ class SettingsStore internal constructor(
         store.edit { it[VOICE_LANG] = v.name }
     }
 
+    suspend fun setDictationWaitSeconds(seconds: Int) {
+        require(seconds in DICTATION_WAIT_OPTIONS)
+        store.edit { it[DICTATION_WAIT_SECONDS] = seconds }
+    }
+
     suspend fun setReadAloud(v: Boolean) {
         store.edit { it[READ_ALOUD] = v }
     }
@@ -458,6 +468,10 @@ class SettingsStore internal constructor(
 
         /** "대화 기록 보관" choices in days; 0 = forever. */
         val RETENTION_OPTIONS = listOf(30, 90, 365, 0)
+
+        /** "받아쓰기 대기 시간" choices in seconds. */
+        const val DEFAULT_DICTATION_WAIT_SECONDS = 6
+        val DICTATION_WAIT_OPTIONS = listOf(3, DEFAULT_DICTATION_WAIT_SECONDS, 10)
         // 20:00, an hour before the DELIVERY nudge's 21:00 spending total, so the two never arrive together.
         const val DEFAULT_SUMMARY_MINUTE = 20 * 60
         const val DAY_MINUTES = 24 * 60
@@ -476,6 +490,7 @@ class SettingsStore internal constructor(
         private val FONT_SIZE = stringPreferencesKey("font_size")
         private val UNFOLDED = stringPreferencesKey("unfolded_layout")
         private val VOICE_LANG = stringPreferencesKey("voice_language")
+        private val DICTATION_WAIT_SECONDS = intPreferencesKey("dictation_wait_seconds")
         private val READ_ALOUD = booleanPreferencesKey("read_aloud")
         private val SCREEN_CONTENT = stringPreferencesKey("screen_content")
 

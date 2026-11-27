@@ -200,6 +200,7 @@ fun SettingsScreen(
     val fontSize by settings.fontSize.collectAsState(FontSize.DEFAULT)
     val unfolded by settings.unfoldedLayout.collectAsState(UnfoldedLayout.SIDE_BY_SIDE)
     val voice by settings.voiceLanguage.collectAsState(SettingsStore.DEFAULT_VOICE_LANGUAGE)
+    val dictationWait by settings.dictationWaitSeconds.collectAsState(SettingsStore.DEFAULT_DICTATION_WAIT_SECONDS)
     val readAloud by settings.readAloud.collectAsState(false)
     val screenContent by settings.screenContent.collectAsState(ScreenContent.ALL)
 
@@ -322,6 +323,7 @@ fun SettingsScreen(
                 ValueRow(tr("Text size", "글자 크기"), label(FONT_LABELS, fontSize), onClick = { choice = Choice.FONT })
                 ValueRow(tr("On the unfolded screen", "펼친 화면에서"), label(UNFOLDED_LABELS, unfolded), onClick = { choice = Choice.UNFOLDED })
                 ValueRow(tr("Speak by voice", "음성으로 말하기"), label(VOICE_LABELS, voice), onClick = { choice = Choice.VOICE })
+                ValueRow(tr("Dictation wait time", "받아쓰기 대기 시간"), label(DICTATION_WAIT_LABELS, dictationWait), onClick = { choice = Choice.DICTATION_WAIT })
                 SwitchRow(tr("Read answers aloud", "답 소리 내어 읽기"), tr("Reads the answer when a task finishes", "작업이 끝나면 답을 읽어 줘요"), readAloud) { v -> scope.launch { settings.setReadAloud(v) } }
             }
 
@@ -448,6 +450,10 @@ fun SettingsScreen(
             Choice.FONT -> ChoiceDialog(tr("Text size", "글자 크기"), FONT_LABELS, fontSize, close) { v -> scope.launch { settings.setFontSize(v) } }
             Choice.UNFOLDED -> ChoiceDialog(tr("On the unfolded screen", "펼친 화면에서"), UNFOLDED_LABELS, unfolded, close) { v -> scope.launch { settings.setUnfoldedLayout(v) } }
             Choice.VOICE -> ChoiceDialog(tr("Speak by voice", "음성으로 말하기"), VOICE_LABELS, voice, close) { v -> scope.launch { settings.setVoiceLanguage(v) } }
+            Choice.DICTATION_WAIT -> ChoiceDialog(
+                tr("Dictation wait time", "받아쓰기 대기 시간"), DICTATION_WAIT_LABELS, dictationWait, close,
+                note = tr("How long the mic waits for your first word. In the chat box and the floating panel it also waits this long through a pause.", "마이크가 첫마디를 기다리는 시간이에요. 채팅 입력창과 플로팅 패널에서는 말하다 멈췄을 때도 이만큼 기다려요."),
+            ) { seconds -> scope.launch { settings.setDictationWaitSeconds(seconds) } }
             Choice.SCREEN -> ChoiceDialog(
                 tr("Screen content sent to the model", "모델에 보내는 화면 내용"), SCREEN_LABELS, screenContent, close,
                 note = tr("With ‘Text only’, no screenshots are sent, just the text and structure of the screen. Screens made only of images get harder to handle.", "‘글자만’이면 화면 캡처는 보내지 않고 화면의 글자와 구조만 보내요. 그림으로만 된 화면은 다루기 어려워져요."),

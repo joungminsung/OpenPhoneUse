@@ -141,6 +141,18 @@ suspend fun voiceLanguageNow(
     }
 }
 
+/**
+ * The dictation wait to start with, in seconds: the saved choice read now ([read]); the default when that
+ * fails or takes longer than [timeoutMs].
+ */
+suspend fun dictationWaitNow(read: suspend () -> Int, timeoutMs: Long = VOICE_READ_MS): Int = try {
+    withTimeoutOrNull(timeoutMs) { read() } ?: SettingsStore.DEFAULT_DICTATION_WAIT_SECONDS
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    SettingsStore.DEFAULT_DICTATION_WAIT_SECONDS
+}
+
 /** Which recognizer runs the in-app mic. */
 sealed interface VoiceEngine {
     /** A RecognitionService named explicitly (normally Google's), run without its dialog. */
@@ -152,6 +164,14 @@ sealed interface VoiceEngine {
     /** No usable in-app recognizer: the old system speech dialog. */
     data object Dialog : VoiceEngine
 }
+
+/**
+ * True when a start asks the recognition service for a segmented session: one utterance kept open through pauses,
+ * with each phrase returned as it is finished. Only an input that waits through a pause wants one ([pauseSeconds]
+ * above zero), the request exists from Android 13 ([sdk] 33), and only Google's services are known to answer it.
+ */
+fun asksForSegments(sdk: Int, pauseSeconds: Int, engine: VoiceEngine): Boolean =
+    sdk >= 33 && pauseSeconds > 0 && engine is VoiceEngine.Service && engine.packageName in PREFERRED_RECOGNIZERS
 
 /** Google's recognizers, best first: the Google app, then Speech Services by Google. */
 val PREFERRED_RECOGNIZERS = listOf("com.google.android.googlequicksearchbox", "com.google.android.tts")

@@ -6,11 +6,12 @@ import com.phoneuse.app.ControlSpeed
 import com.phoneuse.app.FontSize
 import com.phoneuse.app.QuietHours
 import com.phoneuse.app.ScreenContent
+import com.phoneuse.app.SettingsStore
 import com.phoneuse.app.UnfoldedLayout
 import com.phoneuse.app.VoiceLanguage
 
 /** The settings that open a choice dialog. */
-enum class Choice { RETENTION, ASSIST, SPEED, SUMMARY, QUIET, FONT, UNFOLDED, VOICE, SCREEN }
+enum class Choice { RETENTION, ASSIST, SPEED, SUMMARY, QUIET, FONT, UNFOLDED, VOICE, DICTATION_WAIT, SCREEN }
 
 val RETENTION_LABELS get() = listOf(30 to tr("30 days", "30일"), 90 to tr("90 days", "90일"), 365 to tr("1 year", "1년"), 0 to tr("Forever", "무기한"))
 val ASSIST_LABELS get() = listOf(AssistAction.SUGGEST to tr("Ideas for this screen", "이 화면으로 할 일"), AssistAction.TYPE to tr("Talk right away", "바로 말하기"))
@@ -18,6 +19,7 @@ val SPEED_LABELS get() = listOf(ControlSpeed.FAST to tr("Fast", "빠르게"), Co
 val FONT_LABELS get() = listOf(FontSize.DEFAULT to tr("Default", "기본"), FontSize.LARGE to tr("Large", "크게"), FontSize.LARGEST to tr("Largest", "아주 크게"))
 val UNFOLDED_LABELS get() = listOf(UnfoldedLayout.SIDE_BY_SIDE to tr("Chat + result side by side", "대화 + 결과 나란히"), UnfoldedLayout.CHAT_ONLY to tr("Chat only", "대화만"))
 val VOICE_LABELS get() = listOf(VoiceLanguage.KOREAN to "한국어", VoiceLanguage.ENGLISH to "English", VoiceLanguage.SYSTEM to tr("Device language", "기기 언어"))
+val DICTATION_WAIT_LABELS get() = SettingsStore.DICTATION_WAIT_OPTIONS.map { it to tr("$it seconds", "${it}초") }
 val SCREEN_LABELS get() = listOf(ScreenContent.ALL to tr("Everything", "전부"), ScreenContent.TEXT_ONLY to tr("Text only", "글자만"))
 
 /** "오늘 요약 받기" times (minutes of the day); -1 = off. */
